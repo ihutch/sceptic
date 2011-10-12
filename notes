@@ -441,3 +441,7 @@ values as before for rho.
 
 Done all that and seem to have it working together with an updated
 postproc that puts the line on to the -o logarithmic plots.
+
+12 Oct 11
+Forked git repository from the cvs checkout that Christian did.
+https://github.com/ihutch/sceptic Cloned to local. 
