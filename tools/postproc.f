@@ -440,6 +440,7 @@ c      call multiframe(2,2,3)
       ntype=2+16+32
       call contourl(rholocal(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
+      call color(15)
       call gradlegend(zclv(1),zclv(abs(icl)),
      $     .1,1.25,.9,1.25,0.02,.true.)
 c Call a second time for contours, without the highest.
@@ -465,6 +466,7 @@ c      endif
 c Fit closer than boxtitle
       call legendline(0.47,1.07,258,'n/n!A!d;!d!@'//tstring)
 c      call boxtitle('n/n!A!d;!d!@')
+      call color(15)
       call axis()
       call axlabels('z','r sin!Aq!@')
   
@@ -613,6 +615,7 @@ c         if(ledge)write(*,*)'Tr-contours',(zclv2(ii),ii=1,icl2)
      $        zclv1,icl,zrho,xrho,ntype)
       write(*,*)'Trmin,Trmax',Trmin,Trmax
       call ticrev()
+      call color(15)
       call gradlegend(Trmin,Tmax,
      $     1.1,0.1,1.1,0.9,0.03,.false.)
       call ticrev()
@@ -661,6 +664,7 @@ c Ttp plot
      $        zclv1,icl,zrho,xrho,ntype)
       write(*,*)'Tmin,Tmax',Tmin,Tmax
       call ticrev()
+      call color(15)
       call gradlegend(Trmin,Tmax,
      $     1.1,0.1,1.1,0.9,0.03,.false.)
       call ticrev()
@@ -790,6 +794,7 @@ c      call multiframe(2,2,3)
       ntype=2+16+32
       call contourl(phi(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
+      call color(15)
       call gradlegend(zclv(1),zclv(abs(icl)),
      $     .1,1.25,.9,1.25,0.02,.true.)
 
@@ -830,6 +835,7 @@ c     $           zclv(1),icl,zrho,xrho,ntype)
          endif
 c      endif
       call legendline(0.47,1.07,258,'!Af!@'//char(0))
+      call color(15)
       call axis()
       call axlabels('z','r sin!Aq!@')
       if(larrows) then
@@ -1501,7 +1507,7 @@ c fix angle ends of rho and phi
          rholocal(k1,0)=rholocal(k1,1)
          rholocal(k1,nthhere+1)=rholocal(k1,nthhere)
       enddo
-      ir=10.
+      ir=10
       if(ledge)then
          rhomax=min(rhomax,1.5)
          rhomin=.5

@@ -527,5 +527,6 @@ c if ir.eq.nrused, the cell is already half the size
       else
          collf=0.
       endif
+c      write(*,*)'ir,vz,partsum,vd,collf',ir,vz,partsum,vd,collf
 
       end

@@ -669,6 +669,7 @@ c Small mesh written diagnostics.
  503     format(10f8.1)
  504     format(10f8.3) 
          call flush()
+         call accisrefresh()
       enddo
 c End of particle stepping section.
 
