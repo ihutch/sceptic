@@ -11,6 +11,7 @@ c Common data:
       include 'colncom.f'
       character*35 filename
 c      integer iti,it2
+      real totalf(nrfrcmax)
 c Construct a filename that contains many parameters
 c Using the routines in strings_names.f
       filename=' '
@@ -98,14 +99,18 @@ c     Just save the last quarter for the average
 
 c Output time-averages of z-force components stored in zmom(nstepmax,*,*).
 c Particle units nTr^2, Electric nT lambda_D^2.
-      total1=zmom(nstepmax,fieldz,1)*debyelen**2 +zmom(nstepmax,epressz
-     $     ,1)+zmom(nstepmax,partz,1)+zmom(nstepmax,collision,1)
-      total2=zmom(nstepmax,fieldz,2)*debyelen**2 +zmom(nstepmax,epressz
-     $     ,2)+zmom(nstepmax,partz,2)+zmom(nstepmax,collision,2)
-      write(10,*)'Charge      E-field       Electrons',
+      do k=1,nrfrc
+         totalf(k)=zmom(nstepmax,fieldz,k)*debyelen**2 +zmom(nstepmax
+     $        ,epressz,k)+zmom(nstepmax,partz,k)+zmom(nstepmax,collision
+     $        ,k)
+      enddo
+      write(10,*)nrfrc
+      write(10,*)'izmomr  Charge      E-field       Electrons',
      $     '      Ions     Coll     Total'
-      write(10,*)(zmom(nstepmax,j,1),j=1,5),total1
-      write(10,*)(zmom(nstepmax,j,2),j=1,5),total2
+      do k=1,nrfrc
+         write(10,'(i4,$)')izmrad(k)
+         write(10,'(6g12.4)')(zmom(nstepmax,j,k),j=1,5),totalf(k)
+      enddo
       write(10,*)'Collisions: Type,Weight,Eneutral,vneutral,Tneutral'
       write(10,701) icolntype,colnwt,Eneutral ,vneutral,Tneutral
       write(10,'(''rmtoz='',f10.4)')rmtoz
@@ -212,24 +217,30 @@ c Write a second file with the force data as a function of step
       subroutine outforce(filename,istepmax)
       character*(*) filename
       include 'piccom.f'
-      real zmn(nstepmax,4,2)
+      real zmn(nstepmax,5,2)
 c Apply normalization factors but don't change the zmom.
 c Perhaps this extra storage is unnecessary.
       do i=1,istepmax
-         do k=1,2
+         do k=1,nrfrc
             zmn(i,enccharge,k)=zmom(i,enccharge,k)
             zmn(i,partz,k)=zmom(i,partz,k)/rhoinf
             zmn(i,epressz,k)=zmom(i,epressz,k)
             zmn(i,fieldz,k)=zmom(i,fieldz,k)*debyelen**2
+            zmn(i,collision,k)=zmom(i,collision,k)/rhoinf
          enddo
       enddo
       open(9,file=filename)
-      write(9,*)istepmax
+      write(9,*)'Forces may be plotted by e.g. plottraces -st6 filename'
       write(9,*)'Step    Charge     E-field      Electrons',
-     $        '      Ions   Total Force'
-      write(9,'(i5,5f12.5)')((i,(zmn(i,j,k),j=1,4)
-     $     ,zmn(i,partz,k)+zmn(i,fieldz,k)+zmn(i,epressz,k)
-     $     ,k=1,2),i=1,istepmax)
+     $        '      Ions      Colns Total Force'
+      do k=1,nrfrc
+         write(9,'(a,i3,a,f8.3)')'legend: Sphere',k,' Radius'
+     $        ,r(izmrad(k))
+         write(9,*)istepmax,6
+         write(9,'(i5,6f12.5)')(i,(zmn(i,j,k),j=1,5),zmn(i,partz,k)
+     $        +zmn(i,fieldz,k)+zmn(i,epressz,k)+zmn(i,collision,k),i=1
+     $        ,istepmax)
+      enddo
       close(9)
       end
 c**********************************************************************

@@ -4,7 +4,8 @@ c***********************************************************************
 c Common data:
       include 'piccom.f'
 
-      logical istrapped,istrapped2
+c      logical istrapped
+      logical istrapped2
 c      ninner=0
       
       do j=0,nth+1
@@ -396,7 +397,7 @@ c Return the charge qp, esforce fz, and electron pressure force epz.
       
       real ercoef(nthsize),etcoef(nthsize),ertcoef(nthsize)
       real qpcoef(nthsize)
-      real vy,frac,partsum
+      real frac,partsum
 
       logical lnotinit
       data lnotinit/.true./

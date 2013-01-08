@@ -381,6 +381,7 @@ c**********************************************************************
          r=c/(2.*s)
          alcos=-(sqrt(1.+c-s**2)-(s-r)*r)/(1+r**2)
       endif
+      if(.not.abs(alcos).le.1.e20)write(*,*)'alcos error',s,c,alcos
       end
 c**********************************************************************
       real function alsin(s,c)
@@ -392,6 +393,7 @@ c**********************************************************************
          r=c/(2.*s)
          alsin=(sqrt(1.+c-s**2)*r+(s-r))/(1+r**2)
       endif
+      if(.not.abs(alsin).le.1.e20)write(*,*)'alsin error',s,c,alsin
       end
 c**********************************************************************
 c**********************************************************************
@@ -417,6 +419,7 @@ c This choice ensures iqsteps is large enough to accommodate a profile
 c read in for processing with orbitint, but might not be the best choice for
 c regular use.
 c      parameter (iqsteps=nrsize+1)
+      parameter (eup=1.e-12)
       parameter (iqsteps=100+1)
       real phibye(iqsteps),phiei(iqsteps)
       real qp(iqsteps),pp(iqsteps)
@@ -495,10 +498,10 @@ c     not be called.
 c End of initialization section.
 c Do the integration for the orbit.
       ierr=0
-      b2i=1./b2
-      p2i2=2./p2
+      b2i=1./(b2+eup)
+      p2i2=2./(p2+eup)
       sa=b2i - qp(1)**2 - p2i2*(averein*phibye(1)-adeficit*phiei(1))
-      d1=(1./sqrt(sa))
+      d1=1./(sqrt(sa)+eup)
 c Inverse square case.
 c      d1=1./sqrt(b2i)
       alpha=0.
@@ -509,7 +512,7 @@ c Trapezoidal rule.
 c Inverse square case.
 c         sa=b2i - qp(i)**2 - p2i2*extpot(qp(i))
          if(sa .le. 0.) goto 2
-         d1=(1./sqrt(sa))
+         d1=1./(sqrt(sa)+eup)
          alpha=alpha+(qp(i)-qp(i-1))*(d1+d2)*.5
       enddo
 c      write(*,*)'alpha=',alpha

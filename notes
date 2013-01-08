@@ -445,3 +445,80 @@ postproc that puts the line on to the -o logarithmic plots.
 12 Oct 11
 Forked git repository from the cvs checkout that Christian did.
 https://github.com/ihutch/sceptic Cloned to local. 
+
+4 Jan 12 
+Trying to use for collisional cases. Some improvement of code to avoid
+accis bugs/issues, and to give more info about collisional momentum.
+
+There's an occasional segfault in ogenreinject. Seems to be caused by
+invtfunc getting a bad result. The traceback version runs a lot slower.
+It is caused by a NAN in the value of xp(3).
+Seems to have been caused by an error in preventing overflow when
+dividing by u**2 to get chium2. Actually no, it was in alphaint,
+a divide by zero when b2 was zero. There were several places where
+divide by zeros were possibly occurring. I think I've got them all.
+
+5 Jan 12
+Killed the segfaults. Implemented proper distribution initialization 
+for constant nu. Fiddled with bug in velocity distribution diagnostics
+for small number of time steps. 
+
+Had to add scaling by rhoinf into the force output. 
+
+7 Jan 12
+Found that ierad, which is set by the -er switch is literally only the 
+place where the q, E-force, electron pressure force, and collision force
+are calculated. The particle force is only ever calculated at the 
+probe and the outer boundary. That means it is difficult to explore the
+balance of forces over different radii, in situations where the outer
+and inner force totals do not agree. (E.g. now with collisions.) 
+
+The particle momentum force is calculated in advancing.f 
+
+Converted the particle momentum data into an array. zmomprobe and zmout
+are equivalences into the array (the first two elements). The idea is
+that we can then use higher elements in the array to collect particle
+data at other radii, and we can convert the various reduces and writes
+to be array-oriented, at leisure.
+
+Introduced the array for storing force data. Modified the code to refer
+to it. Seems to be working and outputing correctly except I haven't 
+yet implemented the padvnc tracking of ion momentum force and collision
+force.
+
+Finished implementation of multiple measurement spheres for the force.
+They all output in the .frc file, which I reorganized somewhat so that
+(an updated) plottraces can understand and plot it.
+
+There's an error. The particle force for the various intermediate
+radii does not show a trend compatible with the trend in E-force. As a
+result those radii don't agree with the others even though (for
+collisionless cases) the inner and outer do agree. It appears that we
+have an error in evaluation of the partforce zmparts on those intermediate
+radii, but I can't see why. Seems to be a bug in the intrinsic sign function.
+c This longer version was found to give correct results when
+                  if(rp.gt.r(izmrad(kk)))then
+                     zmparts(kk)=zmparts(kk)+xp(6,i)
+                  else
+                     zmparts(kk)=zmparts(kk)-xp(6,i)
+                  endif
+c This version gave incorrect!
+c                  zmparts(kk)=zmparts(kk) +sign(xp(6,i),(rp
+c     $                 -r(izmrad(kk))))
+
+With this corrected we can see very well the issues with force
+measured at different radii, with collisions -kt2 -k0.1. For -l10 -x10
+the results are quite uniform. But with -x20 there is substantial fall
+off at larger radii. Presumably this is something to do with
+decreasing statistics and increasing sensitivity.
+
+At least we have something to show from a difficult day caused by the
+sign bug. We can now document clearly force measurement
+convergence. It is not obviously a time convergence problem. However,
+doubling the particle count and also running an mpiexec -n 2 does not
+seem to substantially assist the convergence. Ion force still falls
+off at larger radii, pretty much as badly, and is not made up by other
+effects. This bigger calculation works to larger radius if the duration
+is increased (-s200 -d.1) so actually it is somewhat a time problem. 
+This is a -t1 case. Increasing to -s500 gives good convergence out to
+r=16, but the zmout value is 15% low.

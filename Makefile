@@ -45,7 +45,7 @@ ifeq ("$(NOWARN)","")
 	NOWARN=
 endif
 
-COMPILE-SWITCHES =-Wall -Wno-unused-variable  $(NOWARN) -O2  -I.
+COMPILE-SWITCHES =-Wall $(NOWARN) -O2  -I.
 # For debugging.
 #  -g  -ffortran-bounds-check
 # For profiling

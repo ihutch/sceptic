@@ -215,6 +215,10 @@ c Initializing particles.
       subroutine pinit(icolntype)
 c Common data:
       include 'piccom.f'
+      include 'colncom.f'
+      external fvcxud
+      common /cxud/cx_ud
+
 
 c For now use the whole array.
       ntries=0
@@ -224,6 +228,11 @@ c For now use the whole array.
       idum=1
       if(rmax2.le.1.) stop 'Error: rmax is less than 1.'
 
+      Ti0=Ti
+      tisq=sqrt(Ti0)
+      ti2sq=sqrt(2.*Ti)
+c Normalized drift velocity driven by Eneutral.
+      cx_ud=(vd-vneutral)/ti2sq
 c     We initialize the 'true' particles'
       do i=1,npart
          ipf(i)=1
@@ -238,11 +247,8 @@ c     We initialize the 'true' particles'
          enddo
 c     If we are not in the plasma region, try again.
          if(rc.ge.rmax2 .or. rc.le.1.) goto 1
-         Ti0=Ti
-         tisq=sqrt(Ti0)
          xp(4,i)=tisq*gasdev(idum)
          xp(5,i)=tisq*gasdev(idum)
-
 c     If collisions, start with a distribution function that at least
 c     has the right temperature (It would maybe be better to start with
 c     the good distribution). This allows quicker convergence in when
@@ -250,7 +256,9 @@ c     the collisionality is very low but non-zero
          if(icolntype.eq.0) then
             xp(6,i)=tisq*gasdev(idum) + vd
          else
-            xp(6,i)=sqrt(Ti0+vd**2)*gasdev(idum)+vd
+            call drawfromfv(fvcxud,4.*(vd+1.)/ti2sq,vz)
+            xp(6,i)=ti2sq*vz
+c            xp(6,i)=sqrt(Ti0+vd**2)*gasdev(idum)+vd
          endif
 c         if(istrapped(i))then
 c            ntrapped=ntrapped+1
@@ -583,9 +591,6 @@ c     conservation is false for non-symmetric situations.
 
       end
 c***********************************************************************
-
-
-
       function mtrapped()
       include 'piccom.f'
       logical istrapped
@@ -597,4 +602,63 @@ c***********************************************************************
          endif
       enddo
 
+      end
+c**********************************************************************
+      subroutine drawfromfv(fofv,vm,v)
+c Draw a random velocity, v, from a distribution fofv in 
+c accordance with the cumulative velocity distribution. 
+c fofv is a non-negative external function, whose values are negligible
+c outside the argument range v in [-vm,vm]
+      real v,vm,fofv
+      external fofv
+      
+c Number of distribution values, number of calculation steps.
+      integer ndlen,ninlen
+      parameter (ndlen=1000,ninlen=1000)
+      real va(ndlen)
+      real finv(ninlen)
+      logical lfirst
+      data lfirst/.true./
+      save va
+
+c First time initialization
+      if(lfirst)then
+         finv(1)=0.
+         dx=2.*vm/(ninlen-1.)
+         do i=1,ninlen-1
+            x=-vm+(i-0.5)*dx
+            finv(i+1)=finv(i)+fofv(x)*dx
+c            write(*,*)i,x,finv(i+1)
+         enddo
+c Normalize
+         do i=1,ninlen
+            finv(i)=finv(i)/finv(ninlen)
+         enddo
+c Now we have the integral on the ninlen length -vm to +vm. 
+c Convert it to a uniform array in finv on the ndlen.
+c But discard the ends of the range slightly.
+         do i=1,ndlen
+            p=(i-.999)/(ndlen-.998)
+            call invtfunc(finv,ninlen,p,x)
+            if(x.eq.0)write(*,*)'drawfromfv init invert error'
+            va(i)=vm*(-1.+2.*(x-1.)/(ninlen-1.))
+c            write(*,*)i,p,x,va(i)
+         enddo
+         lfirst=.false.
+      endif
+c Here va(ndlen) is a set of velocities spaced at equal intervals
+c of cumulative probability from zero to 1. 
+c Draw a velocity
+      rx=ran0(1)
+      x=1.+rx*(ndlen-1.)
+      ix=int(x)
+c linearly interpolated.
+      v=va(ix)+(va(ix+1)-va(ix))*(x-float(ix))
+      end
+c*****************************************************************
+      real function fvcxud(u)
+c Drift-collisional distribution in velocity normalized by 
+c sqrt(2Ti/m).
+      common /cxud/cx_ud
+      fvcxud=fvcx(u,cx_ud)
       end

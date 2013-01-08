@@ -351,12 +351,14 @@ c Do this instead to ensure both plots fit.
       call minmax(vdiag,nvmax,xmin,xmax)
       call fitrange(xmin,xmax,6,nxfac,xfac,xdelta,xmin,xmax)
       call minmax(vrdiagin,nvmax,ymin,ymax)
+c      do i=1,nvmax
+c         write(*,*)i,vdiag(i),vrdiagin(i),vtdiagin(i)
+c      enddo
       call minmax(vtdiagin,nvmax,ytmin,ytmax)
       if(ytmax.gt.ymax) ymax=ytmax
       if(ytmin.lt.ymin) ymin=ytmin
       call fitrange(ymin,ymax,6,nxfac,xfac,xdelta,ymin,ymax)
       call pltinit(xmin,xmax,ymin,ymax)
-
       call polyline(vdiag,vrdiagin,nvmax)
       if(lbig) call charsize(0.02,0.02)
       call axis()
