@@ -32,7 +32,6 @@ c Parallel processing MPI options.
 #ifdef MPI
       include 'mpif.h'
       double precision sortime
-      integer rc
       call MPI_INIT( ierr )
       call MPI_COMM_RANK( MPI_COMM_WORLD, myid, ierr )
       call MPI_COMM_SIZE( MPI_COMM_WORLD, numprocs, ierr )
@@ -312,8 +311,10 @@ c Don't need the parallel solver for 0 Debye length
 
 #ifdef MPI
       if (sorparallel) then
+         write(*,*)'Initializing sorparallel',myid
          call sorparinit(myid2,sor_comm)
       elseif (myid.eq.0) then
+         write(*,*)'Serial sor solve only'
          myid2=0
       else
          myid2=-1
@@ -407,6 +408,10 @@ c Print out diagnostics for tiny meshes.
             call multiframe(2,2,3)
          endif
       endif
+c     Timing
+#ifdef MPI
+      sortime=MPI_WTIME()
+#endif
 
       time=0.
 c Save the permanent plot switch.
@@ -417,10 +422,6 @@ c Save the permanent plot switch.
 c      nsamax=2
       if(myid.eq.0)write(*,*)'maccel,nsamax,nstepsave',maccel,nsamax
      $     ,nstepsave
-c     Timing
-#ifdef MPI
-      sortime=MPI_WTIME()
-#endif
       
       if (myid.eq.0) then
          write(*,*) "Maxsteps : ",maxsteps
@@ -596,7 +597,6 @@ c     Calculate the potential field, unless it is fixed.
 #ifdef MPI
                elseif(sorparallel.and.myid2.ge.0) then
                   call fcalc_shielding_par(dt,rshield,sor_comm,myid2)
-                  
 #endif
                endif
             endif
@@ -626,18 +626,7 @@ c     Damping on ion motion by artificial potential modification.
             
 c     Evaluate total charge and z-forces. Not yet implemented for NGP.
             if(LCIC)then
-c               call esforce(1,qp,fz,epz,collf,colnwt)
-c               zmom(i,enccharge,1)=qp
-c               zmom(i,fieldz,1)=fz
-c               zmom(i,epressz,1)=epz
-c               zmom(i,collision,1)=collf
-c               call esforce(nrused,qp,fz,epz,collf,colnwt)
-c               zmom(i,enccharge,2)=qp
-c               zmom(i,fieldz,2)=fz
-c               zmom(i,epressz,2)=epz
-c               zmom(i,collision,2)=collf
                do k=1,nrfrc
-c                  write(*,*)'izmrad(k)',k,izmrad(k)
                   call esforce(izmrad(k),qp,fz,epz,collf,colnwt)
                   zmom(i,enccharge,k)=qp
                   zmom(i,fieldz,k)=fz
@@ -714,16 +703,10 @@ c Average various fluxes and fields:
       if(lplot) call pltend()
 c Restore the permanent plotting switch.
       lplot=lpstore
-
       if(writepart) call partwrt()
-      
       diags=.true.
-
       call chargetomesh()
-
       call sumreduce()
-
-
 
 c Draw some final diagnostic figures, if flag set.    
       if(finaldiags.and.myid.eq.0)then
@@ -751,11 +734,12 @@ c Write the output file.
       endif
 
 #ifdef MPI
-      if (myid2.eq.0) then
-         write(*,*) "Non-sor exec time : ",MPI_WTIME()-sortime
-      endif
-
-      call MPI_FINALIZE(rc)
+c      if (myid2.eq.0) then
+         write(*,*)myid, 'Time taken : ',MPI_WTIME()-sortime
+c      endif
+c This does not prevent the MPI errors at termination.
+c      call MPI_BARRIER(MPI_COMM_WORLD,ierr)
+      call MPI_FINALIZE(ierr)
 #endif
 
 c      call plotinject(Ti)

@@ -279,10 +279,6 @@ c This longer version was found to give correct results ...
                   else
                      zmparts(kk)=zmparts(kk)-xp(6,i)
                   endif
-c When this version gave incorrect! But I see no reason why.
-c It appears to be a bug in the intrinsic sign function.
-c                  zmparts(kk)=zmparts(kk) +sign(xp(6,i),(rp
-c     $                 -r(izmrad(kk))))
                endif
             enddo
 
