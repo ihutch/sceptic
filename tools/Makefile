@@ -63,6 +63,9 @@ COMPILE-SWITCHES = -Wall -O2
 postproc : postproc.f piccompost.f ../accis/libaccisX.a coulflux.f makefile
 	$(G77) $(COMPILE-SWITCHES) -g  -o postproc postproc.f coulflux.f $(libraries)
 
+postprocnew : postprocnew.f piccompost.f ../accis/libaccisX.a coulflux.f makefile
+	$(G77) $(COMPILE-SWITCHES) -g  -o postprocnew postprocnew.f coulflux.f $(libraries)
+
 all : ../accis/libaccisX.a postprocB postproc parrot fluxVp newsumplot fcol 
 
 ../accis/libaccisX.a : ../accis/*.f

@@ -1092,11 +1092,11 @@ c     normalize to rhoinf and the probe area to give normalized flux density
      $        enertot(nstepmax)/(itotsteps-m2+1)/rhoinf
 
          write(*,501)fave
- 501     format('Probe flux density=',f8.4)
+ 501     format('Probe flux density=',f10.4)
          write(*,502)collmomtot(nstepmax)
- 502     format('Momentum coll from infinity=',f8.4)
+ 502     format('Momentum coll from infinity=',f10.4)
          write(*,503)enertot(nstepmax)
- 503     format('Probe energy flux=',f8.4)
+ 503     format('Probe energy flux=',f10.4)
          write(*,*)'Radius Charge       E-field     Electrons',
      $        '       Ions     Coll       Total'
          do k=1,nrfrc

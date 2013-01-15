@@ -553,3 +553,15 @@ An -x40 case gives:
 Which is that the force in the inner regions is the same.
 
 -k.001 gives force of 60. which _rises_ slightly towards the outside.
+
+15 Jan 12
+mpi crash at end occurs for this setting which runs quickly:
+
+mpiexec -n 2 sceptic -nr30 -nt5 -ni1000 -x20. -v1. -l10. -d.1 -c5 -t.01 -vn0. -p-2. -s1000 -er3 -er10 -er20 -er25 -er28 -kt2 -k.01 -f -g
+
+It goes away if the number of measurement radii is reduced. Or if the number of
+steps is reduced below ~400. But not by commenting out 
+c            call MPI_REDUCE(zmparts(k),zmom(i,partz,k),1,MPI_REAL
+c     $           ,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+
+or even the partreduce call in its entirety. Or even sumreduce everywhere.
