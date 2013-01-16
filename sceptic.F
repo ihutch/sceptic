@@ -727,6 +727,9 @@ c Draw some final diagnostic figures, if flag set.
             call charsize(0.0,0.0)
          endif
       endif
+c If we finalize here we avoid neither initialized errors.
+c      call MPI_FINALIZE(ierr)
+
       if(myid.eq.0)then
 c Write the output file.
          call output(dt,damplen,i-1,fave,icolntype,colnwt)
@@ -740,6 +743,7 @@ c      endif
 c This does not prevent the MPI errors at termination.
 c      call MPI_BARRIER(MPI_COMM_WORLD,ierr)
       call MPI_FINALIZE(ierr)
+c But either of those calls provoke the neither initialized error.
 #endif
 
 c      call plotinject(Ti)

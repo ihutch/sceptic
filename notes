@@ -558,10 +558,21 @@ Which is that the force in the inner regions is the same.
 mpi crash at end occurs for this setting which runs quickly:
 
 mpiexec -n 2 sceptic -nr30 -nt5 -ni1000 -x20. -v1. -l10. -d.1 -c5 -t.01 -vn0. -p-2. -s1000 -er3 -er10 -er20 -er25 -er28 -kt2 -k.01 -f -g
-
+b
 It goes away if the number of measurement radii is reduced. Or if the number of
 steps is reduced below ~400. But not by commenting out 
 c            call MPI_REDUCE(zmparts(k),zmom(i,partz,k),1,MPI_REAL
 c     $           ,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-
 or even the partreduce call in its entirety. Or even sumreduce everywhere.
+
+It turns out that the MPI problem arises by the statement:
+         call output(dt,damplen,i-1,fave,icolntype,colnwt)
+which writes the output file.
+
+The problem seems to come from call outforce.
+
+FOUND the problem. Exceeding array bounds in
+      real zmn(nstepmax,5,2) now should be: 
+      real zmn(nstepmax,5,nrfrcmax)
+
+Fixed the mpi corruption.

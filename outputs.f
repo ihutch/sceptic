@@ -1,7 +1,7 @@
 
 c***********************************************************************
 c Version 2.6 outputs two files. T...frc traces the force evolution.
-
+c 2012 version appears to corrupt MPI somehow.
 
 c*********************************************************************
 c     Writes the main output file
@@ -217,7 +217,8 @@ c Write a second file with the force data as a function of step
       subroutine outforce(filename,istepmax)
       character*(*) filename
       include 'piccom.f'
-      real zmn(nstepmax,5,2)
+      real zmn(nstepmax,5,nrfrcmax)
+
 c Apply normalization factors but don't change the zmom.
 c Perhaps this extra storage is unnecessary.
       do i=1,istepmax

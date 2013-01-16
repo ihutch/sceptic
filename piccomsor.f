@@ -1,9 +1,9 @@
-
 c Here are stored the common declarations for the parallel bloc solver
 
       
 c     Number of participating processors
-      integer nprocs
+c Seems not to be needed.
+c      integer nprocs
 
 
 c     Cartesian communicator
@@ -41,7 +41,5 @@ c     myorig1 is just the origin of the 1st dimension
 c     If we are on the border or not, for the BC
       logical out
       
-c      common /sor_parallel/ nprocs,icommcart,iLs,iuds,idims,icoords
-c     $     ,iorig,ifull,myside,mycartid,myorig,myorig1,myorig2
       common/sor_parallel/iLcoords,icommcart,ifull,iorig,iuds,idims,iLs
      $     ,icoords,myside,myorig,myorig1,myorig2,out
