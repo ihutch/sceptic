@@ -12,31 +12,8 @@ c Common data:
       character*35 filename
 c      integer iti,it2
       real totalf(nrfrcmax)
-c Construct a filename that contains many parameters
-c Using the routines in strings_names.f
-      filename=' '
-      call nameappendexp(filename,'T',Ti,1)
-      call nameappendint(filename,'v',nint(100*vd),3)
-      if(r(nr).ge.100)then
-         call nameappendint(filename,'R',ifix(r(nr)/10.),2)
-      else
-         call nameappendint(filename,'r',ifix(r(nr)),2)
-      endif
-      call nameappendint(filename,'P',ifix(abs(Vprobe)),2)
-      if (infdbl) then
-         call nameappendexp(filename,'LI',debyelen,1)
-      else
-         call nameappendexp(filename,'L',debyelen,1)
-      endif
-      if(Bz.ne.0.) call nameappendexp(filename,'B',Bz,2)
-      if(icolntype.eq.1.or.icolntype.eq.5)
-     $     call nameappendexp(filename,'c',colnwt,1)
-      if(icolntype.eq.2.or.icolntype.eq.6)
-     $     call nameappendexp(filename,'C',colnwt,1)
-     
-      if(vneutral.ne.0)
-     $     call nameappendint(filename,'N',nint(100*vneutral),3)
 
+      call basefilename(icolntype,colnwt,filename)
       idf=nbcat(filename,'.dat')
 c Write out averaged results.
       open(10,file=filename)
@@ -246,41 +223,46 @@ c Perhaps this extra storage is unnecessary.
       end
 c**********************************************************************
 c Write out the particle data.
-      subroutine partwrt()
+      subroutine partwrt(icolntype,colnwt)
 c Common data:
       include 'piccom.f'
-      character*11 filename
+      include 'colncom.f'
+      character*36 filename
 
-      write(filename,'(''part'',i3.3,''.dat'')')myid
+c      write(filename,'(''part'',i3.3,''.dat'')')myid
+      call basefilename(icolntype,colnwt,filename)
+      write(filename(lentrim(filename)+1:),'(''.'',i3.3)')myid
 c Delete the file first to help with nfs problems.
       open(11,file=filename,status='unknown')
       close(11,status='delete')
 c
       open(11,file=filename,status='unknown')
       write(11,*)npartmax,npart,nr,nth,ndim,np
-      write(11,*)xp
+      write(11,*)((xp(i,j),i=1,ndim),j=1,npart)
       write(11,*)rhoinf,spotrein,averein
-      write(*,*)'rhoinf,spotrein,averein',rhoinf,spotrein,averein
+c      write(*,*)'rhoinf,spotrein,averein',rhoinf,spotrein,averein
       close(11)
       end
 
 c**********************************************************************
 c Read in the particle data.
-      subroutine partrd(success)
+      subroutine partrd(filename,success)
       logical success
+      character*(*) filename
 c Common data:
       include 'piccom.f'
-      character*11 filename
+c      include 'colncom.f'
 
-      write(filename,'(''part'',i3.3,''.dat'')')myid
+c      write(filename,'(''part'',i3.3,''.dat'')')myid
+c      write(*,*)'filename=',filename
       success=.false.
       open(11,file=filename,status='old',err=101)
       read(11,*,err=100,end=100)ipartmax,ipart,ir,ith,idim,ip
-      if(ipartmax.eq.npartmax .and. ipart.eq.npart
-     $     )then
+      if(ipartmax.eq.npartmax .and. ipart.eq.npart)then
 c     $ .and. ir.eq.nr .and. ith.eq.nth )then
          write(*,*)'Using saved particle data.'
-         read(11,*,err=100,end=100)xp
+         read(11,*,err=100,end=100)((xp(i,j),i=1,ndim),j=1,npart)
+c         read(11,*,err=100,end=100)xp
          read(11,*,err=100,end=100)rhoinf,spotrein,averein
       write(*,*)'rhoinf,spotrein,averein',rhoinf,spotrein,averein
          success=.true.
@@ -291,9 +273,9 @@ c     $ .and. ir.eq.nr .and. ith.eq.nth )then
       close(11)
       return
  100  close(11)
-      write(*,*) 'Error reading pardata.dat'
+      write(*,*) 'Error reading pardata.dat',filename
       return
- 101  write(*,*) 'No particle file to read.'
+ 101  write(*,*) 'No particle file to read.',filename
       end
 c**********************************************************************
 c Get the average and slope over the rmesh range i1,i2.
@@ -357,7 +339,36 @@ c      open(10,file=filename)
       write(10,*)'t[cc]'
       write(10,*)(tcc(k2),k2=1,nthhere)
       end
+c***************************************************************
+      subroutine basefilename(icolntype,colnwt,filename)
+      character*(*) filename
+      include 'piccom.f'
+      include 'colncom.f'
 
+c Construct a filename that contains many parameters
+c Using the routines in strings_names.f
+      filename=' '
+      call nameappendexp(filename,'T',Ti,1)
+      call nameappendint(filename,'v',nint(100*vd),3)
+      if(r(nr).ge.100)then
+         call nameappendint(filename,'R',ifix(r(nr)/10.),2)
+      else
+         call nameappendint(filename,'r',ifix(r(nr)),2)
+      endif
+      call nameappendint(filename,'P',ifix(abs(Vprobe)),2)
+      if (infdbl) then
+         call nameappendexp(filename,'LI',debyelen,1)
+      else
+         call nameappendexp(filename,'L',debyelen,1)
+      endif
+      if(Bz.ne.0.) call nameappendexp(filename,'B',Bz,2)
+      if(icolntype.eq.1.or.icolntype.eq.5)
+     $     call nameappendexp(filename,'c',colnwt,1)
+      if(icolntype.eq.2.or.icolntype.eq.6)
+     $     call nameappendexp(filename,'C',colnwt,1)
+     
+      if(vneutral.ne.0)
+     $     call nameappendint(filename,'N',nint(100*vneutral),3)
 
-
-
+      end
+c******************************************************************

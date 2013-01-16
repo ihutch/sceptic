@@ -386,7 +386,11 @@ c         vtdiagin(kk)=0
 c Initialize collisions and related fields.
       call colninit(colnwt,icolntype)
 c Read in the previous particle distribution and averages.
-      if(readpart) call partrd(success)
+      if(readpart)then
+         call basefilename(icolntype,colnwt,string)
+         write(string(lentrim(string)+1:),'(''.'',i3.3)')myid
+         call partrd(string,success)
+      endif
 c Or Initialize (load) particles
       if(.not.success) call pinit(icolntype)
 c Assign charge to mesh
@@ -703,7 +707,7 @@ c Average various fluxes and fields:
       if(lplot) call pltend()
 c Restore the permanent plotting switch.
       lplot=lpstore
-      if(writepart) call partwrt()
+      if(writepart) call partwrt(icolntype,colnwt)
       diags=.true.
       call chargetomesh()
       call sumreduce()

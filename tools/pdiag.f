@@ -14,10 +14,11 @@ c at steady state where the distribution is the injection distribution.
       real fv1(-nv:nv),fv2(-nv:nv),fv3(-nv:nv),v(-nv:nv)
      $     ,fmaxwell(-nv:nv),fz(-nv:nv)
       character*100 string
+      character*100 filename
 
 c Defaults
       Ti=1.
-      rmax=5.
+      rmax=50.
       rmin=0.
       vd=0.
       myid=0
@@ -43,6 +44,7 @@ c Deal with arguments.
          endif
          if(string(1:2) .eq. '-m') read(string(3:),*)myid
          if(string(1:2) .eq. '-?') goto 51
+         if(string(1:1) .ne. '-')read(string(1:),*)filename
  1    continue
  3    continue
 
@@ -62,16 +64,18 @@ c Deal with arguments.
       nplus=0
       nminus=0
 
-      do myid=0,36
+      do myid=0,0
          write(*,*)'Reading particles for myid=',myid
-         call partrd(success)
+         call partrd(filename,success)
          if(.not.success)then
             write(*,*)'Quitting read attempts'
             goto 10
          else
+            write(*,*)'npart=',npart
             do i=1,npart
                rp=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
                costheta=xp(3,i)/rp
+c               write(*,*)i,rp,costheta
                if(rmin.le.rp .and. rp.le.rmax)then
                   iv1=min(nv,max(-nv,nint(xp(4,i)*nv/vrange)))
                   iv2=min(nv,max(-nv,nint(xp(5,i)*nv/vrange)))
@@ -133,27 +137,27 @@ c Don't plot the bottom end if there's no data.
       call pltend()
 
       call exit(0)
- 51   write(*,*)'Usage: pdiag -t -r -x -v -m',
-     $     'tempr, rmin, rmax, velocity, mass'
+ 51   write(*,*)'Usage: pdiag [-t -r -x -v -m] filename'
+      write(*,*)'    [tempr, rmin, rmax, velocity, mass]'
       end
 
 c**********************************************************************
 c Read in the particle data.
-      subroutine partrd(success)
+      subroutine partrd(filename,success)
       logical success
+      character*(*) filename
 c Common data:
       include 'piccom.f'
-c Included myid.
-      character*11 filename
 
-      write(filename,'(''part'',i3.3,''.dat'')')myid
+c      write(filename,'(''part'',i3.3,''.dat'')')myid
+c      write(*,*)'filename=',filename
       success=.false.
       open(11,file=filename,status='old',err=101)
-      read(11,*,err=100,end=100)ipartmax,ipart,ir,ith,idim,ip
+      read(11,*,err=100,end=100)ipartmax,npart,ir,ith,idim,ip
       if(ipartmax.eq.npartmax)then
-         npart=ipart
          write(*,*)'Using saved particle data.'
-         read(11,*,err=100,end=100)xp
+         read(11,*,err=100,end=100)((xp(i,j),i=1,ndim),j=1,npart)
+c         read(11,*,err=100,end=100)xp
          read(11,*,err=100,end=100)rhoinf,spotrein,averein
       write(*,*)'rhoinf,spotrein,averein',rhoinf,spotrein,averein
          success=.true.
@@ -162,11 +166,13 @@ c Included myid.
      $        npart,ir,nr,ith,nth
       endif
       close(11)
+c      write(*,*)'partrd',npart
+
       return
  100  close(11)
-      write(*,*) 'Error reading pardata.dat'
+      write(*,*) 'Error reading pardata.dat',filename
       return
- 101  write(*,*) 'No particle file to read:', filename
+ 101  write(*,*) 'No particle file to read.',filename
       end
 c**********************************************************************
 c****************************************************************
