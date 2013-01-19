@@ -446,6 +446,7 @@ c We do this at a specified radius node.
       if(k.gt.nrused)then
          write(*,*)'esforce radial node number too large. Reset.'
          k=nrused
+         ir=nrused
       endif
       delr=(r(2)-r(1))
       j=0

@@ -257,7 +257,7 @@ c     the collisionality is very low but non-zero
             xp(6,i)=tisq*gasdev(idum) + vd
          else
             call drawfromfv(fvcxud,4.*(vd+1.)/ti2sq,vz)
-            xp(6,i)=ti2sq*vz
+            xp(6,i)=ti2sq*vz + vneutral
 c            xp(6,i)=sqrt(Ti0+vd**2)*gasdev(idum)+vd
          endif
 c         if(istrapped(i))then

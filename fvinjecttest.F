@@ -65,7 +65,7 @@ c Common defaults. Avoid block data.
       ircell=1
       itcell=1
       norbits=0
-      npart=1
+      npart=10000
       ninjcomp0=npartmax
       ninjcomp=ninjcomp0
       linsulate=.false.
@@ -192,7 +192,7 @@ c Renormalize to sum equals 1.
 c Now actot is \int canglecx dcostheta.
       ldiaginj=diags
       write(*,*) 'Testing fvinject. Drift velocity=',vd
-      call fvinjinit()
+      call fvinjinit(icolntype)
       write(*,*) 'Finished initialization on grid',
      $     nthfvsize,nxfva,nzfva
       write(*,*)'acint,qthfv(nthfvsize)',acint(ncdist),qthfv(nthfvsize)
@@ -213,6 +213,7 @@ c Now actot is \int canglecx dcostheta.
 c         write(*,*)'ztrfv(ix,ith)='
 c         write(*,string)((qxfv(i,j),j=1,nthfvsize),i=nxfvi,nxfva)
 
+c-------------------------------------
 c Test the function evaluation
       write(*,*)'ud,uneutral',ud,uneutral
       do i=nxfvi,nxfva
@@ -242,6 +243,7 @@ c plot ztrfv
          enddo
          call pltend()
       endif
+c-------------------------------------
 
 c Plot the integrals.
       if(linsulate) then
@@ -305,6 +307,7 @@ c         endif
          cosarr(i)=ca
          icdist=nint(1.5+(ncdist-1)*(ca+1)/2.000001)
          cosdist(icdist)=cosdist(icdist)+1
+c         if(i.lt.100)write(*,*)'ca,icdist',ca,icdist
       enddo
       itotal=0
       aver=0
@@ -315,6 +318,7 @@ c         endif
          ratc(j)=cosdist(j)/acdist(j)
          aver=aver+ratc(j)
          am1=am1+ratc(j)*cosangle(j)
+c         write(*,*)'npart,acdist(j),ratc(j)',j,npart,acdist(j),ratc(j)
       enddo
       aver=aver/ncdist
       am1=am1/ncdist
@@ -345,7 +349,7 @@ c And provided dt is small enough, so does the reinjection.
       if(uneutral.eq.0.)call polyline(cosangle,acint,ncdist)
       call pltend()
 
-      write(*,'(2f10.5)')(cdangle(j),acdist(j),j=1,ncdist)
+c      write(*,'(2f10.5)')(cdangle(j),acdist(j),j=1,ncdist)
 
       call automark(cdangle(2),cosdist(2),ncdist-1,1)
       call axlabels('cos(!Aq!@)','Injection angle distribution')
@@ -356,6 +360,7 @@ c And provided dt is small enough, so does the reinjection.
       call pltend()
 
       if(uneutral.eq.0.)then
+         ratc(1)=1.
          call automark(cosangle,ratc,ncdist,3)
          call axlabels('cos(!Aq!@)','Distribution ratio')
          call pltend()
@@ -393,7 +398,7 @@ c
       call pltend()
 c
       call autoplot(vzfv,vzdist,nxfva-nxfvi+1)
-      call axlabels('v','z-velocity distribution')
+      call axlabels('v/v!dtn!d','z-velocity distribution')
       call minmax(vzdist,nxfva-nxfvi+1,vzmin,vzmax)
       do j=nxfvi,nxfva
          v=vzfv(j)
@@ -404,12 +409,12 @@ c
       call polyline(vzfv,fmaxwell,nxfva-nxfvi+1)
       call dashset(0)
       call jdrwstr(.02,.02,
-     $     'Comparing injection flux _ to f(vz)- - distrib.'
+     $     'Comparing injection flux ___ to f(vz)- - distrib.'
      $     //' Should not agree', 1.)
-      write(*,*)'Injection flux as fn of vz'
-      do k=nxfvi,nxfva
-         write(*,'(i3,f6.2,f10.1)')k,vzfv(k),vzdist(k)
-      enddo
+c      write(*,*)'Injection flux as fn of vz'
+c      do k=nxfvi,nxfva
+c         write(*,'(i3,f6.2,f10.1)')k,vzfv(k),vzdist(k)
+c      enddo
       call pltend()
 
       call exit(0)

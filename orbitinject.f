@@ -21,17 +21,21 @@ c Injection from a shifted maxwellian at infinity
       end
 c***********************************************************************
       subroutine injinit(icolntype,bcr)
-
       integer bcr
-
       if(bcr.ne.0) then
 c Injection from a maxwellian at boundary?
          call maxinjinit(bcr)
       elseif(icolntype.eq.1.or.icolntype.eq.5) then
 c Injection from fv distribution at the boundary.
          call fvinjinit(icolntype)
+c         call fvinittest()
       elseif(icolntype.eq.2.or.icolntype.eq.6)then
 c Injection from a general gyrotropic distribution at infinity
+c Required to initialize the fv distributions anyway, else doesn't work
+c correctly at first.
+c         call fvinjinit(icolntype)
+c         call fvinittest()
+c Seems to be uneutral. Fixed ogeninjinit. Fixed.
          call ogeninjinit(icolntype)
       else
 c Injection from a shifted maxwellian at infinity

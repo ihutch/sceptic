@@ -15,6 +15,7 @@ c diagnostics
       real vydist(nxfvi:nxfva),vzdist(nxfvi:nxfva)
       common /vinjdiag/vydist,vzdist
 
+c      ldiaginj=.true.
 c A really small number
       eps=1.e-20
 c___________________________________________________________________
@@ -686,6 +687,8 @@ c Return the normalized distribution function v_n f(v) for constant
 c cx collision frequency at a value of normalized velocity u=v/v_n,
 c when the normalized drift velocity is ud= (a/\nu_c) /v_n,
 c with v_n = sqrt(2T_n/m). a is acceleration, nu_c collision freq.
+c If the neutrals are drifting, then u and ud should be the drift velocity
+c relative to vneutral.
       if(ud.lt.0.) then
          v=-u
          vd=-ud
@@ -836,3 +839,43 @@ c Return the value of f(z) interpolated by index zi
       finterp=f(i)*(1.-fz)+f(i+1)*fz
       end
 c**********************************************************************
+      subroutine fvinittest()
+      implicit none
+      integer i,j
+      include 'fvcom.f'
+      real fv
+      integer ieye3d
+      external fv,ieye3d
+
+      real ftest(nxfvi:nxfva,nzfvi:nzfva)
+c Test the function evaluation
+      do i=nxfvi,nxfva
+         do j=nzfvi,nzfva
+            ftest(i,j)=fv(vxfv(i),vzfv(j))
+c            write(*,'(a,3f10.5)')'f-value at vx,vy',
+c     $           ftest(i,j),vxfv(i),vzfv(j)
+         enddo
+      enddo
+
+      write(*,*)'In fvinittest' 
+c Plot the function.
+c      if(lfloat) then
+ 100     call pltinit(0.,1.,0.,1.)
+         j=1 + 256*10 + 256*256*7
+         call hidweb(vxfv(nxfvi),vzfv(nzfvi),ftest,
+     $        nxfva-nxfvi+1,nxfva-nxfvi+1,nzfva-nzfvi+1,j)
+         call boxtitle('f(vx,vz)')
+         call ax3labels('vx','vz','f(vx,vz)')
+         call axident3()
+         if(ieye3d().ne.0) goto 100
+c plot ztrfv
+         call pltinit(vxfv(nxfvi),vxfv(nxfva),float(nzfvi),float(nzfva))
+         call axis()
+         call axlabels('vxfv','ztrfv')
+         do i=1,nthfvsize
+            call polyline(vxfv,ztrfv(nxfvi,i),nxfva-nxfvi+1)
+            call polymark(vxfv,ztrfv(nxfvi,i),nxfva-nxfvi+1,mod(i,16))
+         enddo
+         call pltend()
+c      endif
+      end

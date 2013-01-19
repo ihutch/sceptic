@@ -576,3 +576,19 @@ FOUND the problem. Exceeding array bounds in
       real zmn(nstepmax,5,nrfrcmax)
 
 Fixed the mpi corruption.
+
+18 Jan 2012
+
+Fixed error in initiation of distribution omitted vneutral.
+Fixed some bugs in fvinjecttest.f. It seems to be giving reasonable
+injections consistent with vd and vneutral.
+Fixed esforce radial Reset.
+However, long runs with vneutral=vd show evidence of reverting to 
+the drift distribution, in the time it takes for the particles to 
+be reinjected. Therefore reinjection is actually not being correctly
+calculated in sceptic, even though it is in fvreinjecttest.
+
+Found that it was necessary to use fvinjinit before ogeninjinit
+otherwise something was not right. But I'm not sure why.
+It is because fvinjinit sets uneutral. Adding that to ogeninjinit
+fixes the problem. 

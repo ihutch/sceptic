@@ -221,11 +221,13 @@ c Initialize the distributions describing reinjected particles
       integer icolntype
 c Common data:
       include 'piccom.f'
+      include 'colncom.f'
 c Passing the drift velocity to fv.
       common /distfunc/ud,uneutral
 c Velocity in this routine is normalized to a nominal ion thermal velocity
 c which for a Maxwellian-related form is sqrt(2T_i/m).
       ud=vd/sqrt(2.*Ti)
+      uneutral=vneutral/sqrt(2.*Ti)
 c Range of velocities permitted for injection.
       vspread=3.+5.*abs(ud)
 
