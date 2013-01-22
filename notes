@@ -592,3 +592,7 @@ Found that it was necessary to use fvinjinit before ogeninjinit
 otherwise something was not right. But I'm not sure why.
 It is because fvinjinit sets uneutral. Adding that to ogeninjinit
 fixes the problem. 
+
+19 Jan 2012
+Removed bad match messages. Too annoying.
+Fixed pdiag, was unable to manage directory path in filename.

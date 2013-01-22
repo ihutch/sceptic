@@ -100,10 +100,10 @@ char *accis_colornames[a_maxPixels]=
    Install our own non-fatal handler during the call, only once.*/
 static XErrorHandler accis_old_handler = (XErrorHandler) 0 ;
 static int accis_errorhandler(Display *display, XErrorEvent *theEvent) {
-   fprintf(stderr, "Intercepted Xlib error: error code %d request code %d",
-		theEvent->error_code, theEvent->request_code) ;
+  /*   fprintf(stderr, "Intercepted Xlib error: error code %d request code %d",
+       theEvent->error_code, theEvent->request_code) ; */
    if(theEvent->error_code == BadMatch){
-     fprintf(stderr,"  BadMatch. Doing nothing.\n");
+     /*   fprintf(stderr,"  BadMatch. Doing nothing.\n"); */
      return 0;
    }else{
      fprintf(stderr,"  Unfiltered error passed to Xlib.\n");

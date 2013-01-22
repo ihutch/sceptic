@@ -267,21 +267,15 @@ c Set Array sizes, allowed variable.
       izmrad(1)=1
       izmrad(2)=nr
 
-c     bcphi=4 is only valid without drift velocity, and with local
-c     reinjection. Otherwise we have no analytic solution of the plasma
-c     profiles in the quasineutral region.
+c     bcphi=4 is only strictly valid without drift velocity, and with local
+c     reinjection. But it is useful sometimes for stability.
       if(bcphi.eq.4) then
-         if(vd.ne.0) then
-            write(*,*) "bcphi=4 is only valid with vd=0. Set vd=0"
-            vd=0
-         endif
          if(icolntype.ne.1) then
-            icolntype=1
-            write(*,*) "bcphi=4 is only valid with kt=1. Set kt=1"
+            if(myid.eq.0)write(*,*) "bcphi=4 is only valid with kt=1."
          endif
          if(bcr.ne.0) then
-            write(*,*) "bcphi=4 is only valid with bcr=0. Set bcr=0"
-            bcr=0
+            if(myid.eq.0)write(*,*) "bcphi=4 is only valid with bcr=0."
+c            bcr=0
          endif
       endif
          

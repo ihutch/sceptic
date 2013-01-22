@@ -44,7 +44,8 @@ c Deal with arguments.
          endif
          if(string(1:2) .eq. '-m') read(string(3:),*)myid
          if(string(1:2) .eq. '-?') goto 51
-         if(string(1:1) .ne. '-')read(string(1:),*)filename
+c         if(string(1:1) .ne. '-')read(string(1:),*)filename
+         if(string(1:1) .ne. '-')filename=string
  1    continue
  3    continue
 
@@ -65,7 +66,8 @@ c Deal with arguments.
       nminus=0
 
       do myid=0,0
-         write(*,*)'Reading particles for myid=',myid
+         write(*,'(a,i4,a,a)')'Reading particles for myid=',myid
+     $        ,' from ',filename
          call partrd(filename,success)
          if(.not.success)then
             write(*,*)'Quitting read attempts'
@@ -170,7 +172,7 @@ c      write(*,*)'partrd',npart
 
       return
  100  close(11)
-      write(*,*) 'Error reading pardata.dat',filename
+      write(*,*) 'Error reading particle file',filename
       return
  101  write(*,*) 'No particle file to read.',filename
       end

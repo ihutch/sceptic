@@ -868,9 +868,9 @@ c If prespecified probe potential
       endif
       end
 
-c****************************************************************** Set
-c     the finite volumes coefficients for the outer boundary, as well as
-c     the probe potential.
+c****************************************************************** 
+c     Set the finite volumes coefficients for the outer boundary, as
+c     well as the probe potential.
       subroutine fcalc_bc(dt,rshield,icolntype,colnwt)
       
       include 'piccom.f'

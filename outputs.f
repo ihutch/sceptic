@@ -82,10 +82,11 @@ c Particle units nTr^2, Electric nT lambda_D^2.
      $        ,k)
       enddo
       write(10,*)nrfrc
-      write(10,*)'izmomr  Charge      E-field       Electrons',
+      write(10,*)'Radius  Charge      E-field       Electrons',
      $     '      Ions     Coll     Total'
       do k=1,nrfrc
-         write(10,'(i4,$)')izmrad(k)
+         write(*,'(f5.2,$)')r(izmrad(k))
+c         write(10,'(i4,$)')izmrad(k)
          write(10,'(6g12.4)')(zmom(nstepmax,j,k),j=1,5),totalf(k)
       enddo
       write(10,*)'Collisions: Type,Weight,Eneutral,vneutral,Tneutral'

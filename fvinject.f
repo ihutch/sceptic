@@ -156,7 +156,8 @@ c              MAY BE WORKING.
 c Solve to get exact crossing z-index ztrp, relative to initial index 1.
       call f1invtfunc(vzfv,nzfva-nzfvi+1,vztr,ztrp)
 c If it does not solve which should never happen, then tell us 
-      if(ztrp.eq.0.)then
+c      if(ztrp.eq.0.)then
+      if(.not.ztrp.gt.0.)then
          write(*,*)'Failure of f1invtfunc for vztr=',vztr
          stop
       endif
@@ -767,12 +768,19 @@ c Formerly .lt. which is an error.
       goto 200
  210  continue
 c Now iql and iqr, Ql and Qr bracket Q
-      if(Qr-Ql.ne.0.)then
-         x=(y-Ql)/(Qr-Ql)+iql
+c Trap errors caused by flat sections.
+      Qd=Qr-Ql
+      if(Qd.eq.0.)then
+         x=(iql+iqr)/2.
       else
-         x=iql
-         write(*,*)'****** Error!: finvtfunc coincident points'
+         x=(y-Ql)/(Qr-Ql)+iql
       endif
+c      if(Qr-Ql.ne.0.)then
+c         x=(y-Ql)/(Qr-Ql)+iql
+c      else
+c         x=iql
+c         write(*,*)'****** Error!: finvtfunc coincident points'
+c      endif
       end
 c**********************************************************************
 
