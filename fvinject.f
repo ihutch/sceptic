@@ -33,7 +33,9 @@ c     $     y1,qthfv(nthfvsize),ipth,fpth,costheta
 
 c___________________________________________________________________
 c Pick a random vx: pxfv
- 2    y2=ran0(idum)*((1.-fpth)*qxfv(nxfva,ipth)+fpth*qxfv(nxfva,ipth+1))
+      n2count=0
+ 2    if(n2count.gt.5)goto 1
+      y2=ran0(idum)*((1.-fpth)*qxfv(nxfva,ipth)+fpth*qxfv(nxfva,ipth+1))
       call f2invtfunc(qxfv(nxfvi,ipth),qxfv(nxfvi,ipth+1)
      $     ,nxfva-nxfvi+1,y2,pxfv,(1.-fpth),fpth)
 c      write(*,*) pxfv
@@ -61,6 +63,7 @@ c         vztr=-1.e30
       if(costheta.gt.0.)then
          if(vztr.gt.vzfv(nzfva))then
 c            write(*,*)'Impossible vztr',vztr,costheta,vx,' trying again'
+            n2count=n2count+1
             goto 2
          elseif(vztr.lt.vzfv(nzfvi))then
             vztr=vzfv(nzfvi)+1.e-4
@@ -68,6 +71,7 @@ c            write(*,*)'Impossible vztr',vztr,costheta,vx,' trying again'
       else
          if(vztr.lt.vzfv(nzfvi))then
 c            write(*,*)'Impossible vztr',vztr,costheta,vx,' trying again'
+            n2count=n2count+1
             goto 2
          elseif(vztr.gt.vzfv(nzfva))then
             vztr=vzfv(nzfva)-1.e-4
@@ -769,18 +773,18 @@ c Formerly .lt. which is an error.
  210  continue
 c Now iql and iqr, Ql and Qr bracket Q
 c Trap errors caused by flat sections.
-      Qd=Qr-Ql
-      if(Qd.eq.0.)then
-         x=(iql+iqr)/2.
-      else
-         x=(y-Ql)/(Qr-Ql)+iql
-      endif
-c      if(Qr-Ql.ne.0.)then
-c         x=(y-Ql)/(Qr-Ql)+iql
+c      Qd=Qr-Ql
+c      if(Qd.eq.0.)then
+c         x=(iql+iqr)/2.
 c      else
-c         x=iql
-c         write(*,*)'****** Error!: finvtfunc coincident points'
+c         x=(y-Ql)/(Qr-Ql)+iql
 c      endif
+      if(Qr-Ql.ne.0.)then
+         x=(y-Ql)/(Qr-Ql)+iql
+      else
+         x=iql
+         write(*,*)'****** Danger!: finvtfunc coincident points'
+      endif
       end
 c**********************************************************************
 

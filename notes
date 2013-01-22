@@ -596,3 +596,7 @@ fixes the problem.
 19 Jan 2012
 Removed bad match messages. Too annoying.
 Fixed pdiag, was unable to manage directory path in filename.
+
+22 Jan 2012
+Work around the Impossible vztr bug. Really f1invtfunc probably 
+ought to be fixed instead.
