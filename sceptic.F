@@ -752,52 +752,60 @@ c Use call exit to avoid silly fortran message.
 
  51   continue
 c Help section
+ 500   format(a,i6,a,i6)
+ 501   format(a,f6.2,a,f6.2)
       write(*,*)
      $ 'Usage: sceptic [-t.. -s.. -d.. -c..',
      $     ' -x.. -v.. -p.. -l.. -e[..] -r -w -g -?]'
       write(*,*)' e.g. ./sceptic -v0.2 -nr50 -nt30 -d.05'
       write(*,*)' Switch arguments (defaults):[.ff=float, nnn=integer]'
-      write(*,*)' -t.ff ion temp Ti (1);',
-     $     ' -snnn max time steps (500);'
-      write(*,*)' -d.ff time step dt (.025);',
-     $     ' -c.ff initial accel factor (1)'
-      write(*,*)' -cmax.ff -cmin.ff limits of rho plotting (auto)'
-      write(*,*)' -v.ff drift velocity (0.0);',
-     $     ' -x.ff max r of domain (5)'
-      write(*,*)' -p.ff probe potential (-4.) -pf float -pi insulate;',
-     $     ' -b.ff Boundary factor (4)'
-      write(*,*) ' -l.ff Debye length (.1) ; -z.ff External Ez (0)'
-      write(*,*) ' -onnn Rand orbits to plot (0) ; -oinnn Cold orbits',
-     $     'orbits (0)'
+      write(*,501)'  -t.ff  ion temp Ti       ',Ti
+     $     ,'      -v.ff  drift velocity      ',vd
+      write(*,501)'  -d.ff  time step dt      ',dtf,
+     $     '      -c.ff  initial accel factor',bdt
+      write(*,501)'  -x.ff  max r of domain   ',rmax,
+     $     '      -l.ff  Debye length        ',debyelen
+      write(*,500)'  -nrnnn  radial mesh-size',nr
+     $     ,'       -nt  angular mesh size    ',nth
+      write(*,'(a,i8,a,i5)')'  -ninnn  particle number',npart
+     $     ,'      -snnn  max time steps      ',maxsteps
+      write(*,501)'  --rhoinf.ff  constant injection rate rather than pa
+     $rticle number.',rhoinf
+      write(*,501)'  -p.ff  probe potential   ',vprobe
+     $     ,'      -pf  float   -pi  insulate;'
+c,' -b.ff Boundary factor (4)'
+      write(*,501)'  -mfff  ratio of mass to Z',rmtoz
+     $     ,'      -z.ff  External Ez         ',Ezext
+      write(*,*)' -ktnnn  collision type (0: none, 1 direct, 2 remote).'
+     $     ,' -k.ff collision freq.'
+      write(*,501)'  -vn.ff  neutral velocity',vneutral
+     $     ,' for collisions.'
+      write(*,*)' -r  read particle data (no),'
+     $     ,'         -w  write ptcl. data (no)'
+      write(*,*)
+     $     ' -onnn Rand orbits to plot (0) ;      -oinnn Cold '
+     $     ,'orbits (0)'
       write(*,*)' -e[ir,it] distribution function diagnostics',
      $     ' [in cell ir,it](1,1);'
-      write(*,*)' -r read particle data (no), -w write ptcl. data (no)'
       write(*,*)' -g<nnn> diag plots only on nnn th step;',
      $     ' -a<n> save plots to disk (pfset n)'
       write(*,*)' -g no diags, -f no final diags -? Print this help.'
-      write(*,*)' -nrnnn, -ntnnn, -ninnn, set radial, angle mesh-size',
-     $     ', particle number.'
-      write(*,*)' -ernnn radius at which to calculate q,E-force.',
-     $     ' -mfff ratio of mass to Z (1.)'
-      write(*,*)' -ktnnn collision type (0: none, 1 direct, 2 remote).'
-     $     ,' -k.ff collision freq.'
-      write(*,*)' -vn.ff neutral drift velocity for collisions (0).'
+      write(*,501)'  -cmax.ff -cmin.ff limits of rho plotting (auto)'
+      write(*,*)' -ernnn radius at which to calculate q,E-force.'
       write(*,*)' --at0 set theta acceleration artificially to zero.'
       write(*,*)' --localinj use local potential for injection.',
      $     ' --smooth symmetrize in angle.'
       write(*,*)' --fextccccc.. use symmetric potential read from file.'
       write(*,*)' --fcalc use old potential solver (for validation etc)'
       write(*,*)' --damp.ff specify damping length (typically ~rmax).'
-      write(*,*)' --rhoinf.ff specify constant injection rate, rather',
-     $     ' than particle number.'
       write(*,*)' --sp use parallel bloc solver, ',
      $     ' -liv save phi(nr,nt) for the last 75% steps'
       write(*,*)' --bcphi(0) BC potential (0:spherical sym, ',
      $     '1 : Quasi neutrality on outer 15%,',
-     $     '    2: Phiout=0, 3: dPhiout/dz=0,',
-     $     '    4: dPhiout/dr=-Phiout/r. use with vd=0 and k>1)'
+     $     '        2: Phiout=0,       3: dPhiout/dz=0,'
+      write(*,*)'     4: dPhiout/dr=-Phiout/r. use with vd=0 and k>1)'
       write(*,*)' --bcr(0) BC reinjection (0:Remote, 1: local drifting',
-     $ '    Maxwellian, Drifting Maxwellian with diabatic acceleration)'
+     $ ' Maxwellian with accel.)'
       write(*,*)' --subcyc use step subcycling near probe.'
       write(*,*) ' -ver Use old Verlet integrator'
 
