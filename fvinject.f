@@ -737,7 +737,7 @@ c (ERFCC is in randf.f) this is exp*erfc
 c*******************************************************************
 
 c********************************************************************
-c Given a monotonic (increasing?) 
+c Given a monotonic
 c function Q(x) on a 1-D grid x=1..nq, solve Q(x)=y for x.
 c That is, invert Q to give x=Q^-1(y).
       subroutine f1invtfunc(Q,nq,y,x)
@@ -760,9 +760,14 @@ c Value is outside the range.
  200  if(iqr-iql.eq.1)goto 210
       iqx=(iqr+iql)/2
       Qx=Q(iqx)
-c      write(*,*)y,Ql,Qx,Qr,iql,iqr
-c Formerly .lt. which is an error.
-      if((Qx-y)*(Qr-y).le.0.) then
+      d=(Qx-y)*(Qr-Ql)
+      if(d.lt.0.) then
+         Ql=Qx
+         iql=iqx
+      elseif(d.gt.0)then
+         Qr=Qx
+         iqr=iqx
+      elseif(Qr.ne.y)then
          Ql=Qx
          iql=iqx
       else
@@ -771,19 +776,11 @@ c Formerly .lt. which is an error.
       endif
       goto 200
  210  continue
-c Now iql and iqr, Ql and Qr bracket Q
-c Trap errors caused by flat sections.
-c      Qd=Qr-Ql
-c      if(Qd.eq.0.)then
-c         x=(iql+iqr)/2.
-c      else
-c         x=(y-Ql)/(Qr-Ql)+iql
-c      endif
       if(Qr-Ql.ne.0.)then
          x=(y-Ql)/(Qr-Ql)+iql
       else
          x=iql
-         write(*,*)'****** Danger!: finvtfunc coincident points'
+         write(*,*)'****** Error!: finvtfunc coincident points'
       endif
       end
 c**********************************************************************

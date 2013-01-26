@@ -112,8 +112,12 @@ c Deal with arguments
          if(string(1:8) .eq. '--rhoinf')then
             read(string(9:),*)rhoinf
             lfixedn=.false.
+         elseif(string(1:3).eq.'-ri')then
+            read(string(4:),*)rhoinf
+            lfixedn=.false.
+         elseif(string(1:2) .eq. '-r')then
+            readpart=.true.
          endif
-         if(string(1:2) .eq. '-r') readpart=.true.
          if(string(1:2) .eq. '-w') writepart=.true.
          if(string(1:3) .eq. '-gc') then
             lcolcont=.false.
@@ -754,6 +758,7 @@ c Use call exit to avoid silly fortran message.
 c Help section
  500   format(a,i6,a,i6)
  501   format(a,f6.2,a,f6.2)
+ 499   format(a,f6.4,a,f6.2)
       write(*,*)
      $ 'Usage: sceptic [-t.. -s.. -d.. -c..',
      $     ' -x.. -v.. -p.. -l.. -e[..] -r -w -g -?]'
@@ -761,16 +766,16 @@ c Help section
       write(*,*)' Switch arguments (defaults):[.ff=float, nnn=integer]'
       write(*,501)'  -t.ff  ion temp Ti       ',Ti
      $     ,'      -v.ff  drift velocity      ',vd
-      write(*,501)'  -d.ff  time step dt      ',dtf,
+      write(*,499)'  -d.ff  time step dt      ',dtf,
      $     '      -c.ff  initial accel factor',bdt
       write(*,501)'  -x.ff  max r of domain   ',rmax,
      $     '      -l.ff  Debye length        ',debyelen
-      write(*,500)'  -nrnnn  radial mesh-size',nr
-     $     ,'       -nt  angular mesh size    ',nth
+      write(*,500)'  -nrnnn  radial mesh-size ',nr
+     $     ,'      -nt  angular mesh size    ',nth
       write(*,'(a,i8,a,i5)')'  -ninnn  particle number',npart
      $     ,'      -snnn  max time steps      ',maxsteps
-      write(*,501)'  --rhoinf.ff  constant injection rate rather than pa
-     $rticle number.',rhoinf
+      write(*,501)'  -ri.ff  set injectn rate ',rhoinf
+     $     ,'         rather than particle number.'
       write(*,501)'  -p.ff  probe potential   ',vprobe
      $     ,'      -pf  float   -pi  insulate;'
 c,' -b.ff Boundary factor (4)'
@@ -778,19 +783,20 @@ c,' -b.ff Boundary factor (4)'
      $     ,'      -z.ff  External Ez         ',Ezext
       write(*,*)' -ktnnn  collision type (0: none, 1 direct, 2 remote).'
      $     ,' -k.ff collision freq.'
-      write(*,501)'  -vn.ff  neutral velocity',vneutral
-     $     ,' for collisions.'
+      write(*,501)'  -vn.ff  neutral velocity ',vneutral
+     $     ,'         for collisions.'
       write(*,*)' -r  read particle data (no),'
      $     ,'         -w  write ptcl. data (no)'
       write(*,*)
      $     ' -onnn Rand orbits to plot (0) ;      -oinnn Cold '
      $     ,'orbits (0)'
+      write(*,*)' -g no diags,                        '
+     $     ,' -f no final diags'
+      write(*,*)' -g<nnn> plots only on nnn th step;',
+     $     '   -a<n> save plots to disk (pfset n)'
+      write(*,501)'  -cmax.ff -cmin.ff limits of rho plotting (auto)'
       write(*,*)' -e[ir,it] distribution function diagnostics',
      $     ' [in cell ir,it](1,1);'
-      write(*,*)' -g<nnn> diag plots only on nnn th step;',
-     $     ' -a<n> save plots to disk (pfset n)'
-      write(*,*)' -g no diags, -f no final diags -? Print this help.'
-      write(*,501)'  -cmax.ff -cmin.ff limits of rho plotting (auto)'
       write(*,*)' -ernnn radius at which to calculate q,E-force.'
       write(*,*)' --at0 set theta acceleration artificially to zero.'
       write(*,*)' --localinj use local potential for injection.',
@@ -807,8 +813,8 @@ c,' -b.ff Boundary factor (4)'
       write(*,*)' --bcr(0) BC reinjection (0:Remote, 1: local drifting',
      $ ' Maxwellian with accel.)'
       write(*,*)' --subcyc use step subcycling near probe.'
-      write(*,*) ' -ver Use old Verlet integrator'
-
+      write(*,*)' -ver Use old Verlet integrator'
+      write(*,*)' -? Print this help'
       end
 
 c***********************************************************************
