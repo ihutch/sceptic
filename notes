@@ -622,3 +622,10 @@ to accisrefresh.
 This prevents the hang. But it does not seem actually to display the
 output till the program stops. Perhaps this is because the gl threads
 don't get any time till then. Need EXPOSE_ACTION. That fixes it.
+
+Tweaks to the tools/makefile to make work reliably.
+Finally go the ability to compile on loki (using g77 etc).
+Try with the pathscale compiler. I get back to the old error that
+dtin appears to be a nan after the first step. Found the problem
+in the setting of bdtnow. Somehow the result of the max function
+is different in pathscale than in gnu.

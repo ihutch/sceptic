@@ -71,7 +71,7 @@ postprocnew : postprocnew.f piccompost.f ../accis/libaccisX.a coulflux.f makefil
 	make -C ../accis
 
 parrot : parrot.f piccompost.f ../accis/libaccisX.a makefile
-	$(G77) $(COMPILE-SWITCHES) -o parrot -fno-backslash parrot.f -laccisX $(ACCISLIB) $(LIBRARIES)
+	$(G77) $(COMPILE-SWITCHES) -o parrot parrot.f -laccisX $(ACCISLIB) $(LIBRARIES)
 
 fluxVp : fluxVp.f ../accis/libaccisX.a coulflux.f makefile
 	$(G77) $(COMPILE-SWITCHES) -g -o fluxVp fluxVp.f coulflux.f $(ACCISLIB) $(LIBRARIES)
