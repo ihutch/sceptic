@@ -13,6 +13,7 @@ c Common data:
       include 'piccom.f'
       include 'colncom.f'
 
+      parameter (vsmall=1.e-20)
       real accel(3)
       real dt
 c moved to piccom.f      logical lsubcycle
@@ -38,7 +39,7 @@ c         ichoose=ran0(idum)*icycle
          lcollide=.false.
          icycle=1
          ichoose=1
-         tau=1.e20
+         tau=vsmall
       endif
 
       idum=1
@@ -287,7 +288,7 @@ c Handling boundaries :
                ninner=ninner+1
 c     Solve for sphere crossing step fraction, s.
 c It ought to be possible to do this with the tm-related information.
-               a=0.
+               a=vsmall
                b=0.
                c=0.
                do j=1,3
@@ -300,9 +301,12 @@ c It ought to be possible to do this with the tm-related information.
                xc=xp(1,i)-s*dt*xp(4,i)
                yc=xp(2,i)-s*dt*xp(5,i)
                zc=xp(3,i)-s*dt*xp(6,i)
-               ctc=zc/sqrt(xc**2+yc**2+zc**2)
+               ctc=zc/sqrt(xc**2+yc**2+zc**2+vsmall)
                
 c     Interpolate onto the theta mesh as in ptomesh               
+               if(.not.ctc.le.1)then
+                  write(*,*)'Sphere crossing error',ctc,s,a,b,c,xc,yc,zc
+               endif
                ithc=interpth(ctc,tfc)
                if(LCIC)then
                   icell=nint(ithc+tfc)
@@ -370,7 +374,7 @@ c -----------------------------------------------------------
             
             if(ldist) then
 c Start of Various distribution diagnostics.
-               rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
+               rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2+vsmall)
 c               write(*,*)ircell,itcell,rn,r(nr-1)
 c     Diagnostics of f_r(rmax):
                if(rn.gt.r(nr-1))then
@@ -381,6 +385,9 @@ c     Diagnostics of f_r(rmax):
                elseif(rn.gt.r(ircell).and.rn.le.r(ircell+1))then
 c     Inner distribution Diagnostics: Assumes reinject never gets here.
                   ctc=xp(3,i)/rn
+                  if(.not.ctc.le.1)then
+                     write(*,*)'Inner diagn error',ctc,xp(3,i),rn
+                  endif
                   ithc=interpth(ctc,thc)
                   if(ithc.eq.itcell)then
                      vz=xp(6,i)
@@ -444,7 +451,7 @@ c---------------- End of padvnc particle iteration ------------------
  401  continue
 
       NCneutral=ncollide
-c      write(*,*)'ncollide=',ncollide,' icycle=',icycle
+c      if(myid.eq.0)write(*,*)'ncollide=',ncollide,' icycle=',icycle
 c We just want the diagnostics with the true particles for now
 c      iocthis=min(iocthis,npartmax)
 
@@ -478,6 +485,8 @@ c If ih.ne.0 on entry, calculate the half-mesh postion, zetap,ih,hf.
 c      common /angles/ct,st,cp,sp,rp
 c Common data:
       include 'piccom.f'
+      real vsmall
+      parameter (vsmall=1.e-20)
       real rsp
       real x,y,z
       external interpth
@@ -496,7 +505,7 @@ C Find the cell and cell fraction we are at.
       y=xp(2,i)
       z=xp(3,i)
 
-      rsp=x**2+y**2
+      rsp=x**2+y**2+vsmall
 c The square roots here cost perhaps 1/3 of this routine. 
       rp=sqrt(rsp+z**2)
 c 
@@ -519,13 +528,8 @@ c
       endif
       st=rsp/rp
       ct=z/rp
-c      pf=atan2(sp,cp)
-      pf=1
-c Not using pf at present.
-c      ipl=pf*dpinv +1
-c      pf=pf*dpinv -ipl
-c
-      if(abs(1+int((ct-th(1))*tfac)).gt.ntpre)then
+c      if(.not.abs(1+int((ct-th(1))*tfac)).le.ntpre)then
+      if(.not.ct.le.1.)then
          write(*,*)'ptomesh overflow. Probably particle NAN'
          write(*,*)'i,irl,rf,ithl,thf',i,irl,rf,ithl,thf
          write(*,*)'ct,th(1),tfac,z,rp',ct,th(1),tfac,z,rp

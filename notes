@@ -446,7 +446,7 @@ postproc that puts the line on to the -o logarithmic plots.
 Forked git repository from the cvs checkout that Christian did.
 https://github.com/ihutch/sceptic Cloned to local. 
 
-4 Jan 12 
+4 Jan 13 
 Trying to use for collisional cases. Some improvement of code to avoid
 accis bugs/issues, and to give more info about collisional momentum.
 
@@ -458,14 +458,14 @@ dividing by u**2 to get chium2. Actually no, it was in alphaint,
 a divide by zero when b2 was zero. There were several places where
 divide by zeros were possibly occurring. I think I've got them all.
 
-5 Jan 12
+5 Jan 13
 Killed the segfaults. Implemented proper distribution initialization 
 for constant nu. Fiddled with bug in velocity distribution diagnostics
 for small number of time steps. 
 
 Had to add scaling by rhoinf into the force output. 
 
-7 Jan 12
+7 Jan 13
 Found that ierad, which is set by the -er switch is literally only the 
 place where the q, E-force, electron pressure force, and collision force
 are calculated. The particle force is only ever calculated at the 
@@ -554,7 +554,7 @@ Which is that the force in the inner regions is the same.
 
 -k.001 gives force of 60. which _rises_ slightly towards the outside.
 
-15 Jan 12
+15 Jan 13
 mpi crash at end occurs for this setting which runs quickly:
 
 mpiexec -n 2 sceptic -nr30 -nt5 -ni1000 -x20. -v1. -l10. -d.1 -c5 -t.01 -vn0. -p-2. -s1000 -er3 -er10 -er20 -er25 -er28 -kt2 -k.01 -f -g
@@ -577,7 +577,7 @@ FOUND the problem. Exceeding array bounds in
 
 Fixed the mpi corruption.
 
-18 Jan 2012
+18 Jan 2013
 
 Fixed error in initiation of distribution omitted vneutral.
 Fixed some bugs in fvinjecttest.f. It seems to be giving reasonable
@@ -593,10 +593,15 @@ otherwise something was not right. But I'm not sure why.
 It is because fvinjinit sets uneutral. Adding that to ogeninjinit
 fixes the problem. 
 
-19 Jan 2012
+19 Jan 2013
 Removed bad match messages. Too annoying.
 Fixed pdiag, was unable to manage directory path in filename.
 
-22 Jan 2012
+22 Jan 2013
 Work around the Impossible vztr bug. Really f1invtfunc probably 
 ought to be fixed instead.
+
+2 Feb 2013
+Worked on interpth bug causing segfault. Put in some checks and also
+some preventions of divide by zero. May be fixed but very hard to 
+test because only very rare error.

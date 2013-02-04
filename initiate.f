@@ -94,8 +94,17 @@ c     Zero the ninth storage.
 c***********************************************************************
 c Interpolate onto the theta mesh. Return nearest index, fraction in thf.
       integer function interpth(ct,thf)
+c Attempt to continue after an error.
       include 'piccom.f'
-      ithl=itpre(1+int((ct-th(1))*tfac))
+      ii=1+int((ct-th(1))*tfac)
+      if(.not.(abs(ii).le.4*nthsize))then
+         write(*,*)'interpth error ct,th(1),tfac,nth',ct
+     $        ,th(1),tfac,nthsize,ii
+         interpth=1
+         thf=0.
+         return
+      endif
+      ithl=itpre(ii)
       thf=(ct-th(ithl))/(th(ithl+1)-th(ithl))
       if(thf.gt.1.)then
          if(ithl+2.le.NTHFULL)then
