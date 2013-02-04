@@ -36,7 +36,7 @@ ifeq ("$(XLIB)","")
 endif
 #Default Accis lib
 ifeq ("$(ACCISLIB)","")
-	ACCISLIB=./../accis
+	ACCISLIB=-L./../accis -L/usr/lib/mesa -laccisX -lXt -lX11 -lGL -lGLU
 endif
 
 # To silence warnings when compiling with g77 uncomment the next statement:
@@ -54,33 +54,33 @@ COMPILE-SWITCHES = -Wall -O2
 	$(G77) -c $(COMPILE-SWITCHES) $*.F
 
 % : %.f
-	$(G77)  -o $* $(COMPILE-SWITCHES) $*.f  $(LIBRARIES)
+	$(G77)  -o $* $(COMPILE-SWITCHES) $*.f  $(ACCISLIB) $(LIBRARIES)
 
 % : %.F
-	$(G77)  -o $* $(COMPILE-SWITCHES) $*.F  $(LIBRARIES)
+	$(G77)  -o $* $(COMPILE-SWITCHES) $*.F  $(ACCISLIB) $(LIBRARIES)
 
 all : ../accis/libaccisX.a postprocB postproc parrot fluxVp newsumplot fcol 
 
 postproc : postproc.f piccompost.f ../accis/libaccisX.a coulflux.f makefile
-	$(G77) $(COMPILE-SWITCHES) -g  -o postproc postproc.f coulflux.f $(LIBRARIES)
+	$(G77) $(COMPILE-SWITCHES) -g  -o postproc postproc.f coulflux.f $(ACCISLIB) $(LIBRARIES)
 
 postprocnew : postprocnew.f piccompost.f ../accis/libaccisX.a coulflux.f makefile
-	$(G77) $(COMPILE-SWITCHES) -g  -o postprocnew postprocnew.f coulflux.f $(LIBRARIES)
+	$(G77) $(COMPILE-SWITCHES) -g  -o postprocnew postprocnew.f coulflux.f $(ACCISLIB) $(LIBRARIES)
 
 ../accis/libaccisX.a : ../accis/*.f
 	make -C ../accis
 
 parrot : parrot.f piccompost.f ../accis/libaccisX.a makefile
-	$(G77) $(COMPILE-SWITCHES) -o parrot -fno-backslash parrot.f -laccisX $(LIBRARIES)
+	$(G77) $(COMPILE-SWITCHES) -o parrot -fno-backslash parrot.f -laccisX $(ACCISLIB) $(LIBRARIES)
 
 fluxVp : fluxVp.f ../accis/libaccisX.a coulflux.f makefile
-	$(G77) $(COMPILE-SWITCHES) -g -o fluxVp fluxVp.f coulflux.f $(LIBRARIES)
+	$(G77) $(COMPILE-SWITCHES) -g -o fluxVp fluxVp.f coulflux.f $(ACCISLIB) $(LIBRARIES)
 
 postprocB : postprocB.f piccompost.f ../accis/libaccisX.a coulflux.f 
-	$(G77) $(COMPILE-SWITCHES) -g  -o postprocB postprocB.f  $(LIBRARIES)
+	$(G77) $(COMPILE-SWITCHES) -g  -o postprocB postprocB.f  $(ACCISLIB) $(LIBRARIES)
 
 fcol : fcol.f kennedyallen.o makefile
-	$(G77)  -o fcol $(COMPILE-SWITCHES) fcol.f  kennedyallen.o $(LIBRARIES)
+	$(G77)  -o fcol $(COMPILE-SWITCHES) fcol.f  kennedyallen.o $(ACCISLIB) $(LIBRARIES)
 
 clean :
 

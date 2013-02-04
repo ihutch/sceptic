@@ -144,7 +144,7 @@ scepticmpi : sceptic.F  piccom.f piccomsor.f ./accis/libaccisX.a $(OBJECTS) $(MP
 orbitint : orbitint.f coulflux.o $(OBJECTS) ./accis/libaccisX.a makefile
 	$(G77) $(COMPILE-SWITCHES) -o orbitint orbitint.f $(OBJECTS) coulflux.o $(LIBRARIES)
 
-tools : makefile
+tools : makefile compiler
 	make -C tools clean
 	make -C tools
 
