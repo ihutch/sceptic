@@ -15,7 +15,7 @@ c surface.
       include 'reincom.f'
       logical lfirst
       data lfirst/.true./
-      save lfirst
+      save lfirst, dcth,dpsi,vrange,dvf
 c----------------------------
 c Initializations:
       if(lfirst)then

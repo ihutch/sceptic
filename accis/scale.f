@@ -7,7 +7,7 @@ c return the ratio of window height to width.
 	end
 C********************************************************************
       subroutine pfset(isw)
-c Set the plot-to-file mode. If switch negative ask from console.
+c Set the plot-to-file mode. If switch=-1 ask from console.
       integer isw
       include 'plotcom.h'
 c Don't switch immediately. Just set the value at the next pltinit.

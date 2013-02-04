@@ -16,7 +16,7 @@ c Set up data etc.
 	do 10 i=1,nl
 	   cl(i)=ht*(-1.+i*2./nl)
  10	continue
-c	call pfset(-1)
+	call pfset(3)
 	do 1 j=1,ny
 	   yj=(float(j)-ny/3. +0.5)
 	   yy=yj*yj
@@ -32,10 +32,10 @@ c       z(i,j)=ht*sin(x(i))*sin(y(j))/(x(i)*y(j))
  1	continue
 c Start of actual plotting.
  98	call pltinit(0.,1.,0.,1.)
-c       Plot the surface. With axes (1). Web color 10, axis color 7.
-	j=1 + 256*10 + 256*256*7
+c       Plot the surface. With axes (2-D). Web color 10, axis color 7.
+	j=2 + 256*10 + 256*256*7
 	call surf3d(x,y,z,iLx,nx,ny,j,work)
-c	j=1 + 256*10 + 256*256*7
+c	j=2 + 256*10 + 256*256*7
 c	call hidweb(x,y,z,iLx,nx,ny,j)
 c       Draw a contour plot in perspective. Need to reset color anyway.
 	call color(4)

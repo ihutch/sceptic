@@ -23,6 +23,7 @@ Terminating letter indicates: v: vector (1-d array), a: 2-d array.
 
 \beginsection{Automatic plotting, single call plots.}
 
+\iftth \special{html:<a href="plottest.f"><img align="right" src="plainplot.png"></a>}\fi
 AUTOPLOT(xv,yv,ilength) Line plot yv versus xv; linear axes.
 
 AUTOMARK(xv,yv,ilength,isym) Plot using symbol isym.
@@ -39,6 +40,8 @@ YAUTOPLOT(yv,ilength) Line plot yv versus index; linear axes.
 PLTINIT(xmin,xmax,ymin,ymax) Switch to graphics, set world scaling.
 
 FITINIT(xmin,xmax,ymin,ymax) same but fitting nice ranges.
+
+ACCISINIT() Shorthand call for PLTINIT(0.,1.,0.,1.).
 
 SCALEWN(xmin,xmax,ymin,ymax,lnx,lny) Set world scaling, possibly log.
 
@@ -61,50 +64,25 @@ PFSET(inum) Set file plotting for hardcopy. inum=(0:no, 1:hp, 2:ps, 3:eps).
 If inum.eq.-1, then prompt for choice. If inum.lt.-1 output to file
 only, not screen.
 
+PFPSSET(ips) Set the use of postscript character fonts (ips=1) or vector
+drawn fonts (0, default), or (3) use the value previous to current.
+Can be turned on and off during the plot. Has no effect on screen
+display, only on postscript output.
+
+IPFPS() Return value of PFPS setting.
+
 WINSET(lwin) Set windowing to axis-region on or off (.false. default).
 
 TRUNCF(xmin,xmax,ymin,ymax) Set rectangular truncation (windowing) norm-units.
 If all args=0, switch off (default).
 
-PLTEND() Flush graphics, wait for carriage return. Then close, return to text.
-
-\beginsection{Color}
-
-\iftth \special{html:<a href="filltest.f"><img align="right" src="filltest.png"></a>}
-COLOR(icol) Set current color of 0-15. Default 15 black (on white).
-
-GRADCOLOR(icol) Set current color from a 0-240 color gradient range.
-
-ACCISGRADINIT(ir1,ig1,ib1,ir2,ig2,ib2) Set the gradient color range,
-rgb amplitudes 0-65535.
-
-IGETCOLOR() Integer function.  Get the number of the current
-color. [You have to know if it is a 0-15 or a gradient color].
-
-PATHFILL() Fill the path just drawn, with the current color. A path is
-a set of vectors all drawn with pen down one after the other.
-
-IDARKBLUE(), IDARKGREEN(),  ISKYBLUE(),  IBRICKRED(),  IPURPLE(),
-IGOLD(),  IGRAY(),  ILIGHTGRAY(),  IBLUE(),  IGREEN(),  ICYAN(),
-IRED(),  IMAGENTA(),  IYELLOW(),  IBLACK(): Integer functions returning
-the 16-color number that gives what their name indicates ($=1-15$).
-
-GRADLEGEND(c1,c2,x1,y1,x2,y2,colwidth,lpara) draw a color gradient
-axis-legend. Value corresponding to color goes from c1 to c2: the ends of
-the color gradient. Position of axis is (x1,y1) to (x1,y2) in axis-box
-units. Width of color bar is colwith times axis-box
-width. lpara=.true. says use parallel labels.
+PLTEND() Flush graphics, wait for mouse click in plotting window; then
+return.
 
 
 \beginsection{Data plotting}
 
 POLYLINE(xv,yv,ilength) Draw a polyline on an already setup graph.
-
-DASHSET(idash) Set dashed line character for polyline. 
-(0:solid, 1:long, 2:short, 3:long/short, 4:dots)
-
-LABELINE(xv,yv,ilength,clabel,ilablen) Draw polyline with embedded label
-of length ilablen.
 
 YPOLYLINE(yv,ilength) Draw a polyline on an already setup yautoplot.
 
@@ -114,6 +92,13 @@ triangle, 6 hollow star, 7 solid star, 8 hollow diamond, 9 flag, 10 +,
 11 x, 12 diamond, 13 -, 14 inverted triangle, 15 circle. Else
 char(isym), so ichar('c') gives 'c', ichar('c')+128 gives the font-2
 symbol corresponding to 'c' (xi).
+
+DASHSET(idash) Set dashed line character for polyline. 
+(0:solid, 1:long, 2:short, 3:long/short, 4:dots)
+
+LABELINE(xv,yv,ilength,clabel,ilablen) Draw polyline with embedded label
+of length ilablen. If ilablen.eq.-99 then set the normalized interval
+between labels to xv(1); if xv(1).eq.0 set it to default 0.3.
 
 POLYDRAW(xv,yv,ilength,DRAWFN) Draw data marked by symbol defined by
 the routine DRAWFN, a subroutine with 2 real arguments, being the
@@ -132,6 +117,55 @@ using charsize().
 
 POLYERR(xv,yv,errv,ilength) Draw error bars yv to yv+errv.
 
+STPOLYLINE(xa,ya,ilength,ixstride,iystride),
+STPOLYMARK(xa,ya,ilength,ixstride,iystride,isym) Strided versions of
+polyline/mark, in which a total of ilength data points are sampled
+from the arrays xa and ya at strides of ixstride and iystride. These
+allow one to plot data from rows (rather than columns) of a matrix by
+passing the leading dimension of the matrix as the stride. Passing
+strides of 1 gives equivalent sampling to the unstrided versions.
+
+\beginsection{Color}
+
+\iftth \special{html:<a href="filltest.f"><img align="right" src="filltest.png"></a>}\fi
+COLOR(icol) Set current color of 0-15. Default 15 black (on white).
+
+GRADCOLOR(icol) Set current color from a 1-240 color gradient range.
+
+ACCISGRADINIT(ir1,ig1,ib1,ir2,ig2,ib2) Set the gradient linear color
+range start and end, rgb amplitudes 0-65535.
+
+ACCISGRADSET(iredv,igreenv,ibluev,npixel) Set the color gradient with
+arbitrary RGB values from vectors of length npixel.
+
+IGETCOLOR() Integer function.  Get the number of the current
+color. [You have to know if it is a 0-15 or a gradient color].
+
+PATHFILL() Fill the path just drawn, with the current color. A path is
+a set of vectors all drawn with pen down one after the other.
+
+IDARKBLUE(), IDARKGREEN(),  ISKYBLUE(),  IBRICKRED(),  IPURPLE(),
+IGOLD(),  IGRAY(),  ILIGHTGRAY(),  IBLUE(),  IGREEN(),  ICYAN(),
+IRED(),  IMAGENTA(),  IYELLOW(),  IBLACK(): Integer functions returning
+the 16-color number that gives what their name indicates ($=1-15$).
+
+GRADTRI(xv,yv,zv,dv,zg0,zg1,ng0,ng1,isw) shade triangle specified by
+vertices xv(3), yv(3)[, zv(3)], with gradient values dv(3). The
+lower/upper parameter values zg0,1 are mapped to gradient colors
+ng0,1. isw bit 0 sets 2D (0) or 3D (1); bit 1 indicates use of dv:
+either absolute parameter values (0), or as direction cosines (1), in
+which case value is the point (xv,yv,zv) coordinate in that direction.
+
+GRADQUAD(xqv,yqv,zqv,dqv,zg0,zg1,ig0,ig1,isw) fill a quadrilateral 
+by splitting into four triangles at the centroid and using GRADTRI. 
+
+GRADLEGEND(c1,c2,x1,y1,x2,y2,colwidth,lpara) draw a color gradient
+axis-legend. Value corresponding to color goes from c1 to c2: the ends of
+the color gradient. Position of axis is (x1,y1) to (x1,y2) in axis-box
+units. Width of color bar is colwith times axis-box
+width. lpara=.true. says use parallel labels.
+
+
 \beginsection{Axes}
 
 AXIS() Automatic x and y axis.
@@ -139,7 +173,7 @@ AXIS() Automatic x and y axis.
 AXIS2() Put tics on the opposite side of the axis box.
 
 XAXIS(first,delta) Draw an axis; labels starting at first, spaced by delta.
-If delta=0, autofit labels.
+If delta=0, autofit labels, which is what AXIS() does for both axes.
 
 YAXIS(first,delta) If axis is log, first indicates major subtic.
 
@@ -157,7 +191,7 @@ GAXIS(amin,amax, igpow,first,delta, xmin,xmax,ymin,ymax, lpara,laxlog)
 General axis with ends positioned at (xmin, ymin) (xmax, ymax) normal
 units. World axis labels based on world end values amin, amax, first, delta,
 igpow (power of ten label).  Lpara puts labels parallel (else
-perp). Laxlog logarithmic.
+dperp). Laxlog logarithmic.
 
 AXPTSET(xpt,ypt) Set the axis intersection point at specified fractions of
 the full lengths of the axes. This determines where the axes are drawn.
@@ -175,7 +209,7 @@ TICNUMSET(itics) Set the number of tics of axis (approximately).
 
 \beginsection{Text plotting}
 
-\iftth \special{html:<img align="right" src="fontshow.png">}
+\iftth \special{html:<img align="right" src="fontshow.png">} \fi
 
 Special text is accessed via ``$\backslash$'' or ``!'' followed by one of 
 the following:
@@ -183,8 +217,16 @@ the following:
 \item{@}       to normal font 0.
 \item{A}       to font 1 (math)
 \item{B}       to font 2 (italic)
-\item{D}       Toggle subscript mode
-\item{U}       Toggle superscript mode
+\item{R}       to font 3 (roman)
+\item{E}       to font 4 (english gothic)
+\item{G}       to font 5 (german gothic)
+\item{d/D}       Toggle subscript mode
+\item{u/U}       Toggle superscript mode
+\item{p}         Save this position
+\item{q}         Save current position and return to previously saved
+position.
+\item{o}        Toggle Write-over mode
+\item{n/N}      Toggle Write-under mode
 }
 
 JDRWSTR(xn,yn,cstring,just) Draw cstring at (xn,yn)(normal), justified
@@ -215,7 +257,7 @@ If nsym=258 use nothing but put the string at the start of the line.
 
 \beginsection{Contouring}
 
-\iftth \special{html:<a href="contest.f"><img align="right" src="contest.png"></a>}
+\iftth \special{html:<a href="contest.f"><img align="right" src="contest.png"></a>}\fi
 
 CONTREC(za,cworka,ixm,iym,zclv,icl) Simple contour of entire array za(ixm, iym)
 at levels zclv(icl). If icl=0 fit contour levels instead. If icl.lt.0 no
@@ -226,7 +268,9 @@ za(1:ixm(of ildim), iym) at zclv(icl) (or fit if icl=0, using zclv(1)
 if non-zero to determine contour number) on a mesh defined by
 x,y. Switch icsw determines call type: 0 equal spacing, x,y not used;
 1 vectors x,y determine mesh; 2 arrays x,y determine mesh; bit 5 (16)
-sets coloring; bit 6 (32) omits contour lines. Color contouring should
+sets coloring; bit 6 (32) omits contour lines; bit 7 (64) color-fills
+with triangle gradients, in which case non-zero second byte determines
+the step size of the gradients (1 by default). Color contouring should
 be done with icl .ge. 2 and the maximum and minimum values in zclv(1)
 and zclv(icl). Then a gradlegend can be constructed with these values.
 
@@ -235,25 +279,43 @@ arrays, needing no extra work space. No line labelling.
 
 AUTOCOLCONT(za,iLdim,ixm,iym) Color contour za on rectangular mesh.
 
-\beginsection{Three-dimensional routines}
+ARROWPLOT(E1,E2,Erange,Li,imax,jmax,x,y,iasw) Plot arrows to represent
+vector whose x-,y-components are E1(imax(or Li),jmax),E2(imax,jmax),
+defined on the position vectors/arrays represented by x,y. iasw works
+like icsw (see CONTOURL). Arrow length is 1 normalized unit times
+E/Erange. Plot region should be setup up prior to
+call.
 
-\iftth \special{html:<a href="hidtest.f"><img align="right" src="hidtest.png"></a>}
+\beginsection{Projected 3-D surface routines}
+
+\iftth \special{html:<a href="hidtest.f"><img align="right" src="hidtest.png"></a>}\fi
 
 HIDWEB(xv,yv,za,iL,ix,iy,isw) Draw a 3-D web of za(ix,iy) (leading
 dimension iL) at xv,yv.  View obtained from file eye.dat (3 reals) or
-default if nonexistent. Switch isw: Lowest byte .lt.0 no axes;
-abs(isw): 0,1 scale to fit; 2 use last scale; 4 don't hide
-lines. Second byte (*256) color of web if non-zero. Third byte
-(*65536) color of axes (if !=0). (Remains set).
+default if nonexistent. Control switch isw: .lt.0 no axes.
+Lowest byte abs(isw)=
+\item{0} don't rescale, use last scaling.
+\item{1} scale to fit 1-D range xv(1)-xv(ix), yv(1)-yv(iy), zmin-zmax.
+\item{2} scale to 2-D xmin,xmax, ...; don't hide lines, just wiremesh. 
 
-SURF3D(xa,ya,za,iL,ix,iy,isw,worka) Draw a 3-d surface of za(ix,iy),
+Higher bytes: {2nd} (*256) color of web if non-zero. {3rd} (*65536) color
+of axes (if !=0). (Remains set).
+
+SURF3D(xa,ya,za,iL,ix,iy,iw,worka) Draw an opaque 3-d surface of za(ix,iy),
 (leading dimension iL) at xa,ya.  View obtained from file eye.dat (3
-reals) or default if nonexistent. Switch isw: Lowest byte .lt.0 no
-axes; abs(isw): 0,1 scale to fit; 2 use last scale. Second byte (*256)
-color of web if non-zero. Third byte (*65536) color of axes (if
-!=0). (Remains set). Array worka(0:iL+1,0:iy+1) must be provided.
-Surface is drawn as quadrilaterals filled with color from gradient
-according to (za) height scaled to the total height.
+reals) or default if nonexistent. Switch iw: .lt.0 no axes; lowest
+nibble =0  use last scale, =1 scale to fit x,y (1-D), =2 scale to fit
+x,y (2-D). Second byte (*256) color of web if non-zero. Third byte
+(*65536) color of axes (if !=0). (Remains set). Second nibble (16+) is
+isw for the SURFDR3 call. Array worka(0:iL+1,0:iy+1) must be provided.
+Surface is normally (isw=0) drawn as quadrilaterals filled with color
+from gradient according to (za) height scaled to the total height.
+
+SURFDR3(xa,ya,za,iL,ix,iy,worka,isw[,dv]) Draw 3-D surface using current
+projection. Switch isw bit 0 set: triangular fills, else chunks.  If,
+in addition, isw bit 1: directional shading using optional argument
+dv(5) dv(1-3) gives direction dv(4-5) gives distance limits, else
+z-height shading. Use for drawing closed parameterized surfaces.
 
 AXON(xv,yv,za,iL,ix,iy) Plot axonometrically za(ix,iy) at xv,yv (i.e.
 staggered slices at constant y, no perspective).  Use eye.dat data, if
@@ -261,8 +323,6 @@ exists; first two values indicate normal distance offset of axis end.
 
 WEBDRW(xv,yv,za,iL,ix,iy,icorner) Draw  a 3-D web using current projection.
 Return closest corner to view point in icorner.
-
-SURFDR3(xa,ya,za,iL,ix,iy,worka) Draw 3-D surface using current projection.
 
 HIDINIT(top,bot) Set the top and bottom hiding horizons (usually 0.,1.).
 
@@ -272,31 +332,33 @@ fixed coordinate either (x,y,or z) for isw=(-1,-2 or -3) having value
 fxd. For left handed system, isw=(-4,-5 or -6).
 
 HDPROJECT(ihide,iproject,ifixedcoord,fxdworld,irlsys)
-Set hiding (ihide = 1), projecting 2$\rightarrow$3 (iproject.ne.1), which
+Set hiding (ihide = 1), projecting 2$\rightarrow$3 (iproject.ne.0), which
 coordinate to hold fixed (ifixedcoord), what its world value is
 (fxdworld), and right (+1) or left (-1) handed system (irlsys).
 
-SCALE3(xmin,xmax,ymin,ymax,zmin,zmax) Set 3-D world scaling to cube size.
+\beginsection{Three-Dimensional Perspective Drawing}
+
+POLY3LINE(xv,yv,zv,ilength) Draw a polyline in 3-D. (Minimum setup
+call prior to this is just pltinit.)
+
+SCALE3(xmin,xmax,ymin,ymax,zmin,zmax) Set 3-D world scaling to cube
+size. Defaults min=-1, max=+1.
 
 SETCUBE(xc,yc,zc,xcen,ycen) Set norm-value of cube edges (+-) and 2-d 
-position of cube center.
-
-SCBN(icoord) Real function returns normalized value position of cube face
-corresponding to coordinate icoord=constant (icoord =1,2,3). So for
-example to project onto the z=constant (negative) face of the cube,
-you do: call hdprset(-3,-scbn(3))
+position of cube center. Defaults .25,.25,.2,.5,.4.
 
 TRN32(x,y,z,xt,yt,zt,ifl) If ifl=1, set 3-D transform; (x,y,z) is
 point looked at, (xt,yt,zt) is eye. If ifl=2, set axonometric, offset
 xt,zt.  If ifl=0 transform (x,y,z) to (xt,yt).
 
-VEC3W(x,y,z,ipen) Draw world vector to (x,y,z).
+CUBEPROJ() Draw the cube outline faces closest to eye.
 
-VEC3N(x,y,z,ipen) Draw norm vector to (x,y,z). Domain (-1.,1.) covers
-the cube.
+IGETCORNER() Integer function returning the closest corner to eye.
 
-WXYZ2NXYZ(xw,yw,zw,xn,yn,zn) Transform from world 3-D vector to
-normalized.
+AXPROJ(ic) Draw axes, centered at corner given by ic.
+Corner=bits0-3(ic). If bit4(ic)=1, flip labels.  If bit5(ic)=1,
+x-labels vertical; if bit6(ic)=1, y-labels vertical, else horizontal.
+Normally AXPROJ(IGETCORNER()).
 
 CUBED(icorner) Draw a cube outline when icorner is the nearest.
 Code is 1,2,3,4 anticlockwise (from top) from x3min,y3min, + top - bottom.
@@ -305,11 +367,12 @@ AXIDENT3() Identify the 3 axes (logically x, y, z).
 
 AX3LABELS(charx,chary,charz) Label the three 3-D axes.
 
-AXPROJ(ic) Draw axes, centered at corner given by ic.
-Corner=bits0-3(ic). If bit4(ic)=1, flip labels.  If bit5(ic)=1,
-x-labels vertical; if bit6(ic)=1, y-labels vertical, else horizontal.
-
 HIDVECN(x2,y2,ipen) Draw a (2-D) vector, hiding appropriately.
+
+SCBN(icoord) Real function returns normalized value position of cube face
+corresponding to coordinate icoord=constant (icoord =1,2,3). So for
+example to project onto the z=constant (negative) face of the cube,
+you do: call hdprset(-3,-scbn(3))
 
 TN2S(px,py,sx,sy) Transform normalized to px,py to screen coordinates
 sx,sy. If (world3.h) ihiding is $<0$, project in direction of 3-d axis
@@ -326,10 +389,51 @@ code gives interactive examination of the object:
 \item{51}Continue
 \item{}Drawing commands ...
 \item{}call eye3d(isw)
-\item{}if(isw.ne.0)goto 51\par
-}
-
+\item{}if(isw.eq.1)goto 51\par
+} Key presses with focus in the plot window, return isw= keysym of key
+pressed. For example in X, left, up, right, down cursor arrows are
+ff51-4 respectively (65361-4 decimal). Letters are their lower case
+ASCII codes, etc.  The return value can be used for other control
+purposes. But the codes for cursors are different under Windows
+(37-40) and it returns the ASCII codes for upper case.
+ 
 IEYE3D() Integer function of convenience to return switch value of eye3d.
+
+
+\beginsection{Plotting volumetric 3-D Data}
+
+\iftth \special{html:<a href="slicetest.f"><img align="left"
+src="sgweb.jpg" width="400"></a>}\fi
+
+
+SLICEGWEB(ifullv,iudsv,u,nw,zp,ixnpv,xnv,ifix,cutitle,svec,vp) Plot
+as 3-D webs slices through 3-D array u. ifullv(3) and iudsv(3) are the
+full and used dimensions of u. zp(nw,nw) is a work array; nw should be
+$>$max(iudsv). ixnpv(3) are the pointers within xnv to the node
+position array starts. That is, the positions of the nodes in
+dimension id are stored in xnv(ixnpv(id))+1 to xnv(ixnpv(id))+
+iudsv(id). ifix is the initial fixed dimension (1,2 or 3). cutitle is
+the character array title of u. Keyboard control of the slice is
+provided, together with perspective view controlled by mouse. If the
+third bit of abs(ifix) is set (by adding 4 to it), then overplot on
+the contour plot arrows representing the projection of the vector
+field svec(ifullv,3), which has the same indexing and positions as u,
+and three vector components. The work array vp(nw,nw,2) must be
+provided.  The last two arguments may be dummy in the call if
+abs(ifix)$<$4.
+
+\iftth \special{html:<a href="slicetest.f"><img align="right"
+src="sgcont.jpg" width="300"></a>}\fi
+
+SLICEGCONT(ifullv,iudsv,u,nw,zp,ixnpv,xnv,ifixptv,cutitle,svec,vp) Plot
+perspective view of slices on which are contours of 3-D array
+u(ifullv(1),ifullv(2),ifullv(3)). ifullv(3), iudsv(3), zp(nw,nw),
+ixnpv(3), cutitle are as above in slicegweb. The initial intersection
+of the 3 fixed planes is at ifixptv(3). Slightly different
+keyboard/mouse control is provided. Overplotting arrows is indicated
+by the third bit of ifix being set; the work array vp(nw,nw,3,3)
+must then be provided.
+
 
 \beginsection{Primitives}
 
@@ -341,7 +445,16 @@ WX2NX(wx), WY2NY(wy) Real functions convert world to normal units.
 
 XN2XW(wx), YN2YW(wy) Real functions convert normal to world units.
 
+VEC3W(x,y,z,ipen) Draw world vector to (x,y,z).
+
+VEC3N(x,y,z,ipen) Draw norm vector to (x,y,z). Domain (-1.,1.) covers
+the cube.
+
+WXYZ2NXYZ(xw,yw,zw,xn,yn,zn) Transform from world 3-D vector to
+normalized.
+
 GTIC(xgw,ilab,xg,yg,tcos,tsin,axcos,axsin,lpara) Low level tic drawing.
+
 
 \beginsection{Utilities}
 
@@ -363,6 +476,11 @@ IWRITE(i,iwdth,cstring) Format the integer i into cstring, return iwdth.
 
 TERMCHAR(cstring) Terminate the string in 0, truncating trailing spaces.
 
+ACCISFLUSH() Flush all graphics to the display before proceeding. This
+is useful if the program is about to enter a polling state, waiting
+for input. It ensures that all the prior display of graphics is visible on
+entering that polling state.
+
 ASLEEP(iusec) Insert a delay of approximately iusec microsec into both
 live plotting and ps files, for making sequential drawing animations.
 Timing will be much slower over remote Xservers and serious bandwidth
@@ -378,13 +496,15 @@ which causes the animation duration to be multiplied by 2.5
 \beginsection{Linking}
 
 The routines are normally compiled and gathered into a library which
-is subsequently linked against. The interface routines are contained in
-vecx.c or vecwin.c. Of these driver files, the routines svga, txtmode,
-vec, vecfill, scolor, accisgraddef, acgradcolor, getrgbcolor are
-public, for calling by higher level routines, and possibly the user. 
+is subsequently linked against. The interface routines are contained
+in vecx.c, vecglx.c, vecwin.c, or the obsolete but occasionally useful
+vec4014.f. Of these driver files, the routines svga, txtmode, vec,
+vecfill, scolor, accisgraddef, acgradcolor, getrgbcolor are public,
+for calling by higher level routines, and possibly the user.
 
-For X window systems, they require the Xlib and Xt libraries, calling
-for compiler/linker arguments such as  -L/usr/X11R6/lib/ -lXt -lX11.
+For X window systems, vecx.c requires the Xlib and Xt libraries, calling
+for compiler/linker arguments such as  -L/usr/X11R6/lib/ -lXt
+-lX11. The driver vecglx.c requires GL and GLU, instead of Xt.
 
 
 \end

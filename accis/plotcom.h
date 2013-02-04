@@ -2,7 +2,7 @@ c Worksurface common:
       integer nrows,ncolumns,nframe,multype
       real naxmin,naxmax,naymin,naymax,naxpt,naypt
       common/wksrfc/naxmin,naxmax,naymin,naymax,naxpt,naypt,
-     $	   nrows,ncolumns,nframe,multype
+     $   nrows,ncolumns,nframe,multype
 
 c Worlds and labels common:
       real xticlen,yticlen,xticoff,yticoff
@@ -12,10 +12,10 @@ c Worlds and labels common:
       real xpow,ypow,wxmin,wxmax,wymin,wymax,w2nx,w2ny,n2sy
       logical ltlog
       common/worlds/
-     $	xticlen,yticlen,xticoff,yticoff,
-     $	nxlabw,nxlabp,nylabw,nylabp,ticnum,
-     $	lxlog,lylog,nxpow,nypow,xpow,ypow,
-     $  wxmin,wxmax,wymin,wymax,w2nx,w2ny,n2sy,ltlog
+     $ xticlen,yticlen,xticoff,yticoff,
+     $ nxlabw,nxlabp,nylabw,nylabp,ticnum,
+     $ lxlog,lylog,nxpow,nypow,xpow,ypow,
+     $ wxmin,wxmax,wymin,wymax,w2nx,w2ny,n2sy,ltlog
 c
 c  Cursor position
       real crsrx,crsry
@@ -28,13 +28,12 @@ c  Truncation monitoring
 c
 c  Characters
       integer BUFFER,NOCHARS
-      parameter (BUFFER=19000,NOCHARS=384)
+      parameter (BUFFER=110000,NOCHARS=2000)
       real chrscos,chrssin,chrswdth,chrshght,chrsslnt
-      integer*2 chrsaddr
+      integer chrsaddr
       character*1 chrsfont
       common/chrcter/chrscos,chrssin,chrswdth,chrshght,chrsslnt
-     &  ,chrsaddr(NOCHARS)
-      common/chrfnt/ chrsfont(BUFFER)
+      common/ac_chrfnt/chrsaddr(NOCHARS),chrsfont(BUFFER)
 c
 c  Plot-to-file control
       integer pfsw
@@ -42,7 +41,7 @@ c  Plot-to-file control
       common/pltfil/pfsw,pfilno,pfnextsw,pfPS,psini
 c
 c  Screen Parameters
-      integer*2 scrxpix,scrypix,ncolor,vmode
+      integer scrxpix,scrypix,ncolor,vmode
       real yoverx
       common/screenp/scrxpix,scrypix,ncolor,vmode,yoverx
 

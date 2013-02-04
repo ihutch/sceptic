@@ -1,8 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN"
            "http://www.w3.org/TR/REC-html40/loose.dtd">
 <html>
-<meta name="GENERATOR" content="TtHgold 3.70">
-<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<meta name="GENERATOR" content="TtH 4.03">
  <style type="text/css"> div.p { margin-top: 7pt;}</style>
  <style type="text/css"><!--
  td div.comp { margin-top: -0.6ex; margin-bottom: -1ex;}
@@ -12,6 +11,18 @@
  span.roman {font-family: serif; font-style: normal; font-weight: normal;} 
  span.overacc2 {position: relative;  left: .8em; top: -1.2ex;}
  span.overacc1 {position: relative;  left: .6em; top: -1.2ex;} --></style>
+ <style type="text/css"><!--
+ .tiny {font-size:30%;}
+ .scriptsize {font-size:xx-small;}
+ .footnotesize {font-size:x-small;}
+ .smaller {font-size:smaller;}
+ .small {font-size:small;}
+ .normalsize {font-size:medium;}
+ .large {font-size:large;}
+ .larger {font-size:x-large;}
+ .largerstill {font-size:xx-large;}
+ .huge {font-size:300%;}
+ --></style>
 
 <title>  Summary of ACCIS plotting system routines</title>
  
@@ -34,6 +45,7 @@ Terminating letter indicates: v: vector (1-d array), a: 2-d array.
 
 <h2> Automatic plotting, single call plots.
 </h2>
+<a href="plottest.f"><img align="right" src="plainplot.png"></a>
 AUTOPLOT(xv,yv,ilength) Line plot yv versus xv; linear axes.
 
 <div class="p"><!----></div>
@@ -56,6 +68,9 @@ PLTINIT(xmin,xmax,ymin,ymax) Switch to graphics, set world scaling.
 
 <div class="p"><!----></div>
 FITINIT(xmin,xmax,ymin,ymax) same but fitting nice ranges.
+
+<div class="p"><!----></div>
+ACCISINIT() Shorthand call for PLTINIT(0.,1.,0.,1.).
 
 <div class="p"><!----></div>
 SCALEWN(xmin,xmax,ymin,ymax,lnx,lny) Set world scaling, possibly log.
@@ -86,6 +101,15 @@ If inum.eq.-1, then prompt for choice. If inum.lt.-1 output to file
 only, not screen.
 
 <div class="p"><!----></div>
+PFPSSET(ips) Set the use of postscript character fonts (ips=1) or vector
+drawn fonts (0, default), or (3) use the value previous to current.
+Can be turned on and off during the plot. Has no effect on screen
+display, only on postscript output.
+
+<div class="p"><!----></div>
+IPFPS() Return value of PFPS setting.
+
+<div class="p"><!----></div>
 WINSET(lwin) Set windowing to axis-region on or off (.false. default).
 
 <div class="p"><!----></div>
@@ -93,57 +117,14 @@ TRUNCF(xmin,xmax,ymin,ymax) Set rectangular truncation (windowing) norm-units.
 If all args=0, switch off (default).
 
 <div class="p"><!----></div>
-PLTEND() Flush graphics, wait for carriage return. Then close, return to text.
-
-<div class="p"><!----></div>
-
-<h2> Color
-</h2>
-<a href="filltest.f"><img align="right" src="filltest.png"></a>
-COLOR(icol) Set current color of 0-15. Default 15 black (on white).
-
-<div class="p"><!----></div>
-GRADCOLOR(icol) Set current color from a 0-240 color gradient range.
-
-<div class="p"><!----></div>
-ACCISGRADINIT(ir1,ig1,ib1,ir2,ig2,ib2) Set the gradient color range,
-rgb amplitudes 0-65535.
-
-<div class="p"><!----></div>
-IGETCOLOR() Integer function.  Get the number of the current
-color. [You have to know if it is a 0-15 or a gradient color].
-
-<div class="p"><!----></div>
-PATHFILL() Fill the path just drawn, with the current color. A path is
-a set of vectors all drawn with pen down one after the other.
-
-<div class="p"><!----></div>
-IDARKBLUE(), IDARKGREEN(),  ISKYBLUE(),  IBRICKRED(),  IPURPLE(),
-IGOLD(),  IGRAY(),  ILIGHTGRAY(),  IBLUE(),  IGREEN(),  ICYAN(),
-IRED(),  IMAGENTA(),  IYELLOW(),  IBLACK(): Integer functions returning
-the 16-color number that gives what their name indicates (=1<font face="symbol">-</font
->15).
-
-<div class="p"><!----></div>
-GRADLEGEND(c1,c2,x1,y1,x2,y2,colwidth,lpara) draw a color gradient
-axis-legend. Value corresponding to color goes from c1 to c2: the ends of
-the color gradient. Position of axis is (x1,y1) to (x1,y2) in axis-box
-units. Width of color bar is colwith times axis-box
-width. lpara=.true. says use parallel labels.
+PLTEND() Flush graphics, wait for mouse click in plotting window; then
+return.
 
 <div class="p"><!----></div>
 
 <h2> Data plotting
 </h2>
 POLYLINE(xv,yv,ilength) Draw a polyline on an already setup graph.
-
-<div class="p"><!----></div>
-DASHSET(idash) Set dashed line character for polyline. 
-(0:solid, 1:long, 2:short, 3:long/short, 4:dots)
-
-<div class="p"><!----></div>
-LABELINE(xv,yv,ilength,clabel,ilablen) Draw polyline with embedded label
-of length ilablen.
 
 <div class="p"><!----></div>
 YPOLYLINE(yv,ilength) Draw a polyline on an already setup yautoplot.
@@ -155,6 +136,15 @@ triangle, 6 hollow star, 7 solid star, 8 hollow diamond, 9 flag, 10 +,
 11 x, 12 diamond, 13 -, 14 inverted triangle, 15 circle. Else
 char(isym), so ichar('c') gives 'c', ichar('c')+128 gives the font-2
 symbol corresponding to 'c' (xi).
+
+<div class="p"><!----></div>
+DASHSET(idash) Set dashed line character for polyline. 
+(0:solid, 1:long, 2:short, 3:long/short, 4:dots)
+
+<div class="p"><!----></div>
+LABELINE(xv,yv,ilength,clabel,ilablen) Draw polyline with embedded label
+of length ilablen. If ilablen.eq.-99 then set the normalized interval
+between labels to xv(1); if xv(1).eq.0 set it to default 0.3.
 
 <div class="p"><!----></div>
 POLYDRAW(xv,yv,ilength,DRAWFN) Draw data marked by symbol defined by
@@ -177,6 +167,66 @@ using charsize().
 POLYERR(xv,yv,errv,ilength) Draw error bars yv to yv+errv.
 
 <div class="p"><!----></div>
+STPOLYLINE(xa,ya,ilength,ixstride,iystride),
+STPOLYMARK(xa,ya,ilength,ixstride,iystride,isym) Strided versions of
+polyline/mark, in which a total of ilength data points are sampled
+from the arrays xa and ya at strides of ixstride and iystride. These
+allow one to plot data from rows (rather than columns) of a matrix by
+passing the leading dimension of the matrix as the stride. Passing
+strides of 1 gives equivalent sampling to the unstrided versions.
+
+<div class="p"><!----></div>
+
+<h2> Color
+</h2>
+<a href="filltest.f"><img align="right" src="filltest.png"></a>
+COLOR(icol) Set current color of 0-15. Default 15 black (on white).
+
+<div class="p"><!----></div>
+GRADCOLOR(icol) Set current color from a 1-240 color gradient range.
+
+<div class="p"><!----></div>
+ACCISGRADINIT(ir1,ig1,ib1,ir2,ig2,ib2) Set the gradient linear color
+range start and end, rgb amplitudes 0-65535.
+
+<div class="p"><!----></div>
+ACCISGRADSET(iredv,igreenv,ibluev,npixel) Set the color gradient with
+arbitrary RGB values from vectors of length npixel.
+
+<div class="p"><!----></div>
+IGETCOLOR() Integer function.  Get the number of the current
+color. [You have to know if it is a 0-15 or a gradient color].
+
+<div class="p"><!----></div>
+PATHFILL() Fill the path just drawn, with the current color. A path is
+a set of vectors all drawn with pen down one after the other.
+
+<div class="p"><!----></div>
+IDARKBLUE(), IDARKGREEN(),  ISKYBLUE(),  IBRICKRED(),  IPURPLE(),
+IGOLD(),  IGRAY(),  ILIGHTGRAY(),  IBLUE(),  IGREEN(),  ICYAN(),
+IRED(),  IMAGENTA(),  IYELLOW(),  IBLACK(): Integer functions returning
+the 16-color number that gives what their name indicates (=1&#8722;15).
+
+<div class="p"><!----></div>
+GRADTRI(xv,yv,zv,dv,zg0,zg1,ng0,ng1,isw) shade triangle specified by
+vertices xv(3), yv(3)[, zv(3)], with gradient values dv(3). The
+lower/upper parameter values zg0,1 are mapped to gradient colors
+ng0,1. isw bit 0 sets 2D (0) or 3D (1); bit 1 indicates use of dv:
+either absolute parameter values (0), or as direction cosines (1), in
+which case value is the point (xv,yv,zv) coordinate in that direction.
+
+<div class="p"><!----></div>
+GRADQUAD(xqv,yqv,zqv,dqv,zg0,zg1,ig0,ig1,isw) fill a quadrilateral 
+by splitting into four triangles at the centroid and using GRADTRI. 
+
+<div class="p"><!----></div>
+GRADLEGEND(c1,c2,x1,y1,x2,y2,colwidth,lpara) draw a color gradient
+axis-legend. Value corresponding to color goes from c1 to c2: the ends of
+the color gradient. Position of axis is (x1,y1) to (x1,y2) in axis-box
+units. Width of color bar is colwith times axis-box
+width. lpara=.true. says use parallel labels.
+
+<div class="p"><!----></div>
 
 <h2> Axes
 </h2>
@@ -187,7 +237,7 @@ AXIS2() Put tics on the opposite side of the axis box.
 
 <div class="p"><!----></div>
 XAXIS(first,delta) Draw an axis; labels starting at first, spaced by delta.
-If delta=0, autofit labels.
+If delta=0, autofit labels, which is what AXIS() does for both axes.
 
 <div class="p"><!----></div>
 YAXIS(first,delta) If axis is log, first indicates major subtic.
@@ -211,7 +261,7 @@ GAXIS(amin,amax, igpow,first,delta, xmin,xmax,ymin,ymax, lpara,laxlog)
 General axis with ends positioned at (xmin, ymin) (xmax, ymax) normal
 units. World axis labels based on world end values amin, amax, first, delta,
 igpow (power of ten label).  Lpara puts labels parallel (else
-perp). Laxlog logarithmic.
+dperp). Laxlog logarithmic.
 
 <div class="p"><!----></div>
 AXPTSET(xpt,ypt) Set the axis intersection point at specified fractions of
@@ -220,8 +270,7 @@ the full lengths of the axes. This determines where the axes are drawn.
 <div class="p"><!----></div>
 TICSET(xlen,ylen,xoff,yoff,ixw,iyw,ixp,iyp) Set tic lengths, label
 offsets, widths, decimal points. Labels switched off by width
-ixw <font face="symbol">£</font
-> 0. Defaults set respectively if reals all =0 or ints all
+ixw &#8804; 0. Defaults set respectively if reals all =0 or ints all
 =0. (Defaults: .015,.015,-.03,-.02,4,4,1,1)
 
 <div class="p"><!----></div>
@@ -237,14 +286,14 @@ TICNUMSET(itics) Set the number of tics of axis (approximately).
 
 <h2> Text plotting
 </h2>
-<img align="right" src="fontshow.png">
+<img align="right" src="fontshow.png"> 
 
 <div class="p"><!----></div>
 Special text is accessed via "\" or "!" followed by one of 
 the following:
 
 
-<dl compact="compact">
+<dl>
  <dt>
 @</dt>
 <dd>
@@ -259,12 +308,41 @@ B</dt>
 <dd>       to font 2 (italic)
 </dd>
  <dt>
-D</dt>
+R</dt>
+<dd>       to font 3 (roman)
+</dd>
+ <dt>
+E</dt>
+<dd>       to font 4 (english gothic)
+</dd>
+ <dt>
+G</dt>
+<dd>       to font 5 (german gothic)
+</dd>
+ <dt>
+d/D</dt>
 <dd>       Toggle subscript mode
 </dd>
  <dt>
-U</dt>
+u/U</dt>
 <dd>       Toggle superscript mode
+</dd>
+ <dt>
+p</dt>
+<dd>         Save this position
+</dd>
+ <dt>
+q</dt>
+<dd>         Save current position and return to previously saved
+position.
+</dd>
+ <dt>
+o</dt>
+<dd>        Toggle Write-over mode
+</dd>
+ <dt>
+n/N</dt>
+<dd>      Toggle Write-under mode
 </dd></dl>
 JDRWSTR(xn,yn,cstring,just) Draw cstring at (xn,yn)(normal), justified
 per parameter just:  0. centered, +1. normal left-justified, etc.
@@ -296,8 +374,7 @@ GETFONT(fontname) Read a new fontset from file.
 
 <div class="p"><!----></div>
 LEGENDLINE(xg,yg,nsym,cstring) Draw a legendline at fractional
-position in plot box: xg, yg.  Use symbol nsym if positive and  <font face="symbol">£</font
-> 256.
+position in plot box: xg, yg.  Use symbol nsym if positive and  &#8804; 256.
 If nsym &lt; 0 use both line and symbol. If nsym=0 put only line.  
 If nsym=257 use nothing but put the string at the usual place.
 If nsym=258 use nothing but put the string at the start of the line.
@@ -319,7 +396,9 @@ za(1:ixm(of ildim), iym) at zclv(icl) (or fit if icl=0, using zclv(1)
 if non-zero to determine contour number) on a mesh defined by
 x,y. Switch icsw determines call type: 0 equal spacing, x,y not used;
 1 vectors x,y determine mesh; 2 arrays x,y determine mesh; bit 5 (16)
-sets coloring; bit 6 (32) omits contour lines. Color contouring should
+sets coloring; bit 6 (32) omits contour lines; bit 7 (64) color-fills
+with triangle gradients, in which case non-zero second byte determines
+the step size of the gradients (1 by default). Color contouring should
 be done with icl .ge. 2 and the maximum and minimum values in zclv(1)
 and zclv(icl). Then a gradlegend can be constructed with these values.
 
@@ -331,28 +410,58 @@ arrays, needing no extra work space. No line labelling.
 AUTOCOLCONT(za,iLdim,ixm,iym) Color contour za on rectangular mesh.
 
 <div class="p"><!----></div>
+ARROWPLOT(E1,E2,Erange,Li,imax,jmax,x,y,iasw) Plot arrows to represent
+vector whose x-,y-components are E1(imax(or Li),jmax),E2(imax,jmax),
+defined on the position vectors/arrays represented by x,y. iasw works
+like icsw (see CONTOURL). Arrow length is 1 normalized unit times
+E/Erange. Plot region should be setup up prior to
+call.
 
-<h2> Three-dimensional routines
+<div class="p"><!----></div>
+
+<h2> Projected 3-D surface routines
 </h2>
 <a href="hidtest.f"><img align="right" src="hidtest.png"></a>
 
 <div class="p"><!----></div>
 HIDWEB(xv,yv,za,iL,ix,iy,isw) Draw a 3-D web of za(ix,iy) (leading
 dimension iL) at xv,yv.  View obtained from file eye.dat (3 reals) or
-default if nonexistent. Switch isw: Lowest byte .lt.0 no axes;
-abs(isw): 0,1 scale to fit; 2 use last scale; 4 don't hide
-lines. Second byte (*256) color of web if non-zero. Third byte
-(*65536) color of axes (if !=0). (Remains set).
+default if nonexistent. Control switch isw: .lt.0 no axes.
+Lowest byte abs(isw)=
+
+<dl>
+ <dt>
+0</dt>
+<dd>
+ don't rescale, use last scaling.
+</dd>
+ <dt>
+1</dt>
+<dd> scale to fit 1-D range xv(1)-xv(ix), yv(1)-yv(iy), zmin-zmax.
+</dd>
+ <dt>
+2</dt>
+<dd> scale to 2-D xmin,xmax, ...; don't hide lines, just wiremesh. 
+</dd></dl>Higher bytes: 2nd (*256) color of web if non-zero. 3rd (*65536) color
+of axes (if !=0). (Remains set).
 
 <div class="p"><!----></div>
-SURF3D(xa,ya,za,iL,ix,iy,isw,worka) Draw a 3-d surface of za(ix,iy),
+SURF3D(xa,ya,za,iL,ix,iy,iw,worka) Draw an opaque 3-d surface of za(ix,iy),
 (leading dimension iL) at xa,ya.  View obtained from file eye.dat (3
-reals) or default if nonexistent. Switch isw: Lowest byte .lt.0 no
-axes; abs(isw): 0,1 scale to fit; 2 use last scale. Second byte (*256)
-color of web if non-zero. Third byte (*65536) color of axes (if
-!=0). (Remains set). Array worka(0:iL+1,0:iy+1) must be provided.
-Surface is drawn as quadrilaterals filled with color from gradient
-according to (za) height scaled to the total height.
+reals) or default if nonexistent. Switch iw: .lt.0 no axes; lowest
+nibble =0  use last scale, =1 scale to fit x,y (1-D), =2 scale to fit
+x,y (2-D). Second byte (*256) color of web if non-zero. Third byte
+(*65536) color of axes (if !=0). (Remains set). Second nibble (16+) is
+isw for the SURFDR3 call. Array worka(0:iL+1,0:iy+1) must be provided.
+Surface is normally (isw=0) drawn as quadrilaterals filled with color
+from gradient according to (za) height scaled to the total height.
+
+<div class="p"><!----></div>
+SURFDR3(xa,ya,za,iL,ix,iy,worka,isw[,dv]) Draw 3-D surface using current
+projection. Switch isw bit 0 set: triangular fills, else chunks.  If,
+in addition, isw bit 1: directional shading using optional argument
+dv(5) dv(1-3) gives direction dv(4-5) gives distance limits, else
+z-height shading. Use for drawing closed parameterized surfaces.
 
 <div class="p"><!----></div>
 AXON(xv,yv,za,iL,ix,iy) Plot axonometrically za(ix,iy) at xv,yv (i.e.
@@ -362,9 +471,6 @@ exists; first two values indicate normal distance offset of axis end.
 <div class="p"><!----></div>
 WEBDRW(xv,yv,za,iL,ix,iy,icorner) Draw  a 3-D web using current projection.
 Return closest corner to view point in icorner.
-
-<div class="p"><!----></div>
-SURFDR3(xa,ya,za,iL,ix,iy,worka) Draw 3-D surface using current projection.
 
 <div class="p"><!----></div>
 HIDINIT(top,bot) Set the top and bottom hiding horizons (usually 0.,1.).
@@ -377,23 +483,24 @@ fxd. For left handed system, isw=(-4,-5 or -6).
 
 <div class="p"><!----></div>
 HDPROJECT(ihide,iproject,ifixedcoord,fxdworld,irlsys)
-Set hiding (ihide = 1), projecting 2<font face="symbol">®</font
->3 (iproject.ne.1), which
+Set hiding (ihide = 1), projecting 2&#8594;3 (iproject.ne.0), which
 coordinate to hold fixed (ifixedcoord), what its world value is
 (fxdworld), and right (+1) or left (-1) handed system (irlsys).
 
 <div class="p"><!----></div>
-SCALE3(xmin,xmax,ymin,ymax,zmin,zmax) Set 3-D world scaling to cube size.
+
+<h2> Three-Dimensional Perspective Drawing
+</h2>
+POLY3LINE(xv,yv,zv,ilength) Draw a polyline in 3-D. (Minimum setup
+call prior to this is just pltinit.)
+
+<div class="p"><!----></div>
+SCALE3(xmin,xmax,ymin,ymax,zmin,zmax) Set 3-D world scaling to cube
+size. Defaults min=-1, max=+1.
 
 <div class="p"><!----></div>
 SETCUBE(xc,yc,zc,xcen,ycen) Set norm-value of cube edges (+-) and 2-d 
-position of cube center.
-
-<div class="p"><!----></div>
-SCBN(icoord) Real function returns normalized value position of cube face
-corresponding to coordinate icoord=constant (icoord =1,2,3). So for
-example to project onto the z=constant (negative) face of the cube,
-you do: call hdprset(-3,-scbn(3))
+position of cube center. Defaults .25,.25,.2,.5,.4.
 
 <div class="p"><!----></div>
 TRN32(x,y,z,xt,yt,zt,ifl) If ifl=1, set 3-D transform; (x,y,z) is
@@ -401,15 +508,16 @@ point looked at, (xt,yt,zt) is eye. If ifl=2, set axonometric, offset
 xt,zt.  If ifl=0 transform (x,y,z) to (xt,yt).
 
 <div class="p"><!----></div>
-VEC3W(x,y,z,ipen) Draw world vector to (x,y,z).
+CUBEPROJ() Draw the cube outline faces closest to eye.
 
 <div class="p"><!----></div>
-VEC3N(x,y,z,ipen) Draw norm vector to (x,y,z). Domain (-1.,1.) covers
-the cube.
+IGETCORNER() Integer function returning the closest corner to eye.
 
 <div class="p"><!----></div>
-WXYZ2NXYZ(xw,yw,zw,xn,yn,zn) Transform from world 3-D vector to
-normalized.
+AXPROJ(ic) Draw axes, centered at corner given by ic.
+Corner=bits0-3(ic). If bit4(ic)=1, flip labels.  If bit5(ic)=1,
+x-labels vertical; if bit6(ic)=1, y-labels vertical, else horizontal.
+Normally AXPROJ(IGETCORNER()).
 
 <div class="p"><!----></div>
 CUBED(icorner) Draw a cube outline when icorner is the nearest.
@@ -422,24 +530,19 @@ AXIDENT3() Identify the 3 axes (logically x, y, z).
 AX3LABELS(charx,chary,charz) Label the three 3-D axes.
 
 <div class="p"><!----></div>
-AXPROJ(ic) Draw axes, centered at corner given by ic.
-Corner=bits0-3(ic). If bit4(ic)=1, flip labels.  If bit5(ic)=1,
-x-labels vertical; if bit6(ic)=1, y-labels vertical, else horizontal.
+HIDVECN(x2,y2,ipen) Draw a (2-D) vector, hiding appropriately.
 
 <div class="p"><!----></div>
-HIDVECN(x2,y2,ipen) Draw a (2-D) vector, hiding appropriately.
+SCBN(icoord) Real function returns normalized value position of cube face
+corresponding to coordinate icoord=constant (icoord =1,2,3). So for
+example to project onto the z=constant (negative) face of the cube,
+you do: call hdprset(-3,-scbn(3))
 
 <div class="p"><!----></div>
 TN2S(px,py,sx,sy) Transform normalized to px,py to screen coordinates
 sx,sy. If (world3.h) ihiding is  &lt; 0, project in direction of 3-d axis
 mod(abs(ihiding),2) at value fixedn, right/left-handed when
-(1 <font face="symbol">£</font
-> <font face="symbol">-</font
->ihiding <font face="symbol">£</font
-> 3 ) or (4 <font face="symbol">£</font
-> <font face="symbol">-</font
->ihiding <font face="symbol">£</font
-> 6).
+(1 &#8804; &#8722;ihiding &#8804; 3 ) or (4 &#8804; &#8722;ihiding &#8804; 6).
 
 <div class="p"><!----></div>
 EYE3D(isw) Enter interactive rotation of the view of 3-D drawing. The
@@ -450,7 +553,7 @@ eye3d, while no motion is the signal to continue. Thus the following
 code gives interactive examination of the object:
 
 
-<dl compact="compact">
+<dl>
  <dt>
 51</dt>
 <dd>
@@ -466,7 +569,53 @@ Continue
 </dd>
  <dt>
 </dt>
-<dd>if(isw.ne.0)goto 51</dd></dl>IEYE3D() Integer function of convenience to return switch value of eye3d.
+<dd>if(isw.eq.1)goto 51</dd></dl> Key presses with focus in the plot window, return isw= keysym of key
+pressed. For example in X, left, up, right, down cursor arrows are
+ff51-4 respectively (65361-4 decimal). Letters are their lower case
+ASCII codes, etc.  The return value can be used for other control
+purposes. But the codes for cursors are different under Windows
+(37-40) and it returns the ASCII codes for upper case.
+
+<div class="p"><!----></div>
+IEYE3D() Integer function of convenience to return switch value of eye3d.
+
+<div class="p"><!----></div>
+
+<h2> Plotting volumetric 3-D Data
+</h2>
+<a href="slicetest.f"><img align="left"
+src="sgweb.jpg" width="400"></a>
+
+<div class="p"><!----></div>
+SLICEGWEB(ifullv,iudsv,u,nw,zp,ixnpv,xnv,ifix,cutitle,svec,vp) Plot
+as 3-D webs slices through 3-D array u. ifullv(3) and iudsv(3) are the
+full and used dimensions of u. zp(nw,nw) is a work array; nw should be
+ &gt; max(iudsv). ixnpv(3) are the pointers within xnv to the node
+position array starts. That is, the positions of the nodes in
+dimension id are stored in xnv(ixnpv(id))+1 to xnv(ixnpv(id))+
+iudsv(id). ifix is the initial fixed dimension (1,2 or 3). cutitle is
+the character array title of u. Keyboard control of the slice is
+provided, together with perspective view controlled by mouse. If the
+third bit of abs(ifix) is set (by adding 4 to it), then overplot on
+the contour plot arrows representing the projection of the vector
+field svec(ifullv,3), which has the same indexing and positions as u,
+and three vector components. The work array vp(nw,nw,2) must be
+provided.  The last two arguments may be dummy in the call if
+abs(ifix) &lt; 4.
+
+<div class="p"><!----></div>
+<a href="slicetest.f"><img align="right"
+src="sgcont.jpg" width="300"></a>
+
+<div class="p"><!----></div>
+SLICEGCONT(ifullv,iudsv,u,nw,zp,ixnpv,xnv,ifixptv,cutitle,svec,vp) Plot
+perspective view of slices on which are contours of 3-D array
+u(ifullv(1),ifullv(2),ifullv(3)). ifullv(3), iudsv(3), zp(nw,nw),
+ixnpv(3), cutitle are as above in slicegweb. The initial intersection
+of the 3 fixed planes is at ifixptv(3). Slightly different
+keyboard/mouse control is provided. Overplotting arrows is indicated
+by the third bit of ifix being set; the work array vp(nw,nw,3,3)
+must then be provided.
 
 <div class="p"><!----></div>
 
@@ -482,6 +631,17 @@ WX2NX(wx), WY2NY(wy) Real functions convert world to normal units.
 
 <div class="p"><!----></div>
 XN2XW(wx), YN2YW(wy) Real functions convert normal to world units.
+
+<div class="p"><!----></div>
+VEC3W(x,y,z,ipen) Draw world vector to (x,y,z).
+
+<div class="p"><!----></div>
+VEC3N(x,y,z,ipen) Draw norm vector to (x,y,z). Domain (-1.,1.) covers
+the cube.
+
+<div class="p"><!----></div>
+WXYZ2NXYZ(xw,yw,zw,xn,yn,zn) Transform from world 3-D vector to
+normalized.
 
 <div class="p"><!----></div>
 GTIC(xgw,ilab,xg,yg,tcos,tsin,axcos,axsin,lpara) Low level tic drawing.
@@ -513,6 +673,12 @@ IWRITE(i,iwdth,cstring) Format the integer i into cstring, return iwdth.
 TERMCHAR(cstring) Terminate the string in 0, truncating trailing spaces.
 
 <div class="p"><!----></div>
+ACCISFLUSH() Flush all graphics to the display before proceeding. This
+is useful if the program is about to enter a polling state, waiting
+for input. It ensures that all the prior display of graphics is visible on
+entering that polling state.
+
+<div class="p"><!----></div>
 ASLEEP(iusec) Insert a delay of approximately iusec microsec into both
 live plotting and ps files, for making sequential drawing animations.
 Timing will be much slower over remote Xservers and serious bandwidth
@@ -532,20 +698,22 @@ which causes the animation duration to be multiplied by 2.5
 <h2> Linking
 </h2>
 The routines are normally compiled and gathered into a library which
-is subsequently linked against. The interface routines are contained in
-vecx.c or vecwin.c. Of these driver files, the routines svga, txtmode,
-vec, vecfill, scolor, accisgraddef, acgradcolor, getrgbcolor are
-public, for calling by higher level routines, and possibly the user. 
+is subsequently linked against. The interface routines are contained
+in vecx.c, vecglx.c, vecwin.c, or the obsolete but occasionally useful
+vec4014.f. Of these driver files, the routines svga, txtmode, vec,
+vecfill, scolor, accisgraddef, acgradcolor, getrgbcolor are public,
+for calling by higher level routines, and possibly the user.
 
 <div class="p"><!----></div>
-For X window systems, they require the Xlib and Xt libraries, calling
-for compiler/linker arguments such as  -L/usr/X11R6/lib/ -lXt -lX11.
+For X window systems, vecx.c requires the Xlib and Xt libraries, calling
+for compiler/linker arguments such as  -L/usr/X11R6/lib/ -lXt
+-lX11. The driver vecglx.c requires GL and GLU, instead of Xt.
 
 <div class="p"><!----></div>
 
 <br /><br /><hr /><small>File translated from
-T<sub><font size="-1">E</font></sub>X
+T<sub><span class="small">E</span></sub>X
 by <a href="http://hutchinson.belmont.ma.us/tth/">
-T<sub><font size="-1">T</font></sub>Hgold</a>,
-version 3.70.<br />On 18 Sep 2005, 20:58.</small>
+T<sub><span class="small">T</span></sub>H</a>,
+version 4.03.<br />On 13 Dec 2012, 11:31.</small>
 </html>

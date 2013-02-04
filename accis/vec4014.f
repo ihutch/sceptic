@@ -1,14 +1,23 @@
 c Tektronix 4014 driver.
+c Expanded to supply dummy routines for filling and rotating etc 2008.
+c And for usleep, noeye3d. Routines like slicing won't actually work
+c with the 4014 driver, but at least the code will run without the
+c X libraries.
+c********************************************************************
+      integer function accis_driver()
+      accis_driver=2
+      end
 C********************************************************************
       blockdata scrndat
       include 'plotcom.h'
 c      data scrxpix,scrypix,ncolor,vmode/1024,779,15,4010/
-      data scrxpix,scrypix,ncolor,vmode/4096,3120,15,4014/
+      data scrxpix,scrypix,ncolor,vmode/4096,3120,15,4014/      
       end
 C********************************************************************
 c Switch to graphics mode Tek 4010/14.
       subroutine svga(scrxpix,scrypix,vmode,ncolor)
       integer scrxpix,scrypix,vmode,ncolor
+      accis_nodisplay=1;
 c Enter Tek mode. Modified for Xterm.
       write(*,'(1x,a)')char(27)//'[?38h'
       write(*,*)'                                 '
@@ -129,5 +138,149 @@ c      write(*,'(1x,a1,''['',i2,''m'')')char(27),30+mask
       end
 c*********************************************************************
 
+C********************************************************************
+      subroutine svganodisplay(scrxpix,scrypix,vmode,ncolor)
+      integer scrxpix,scrypix,vmode,ncolor
+      call svga(scrxpix,scrypix,vmode,ncolor)
+      end
+c********************************************************************
+c dummy
+      subroutine vecfill()
+      end
+c********************************************************************
+      subroutine eye3d(ival)
+      ival=0
+      end
+c********** Use a gradient color out of 240 *************************
+      subroutine acgradcolor(li)
+      integer li
+      integer a_gradPixno
+      parameter (a_gradPixno=240)
+      integer a_gradPix(a_gradPixno)
+      integer a_grad_inited
+      integer a_gradred(a_gradPixno)
+      integer a_gradgreen(a_gradPixno)
+      integer a_gradblue(a_gradPixno)
+      common /a_grad/a_gradPix,a_gradred,a_gradgreen,a_gradblue
+     $     ,a_grad_inited
+      external a_grad_data
 
+      if(a_grad_inited.eq.0) call accisgraddef()
+      end
+c***********************************************************************
+      block data a_grad_data
+      integer a_gradPixno
+      parameter (a_gradPixno=240)
+      integer a_gradPix(a_gradPixno)
+      integer a_grad_inited
+      integer a_gradred(a_gradPixno)
+      integer a_gradgreen(a_gradPixno)
+      integer a_gradblue(a_gradPixno)
+      common /a_grad/a_gradPix,a_gradred,a_gradgreen,a_gradblue
+     $     ,a_grad_inited
+      data a_grad_inited/0/
+      end
+c********** Tell the current rgb color ********************************
+      subroutine getrgbcolor(ipixel,red,green,blue)
+      integer ipixel,red,green,blue;
+      integer a_gradPixno
+      parameter (a_gradPixno=240)
+      integer a_gradPix(a_gradPixno)
+      integer a_grad_inited
+      integer a_gradred(a_gradPixno)
+      integer a_gradgreen(a_gradPixno)
+      integer a_gradblue(a_gradPixno)
+      common /a_grad/a_gradPix,a_gradred,a_gradgreen,a_gradblue
+     $     ,a_grad_inited
+      if(a_grad_inited.eq.0) call accisgraddef()
+      red=a_gradred(ipixel)
+      green=a_gradgreen(ipixel)
+      blue=a_gradblue(ipixel)
+      end
+c*************************************************************************
+      subroutine accisgraddef()
+      integer top, bot
+      top=65535;
+      bot=0;
+      call accisgradinit(bot,bot,bot,top,top,top);
+      end
+c*************************************************************************
+      subroutine accisgradinit(r1,g1,b1,r2,g2,b2)
+      integer r1,g1,b1,r2,g2,b2
+      integer i,j,status
+      integer ipixel,red,green,blue;
+      integer a_gradPixno
+      parameter (a_gradPixno=240)
+      integer a_gradPix(a_gradPixno)
+      integer a_grad_inited
+      integer a_gradred(a_gradPixno)
+      integer a_gradgreen(a_gradPixno)
+      integer a_gradblue(a_gradPixno)
+      common /a_grad/a_gradPix,a_gradred,a_gradgreen,a_gradblue
+     $     ,a_grad_inited
+      do i=0,a_gradPixno-1,1
+         j=(i*r2+(a_gradPixno-1-i)*r1)/(a_gradPixno-1.)
+         if(j.lt.0)then
+            j=0 
+         elseif(j.gt.65535) then
+            j=65535
+         endif
+         a_gradred(i)=j
+         j=(i*g2+(a_gradPixno-1-i)*g1)/(a_gradPixno-1.)
+         if(j.lt.0)then
+            j=0 
+         elseif(j.gt.65535) then
+            j=65535
+         endif
+         a_gradgreen(i)=j
+         j=(i*b2+(a_gradPixno-1-i)*b1)/(a_gradPixno-1.)
+         if(j.lt.0)then
+            j=0 
+         elseif(j.gt.65535) then
+            j=65535
+         endif
+         a_gradblue(i)=j;
+         a_grad_inited=2;
+      enddo
+      end
+c*************************************************************************
+      subroutine accisgradset(red,green,blue,ngcol)
+c Set the gradient colors from three fortran arrays.
+c Limiting the range to 0-65535, warning if the pixel number is not right.
 
+      integer red(ngcol),green(ngcol),blue(ngcol)
+      integer a_gradPixno
+      parameter (a_gradPixno=240)
+      integer a_gradPix(a_gradPixno)
+      integer a_grad_inited
+      integer a_gradred(a_gradPixno)
+      integer a_gradgreen(a_gradPixno)
+      integer a_gradblue(a_gradPixno)
+      common /a_grad/a_gradPix,a_gradred,a_gradgreen,a_gradblue
+     $     ,a_grad_inited
+
+      do i=1,a_gradPixno
+         if(i.le.ngcol)then
+            a_gradred(i)=max(0,min(red(i),65535))
+            a_gradgreen(i)=max(0,min(green(i),65535))
+            a_gradblue(i)=max(0,min(blue(i),65535))
+         else
+            a_gradred(i)=0
+            a_gradgreen(i)=0
+            a_gradblue(i)=0
+         endif
+      enddo
+      end
+c***********************************************************************
+c Dummy
+      integer function igradtri(x,y,z,h,i3d)
+      igradtri=0
+      end
+c**********************************************************************
+c Dummy
+      subroutine usleep(usecs)
+      end
+c**********************************************************************
+c Dummy
+      subroutine noeye3d(value)
+      end

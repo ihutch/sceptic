@@ -29,6 +29,34 @@ c***********************************************************************
       call w2scl3
       end
 c***********************************************************************
+      subroutine getscale3(x3min,x3max,y3min,y3max,z3min,z3max)
+      real x3min,x3max,y3min,y3max,z3min,z3max
+      include 'plotcom.h'
+      include 'world3.h'
+      x3min=wx3min
+      x3max=wx3max
+      y3min=wy3min
+      y3max=wy3max
+      z3min=wz3min
+      z3max=wz3max
+      end
+c***********************************************************************
+      subroutine seti3trunc(itrunc)
+c Set the value of the i3trunc switch that determines 3D truncation.
+      include 'world3.h'
+      i3trunc=itrunc
+      end
+c***********************************************************************
+      subroutine togi3trunc()
+c Toggle the value of the i3trunc switch that determines 3D truncation.
+      include 'world3.h'
+      if(i3trunc.ne.0)then
+         i3trunc=0
+      else
+         i3trunc=1
+      endif
+      end
+c***********************************************************************
       subroutine w2scl3
       include 'plotcom.h'
       include 'world3.h'
@@ -58,8 +86,20 @@ c Set size of unit cell ("cube'), and 2D center position.
       scbz3=cbz
       xcbc2=xcbc
       ycbc2=ycbc
-c Probably should not do this here.
-c      call w2scl3
+c Probably should not do this here unless defaults are set, 
+c which they are
+      call w2scl3
+      end
+c***********************************************************************
+      subroutine getcube(cbx,cby,cbz,xcbc,ycbc)
+c Get size of unit cell ("cube'), and 2D center position.
+      include 'world3.h'
+      real cbx,cby,cbz,xcbc,ycbc
+      cbx=scbx3
+      cby=scby3
+      cbz=scbz3
+      xcbc=xcbc2
+      ycbc=ycbc2
       end
 c***********************************************************************
       subroutine vec3w(x,y,z,iud)
@@ -69,14 +109,33 @@ c Plot a vector in 3-D world coordinates.
       real xn,yn,zn
       include 'world3.h'
       include 'plotcom.h'
-      xn=w3nx*(x-wx3min)-scbx3
-      yn=w3ny*(y-wy3min)-scby3
-      zn=w3nz*(z-wz3min)-scbz3
+      if(i3trunc.eq.0)then
+         xn=w3nx*(x-wx3min)-scbx3
+         yn=w3ny*(y-wy3min)-scby3
+         zn=w3nz*(z-wz3min)-scbz3
+      else
+         xn=w3nx*(max(min(x,wx3max),wx3min)-wx3min)-scbx3
+         yn=w3ny*(max(min(y,wy3max),wy3min)-wy3min)-scby3
+         zn=w3nz*(max(min(z,wz3max),wz3min)-wz3min)-scbz3
+      endif
+c      write(*,*)z,wz3max,w3zmin
+c      write(*,*)'xn,yn,zn',xn,yn,zn
       call vec3n(xn,yn,zn,iud)
       end
 c***********************************************************************
+      subroutine nxyz2wxyz(xn,yn,zn,x,y,z)
+c Transform from world3 to normal3
+      real x,y,z
+      real xn,yn,zn
+      include 'world3.h'
+      include 'plotcom.h'
+      x=(xn+scbx3)/w3nx +wx3min
+      y=(yn+scby3)/w3ny +wy3min
+      z=(zn+scbz3)/w3nz +wz3min
+      end
+C********************************************************************
       subroutine wxyz2nxyz(x,y,z,xn,yn,zn)
-c Plot a vector in 3-D world coordinates.
+c Transform from world3 to normal3
       real x,y,z
       real xn,yn,zn
       include 'world3.h'
@@ -84,6 +143,13 @@ c Plot a vector in 3-D world coordinates.
       xn=w3nx*(x-wx3min)-scbx3
       yn=w3ny*(y-wy3min)-scby3
       zn=w3nz*(z-wz3min)-scbz3
+      end
+C********************************************************************
+      subroutine xy2ncbc(x,y)
+c Add centering offsets to x and y
+      include 'world3.h'
+      x=x+xcbc2
+      y=y+ycbc2
       end
 C********************************************************************
       function scbn(j)
@@ -143,15 +209,18 @@ c      write(*,*)ihiding,fixedn
       call hdprset(ihiding,fixedn)
       end
 C********************************************************************
-      subroutine cubed(icorner)
+      subroutine cubed(icin)
 c Omit the lines to corner opposite that chosen.
 c Code is 1,2,3,4 anticlockwise from x3min,y3min, +->top -->bottom.
 c icorner=0 => omit none.
-      integer icorner
+      integer icin
       include 'plotcom.h'
       include 'world3.h'
       integer ic,i,j,kx,ky,iu
 c      write(*,*)icorner
+
+c Chop the top bits off icorner
+      icorner=icin-(icin/8)*8
       ic=-sign((mod(abs(icorner)+1,4)+1),icorner)
 c      write(*,*)ic
       do 2 i=-1,1,2
@@ -190,6 +259,26 @@ c	 call hidvecn(-scby3,-scbz3,1)
       call hdprset(0,0.)
       end
 c***********************************************************************
+c Version that finds the right corner to hide lines from.
+      subroutine cubeproj()
+      call geteye(x2,y2,z2)
+      if(y2.le.0.)then 
+         if(x2.le.0.)then
+            icorner=1
+         else
+            icorner=2
+         endif
+      else
+         if(x2.le.0.)then
+            icorner=4
+         else
+            icorner=3
+         endif
+      endif
+      if(z2.lt.0.)icorner=-icorner
+      call cubed(icorner)
+      end
+c***********************************************************************
 c Plan for a more systematic axproj. July 93
 c ic indicates the corner and whether to flip.
 c Vertical axis is always to the left.
@@ -213,6 +302,7 @@ c Draw projected axes using the current projection according to ic.
       data ixc/-1,-1,1,1,-1,-1/iyc/1,-1,-1,1,1,-1/
 c
       
+      call ticnumget(inticnum)
       yhoriz=(ic/64 - (ic/128)*2) .eq.0
       xhoriz=(ic/32 - (ic/64)*2) .eq.0
       flip=(ic/16 - (ic/32)*2) .ne.0

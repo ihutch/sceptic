@@ -20,7 +20,8 @@ c  Test of contouring routine.
       do 300 n=1,nl
 	 cl(n)=-1.+ 2.*n/nl
  300  continue
-      call pfPSset(1)
+c      call pfPSset(1)
+c      call glback()
       call pfset(3)
 c      write(*,'(10f7.3)')(cl(i),i=1,nl)
       call multiframe(2,2,3)
@@ -40,9 +41,11 @@ c       call pltend
 c 3.General call. 
        call pltinit(x(1,1),x(nx,1),y(1,1),y(1,ny))
 c Poor-man's gamma effect with truncated color curves.
-       call accisgradinit(32000,-40000,-40000,64000,64000,64000)
+       call accisgradinit(-40000,-40000,32000,64000,64000,64000)
 c x,y matrices used since last arg 2. Coloring since +16.
+       write(*,*)'Finished gradinit'
        call contourl(z,ppath,nx,nx,ny,cl,snl,x,y,2+16)
+       write(*,*)'Finished contourl'
        call axis
        call axlabels('x','y')
        call pltend

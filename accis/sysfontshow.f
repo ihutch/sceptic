@@ -1,5 +1,5 @@
 c New version
-      program sysfontshow
+      program fontshow
 c Plot aligned sets of the three installed fonts.
       character*256 entered
       character*129 str1
@@ -7,7 +7,7 @@ c Plot aligned sets of the three installed fonts.
       integer i,j
 c
       call pfset(-1)
-      call pfPSset(1)
+      call pfpsset(1)
       call pltinit(0.,1.,0.,1.)
       do 8 k=1,3
 	 if(k.eq.3)then
@@ -20,13 +20,12 @@ c
 	    do 10 i=1,32
 	       py=0.6-(4*(k-1)+j)*0.043
 	       px=0.02+.03*i
-               index=31+32*(j-1)+i
-               if(index.eq.ichar('\')
-     $              .or.index.eq.ichar('!'))then 
+               if(char(31+32*(j-1)+i).eq.'\'
+     $              .or.char(31+32*(j-1)+i).eq.'!')then 
                   str1='!'//char(63+k)//'!'//
-     $                 char(index)//'!@'//char(0)
+     $                 char(31+32*(j-1)+i)//'!@'//char(0)
                else
-                  str1='!'//char(63+k)//char(index)
+                  str1='!'//char(63+k)//char(31+32*(j-1)+i)
      $                 //'!@'//char(0)
                endif
 	       call drwstr(px,py,str1)
@@ -74,6 +73,14 @@ c Display the 15 named colors.
       call color(iblack())
       call drcstr(' iblack')
 
+c Draw words to test character spacing.
+      call drwstr(.03,.02,'String 1 MMM WWW')
+      call drcstr('Follow-On')
+      call drwstr(0.03,.0,'String')
+      call drcstr(' 1')
+      call drcstr(' MMM')
+      call drcstr(' WWW')
+      call drcstr('Follow-On')
       call pltend()
       stop
       end

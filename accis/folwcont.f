@@ -21,7 +21,7 @@ c	CONFOL - Follows the contour.
 c       MESH2W(xc,yc,ic,x,y,l,consw)
 c         - Transform xc,yc(ic) to the mesh x,y, depending on switch consw.
 c
-c External calls: minmax2,PLTINIT, LABELINE, POLYLINE... in PLOTIH.LIB
+c External calls: minmax2,PLTINIT, LABELINE, POLYLINE... 
 c************************************************************************
       subroutine contrec(z,ppath,imax,jmax,cl,nc)
 c Basic call: Contour a whole array on a rectangular equally spaced mesh.
@@ -46,6 +46,7 @@ c Color (only) Contour of z on rectangular mesh.
       cldummy(1)=0.
       call contourl(z,ppathdummy,ildx,imax,jmax,
      $     cldummy,0,xdummy,ydummy,48)
+      call color(15)
       call axbox
       call gradlegend(c1st,clast,-.2,0.,-.2,1.,.03,.false.) 
       end
@@ -66,6 +67,8 @@ c   1   Vectors x and y determine the unequally spaced arrays.
 c   2   Arrays x and y determine the arbitrary mesh.
 c   Bit 5 (16) set, do coloring
 c   Bit 6 (32) set, don't contour (only color).
+c   Bit 7 (64) set, color using triangle gradients.
+c     In which case second byte tells the level skip (default 1).
 c If nc lt 0 no labels. If nc eq 0 then fit contours; use cl(1) for
 c number of contours if non-zero. Else use array cl(nc).
 c 
@@ -75,26 +78,30 @@ c
       integer point,width,cyc
       character str1*30,str2*30
       common/lablnc/width,str1
+      external followdata
 c Maximum length of a single contour. Increase if necessary.
-      parameter (ici=1000)
+      parameter (ici=4000)
       real xc(ici),yc(ici)
       real cw,ch
       logical labels
-      integer inc,in,nxfac,theconsw,icfil
+      integer inc,in,nxfac,theconsw,icfil,itri
       parameter (inc=7)
       real minz,maxz,xfac,xtic,x1st,xlast
-      real xd(4),yd(4)
+      real xd(4),yd(4),zd(4)
       parameter (ngradcol=240)
       common/cont1stlast/c1st,clast
 
+c      write(*,*)'Inside contourl'
 c save charsize
       cw=chrswdth
       ch=chrshght
 c Interpret switch.
-      icfil=consw/16
-      theconsw=consw- 16*icfil
-      inocont=consw/32
-      icfil=icfil - 32*inocont
+      theconsw=consw- 16*(consw/16)
+      icfil=consw/16 - 32*(consw/32)
+      inocont=consw/32-2*(consw/64)
+      itri=consw/64 -  2*(consw/128)
+c Second byte
+      istep=consw/256-256*(consw/(256*256))
       if(nc.eq.0)then
 	 call minmax2(z,L,imax,jmax,minz,maxz)
 	 in=inc
@@ -128,6 +135,7 @@ c         write(*,*)ctic,c1st,xtic,x1st,cyc,xcyc,in
          endif
       endif
 c Coloring.
+c      write(*,*)'c1st,clast',c1st,clast
       if(icfil.ne.0)then
       id=4
       incolor=igetcolor() 
@@ -138,30 +146,50 @@ c      write(*,*)'ncolor=',ncolor,'incolor=',incolor
          if(j.eq.1)y1=1.001
          if(j.eq.jmax)y2=j-.001
          do i=1,imax
-            x1=i-0.500001
-            x2=i+0.500001
-            if(i.eq.1)x1=1.001
-            if(i.eq.imax)x2=i-.001
-            icolor=(z(i,j)-c1st)*(ngradcol-1)/(clast-c1st)
-            if(icolor.gt.ngradcol-1)icolor=ngradcol-1
-            if(icolor.lt.0)icolor=0 
-c           write(*,*)'Calling gradcolor',icolor
-            call gradcolor(icolor) 
-c           call color(icolor/16)
-            xd(1)=x1
-            yd(1)=y1
-            xd(2)=x2
-            yd(2)=y1
-            xd(3)=x2
-            yd(3)=y2
-            xd(4)=x1
-            yd(4)=y2 
-c           write(*,*)xd,yd
-            call mesh2w(xd,yd,id,x,y,l,theconsw) 
-c           write(*,*)id,xd,yd
-            call polyline(xd,yd,id)
-            call pathfill() 
-c           call vecw(xd,yd,0)
+            if(itri.eq.0)then
+c Block chunky.
+               x1=i-0.500001
+               x2=i+0.500001
+               if(i.eq.1)x1=1.001
+               if(i.eq.imax)x2=i-.001
+               icolor=nint((z(i,j)-c1st)*(ngradcol-1.)/(clast-c1st))
+               if(icolor.gt.ngradcol-1)icolor=ngradcol-1
+               if(icolor.lt.0)icolor=0
+c               write(*,*)'icolor=',icolor
+               call gradcolor(icolor) 
+               xd(1)=x1
+               yd(1)=y1
+               xd(2)=x2
+               yd(2)=y1
+               xd(3)=x2
+               yd(3)=y2
+               xd(4)=x1
+               yd(4)=y2 
+               call mesh2w(xd,yd,id,x,y,l,theconsw) 
+               call polyline(xd,yd,id)
+               call pathfill() 
+            else
+c Triangle gradients.
+               if(i.lt.imax .and. j.lt.jmax)then
+                  xd(1)=i
+                  yd(1)=j
+                  xd(2)=i+1
+                  yd(2)=j
+                  xd(3)=i+1
+                  yd(3)=j+1
+                  xd(4)=i
+                  yd(4)=j+1
+                  call mesh2w(xd,yd,id,x,y,l,theconsw)
+                  zd(1)=z(i,j)
+                  zd(2)=z(i+1,j)
+                  zd(3)=z(i+1,j+1)
+                  zd(4)=z(i,j+1)
+c                  write(*,*)c1st,clast,ngradcol
+                  call gradquad(xd,yd,zd,zd,
+     $                 c1st,clast,0,ngradcol,256*istep)
+c Error:     $                 c1st,clast,0,ngradcol-1,256*istep)
+               endif
+            endif
          enddo
       enddo
       call color(incolor)
@@ -189,7 +217,9 @@ c Contour drawing
             cdel=xtic
 	 endif
 	 ic=ici
-	 if((mod(i+i1st,cyc).eq.0).and.labels)then
+c This gave interesting random values. i1st not initialized.
+c	 if((mod(i+i1st,cyc).eq.0).and.labels)then
+	 if((mod(i,cyc).eq.0).and.labels)then
             ipoint=max(point,1-min(ifix(log10(cdel)+1.e-4),2))
 	    if(ipoint.gt.8)then
 	       write(str2,'(g12.6)')cv
@@ -215,7 +245,7 @@ c this circumlocution to work around an f2c/powerc bug.
 
 
 c Contour-start searching for contourl.
-c Contour labelling is controlled by the common block
+c Contour labelling is controlled by the common:
 c common/lablnc/width,str1(*30) giving the label length and string.
 c Calls: Confol, polyline, labeline.
 c*************************************************************************
@@ -365,7 +395,6 @@ c initd=[1,2,3,4] => direction of motion [E,N,W,S]
 c Outputs:
       integer i,imax
       real xc(i),yc(i),z1,z2,di
-c      real xint,yint
 c The interpolated contour and its length. i is equal to max length
 c on input, and relevant length on output.
 c
@@ -403,17 +432,26 @@ c      write(*,'('' new ix,iy,id,i'',4i4)')ix,iy,id,i
      $	   ix,iy,idx(id-1),idy(id-1),di)
       xc(i)=ix+idx(id-1)*di
       yc(i)=iy+idy(id-1)*di
-c      ppath(id,ix,iy)=char(1)
+c This is presumably the place to put the function call to document the
+c track followed. At the moment, all we are doing is storing the point
+c in xc,yc. 
+c Path documentation:
+      call acpathdoc(z,cv,l,imax,xc,yc,i)
+
       itest=ichar(ppath(ix,iy))/2**(id-1)
       if(itest - (itest/2)*2 .eq. 0)
      $	    ppath(ix,iy)=char(ichar(ppath(ix,iy))+2**(id-1))
       if(i.eq.imax)then
 	 write(*,*)'CONFOL: Contour length exhausted',imax
+c Path document end
+         call acpathdoc(z,cv,l,imax,0.,0.,1)
 	 return
       endif
       if((i.gt.1).and.(ix.eq.initx).and.(iy.eq.inity).and.
      $	      (id.eq.initd))then
 c	 write(*,*)'Returned to initial point.',ix,iy
+c Path document end
+         call acpathdoc(z,cv,l,imax,0.,0.,1)
 	 return
       endif
 c Decide which way to turn
@@ -422,6 +460,8 @@ c Decide which way to turn
       if((ixn.lt.1).or.(ixn.gt.ixmax).or.(iyn.lt.1).or.(iyn.gt.iymax))
      $	   then
 c	 write(*,*)'Moved to edge.'
+c Path document end
+         call acpathdoc(z,cv,l,imax,0.,0.,1)
 	 return
       endif
       if(z(ixn,iyn)-cv .lt. 0)then
@@ -444,6 +484,11 @@ c Turn Right
 	 endif
       endif
       goto 1
+      end
+c**************************************************************************
+c Dummy acpathdoc must be replaced by explicitly linked version if
+c path documentation is actually desired.
+      subroutine acpathdoc(z,cv,l,imax,xc,yc,i)
       end
 c**************************************************************************
       subroutine  nextpt(z,l,ixm,iym,cv,ix,iy,idx,idy,di)
@@ -514,14 +559,6 @@ c cite the width without the closing 0.
       width=len(str2)-1
       end
 c**************************************************************************
-c Explicitly use lablnc common in block data for F2C.
-      block data follow
-      integer width
-      character str1*30
-      common/lablnc/width,str1
-      data width/0/
-      end
-c**************************************************************************
 c Create a legend for the gradient color used in a contour plot
       subroutine gradlegend(c1,c2,x1,y1,x2,y2,colwidth,lpara)
       real c1,c2
@@ -547,12 +584,15 @@ c      parameter (ngradcol=256)
          endif
       endif
 
-      if(colwidth.eq.0.)colwidth=.01
       th=atan2(y2-y1,x2-x1)
 c      r=sqrt((y2-y1)**2+(x2-x1)**2)
       ct=cos(th)
       st=sin(th)
-      cpb=colwidth*(ct*(wxmax-wxmin)+st*(wymax-wymin))
+      if(colwidth.eq.0.)then
+         cpb=0.01*(ct*(wxmax-wxmin)+st*(wymax-wymin))
+      else
+         cpb=colwidth*(ct*(wxmax-wxmin)+st*(wymax-wymin))
+      endif
       incolor=igetcolor()
 
       xb=wxmin*(1.-x1) + wxmax*x1
