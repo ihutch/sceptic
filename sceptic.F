@@ -437,7 +437,7 @@ c     Acceleration for first 1/3rd of steps.  The following two
 c     expressions are equivalent for maxsteps>>1. The second one
 c     corresponds to the first version of SCEPTIC. We use it.
 c         bdtnow=max(1.,(bdt-1.)*(maccel-i+2)/(maccel+1.)+1.)
-         bdtnow=max(1.,bdt*(maccel-i)/(maccel-1.))
+         bdtnow=max(1.,bdt*(maccel-i)/max(1.,(maccel-1.)))
          dt=bdtnow*dtf
 c         write(*,*) colnwt,Eneutral
 c         write(*,*)'bdtnow,btd,maccel,dt,dtf=',bdtnow,bdt,maccel,dt,dtf
