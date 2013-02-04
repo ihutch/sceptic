@@ -138,6 +138,7 @@ scepticmpi : sceptic.F  piccom.f piccomsor.f ./accis/libaccisX.a $(OBJECTS) $(MP
 	$(G77) $(MPICOMPILE-SWITCHES) ${NGW} -o scepticmpi  sceptic.F   $(OBJECTS) $(MPIOBJECTS) $(LIBRARIES)
 
 ./accis/libaccisX.a : ./accis/*.f
+#	make VECX=vecx -C accis
 	make -C accis
 
 orbitint : orbitint.f coulflux.o $(OBJECTS) ./accis/libaccisX.a makefile

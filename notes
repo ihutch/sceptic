@@ -610,3 +610,15 @@ test because only very rare error.
 Replaced accis with the more modern version from coptic distribution.
 Changed the makefile to the new approach used in coptic.
 Remove Makefile, MFSconfigure. Adjust tools makefile.
+
+Problem with plotting once it will compile. This is a problem with 
+the vecglx driver. It doesn't work in the way that sceptic wants it to.
+For now, this can be fixed by forcing the vecx driver in the makefile.
+
+Added
+  glEndList(); /* Close the drawing list started in svga.*/
+  glCallList(1);
+to accisrefresh. 
+This prevents the hang. But it does not seem actually to display the
+output till the program stops. Perhaps this is because the gl threads
+don't get any time till then. Need EXPOSE_ACTION. That fixes it.

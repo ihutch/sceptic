@@ -489,7 +489,14 @@ void vecfill_()
 }
 /* ******************************************************************** */
 void accisrefresh_()
-{glCallList(1);}
+{
+  XEvent event;
+  glEndList(); /* Close the drawing list started in svga. The logic of this 
+		is not entirely clear. It would seem accisrefresh ought only 
+		to be called immediately before a new initialization.*/
+  accis_listing=0;
+  EXPOSE_ACTION;
+}
 /* ******************************************************************** */
 /* ******************************************************************** */
 float xeye,yeye,zeye;
