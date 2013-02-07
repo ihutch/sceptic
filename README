@@ -11,13 +11,20 @@ This package contains:
 The main code, accis and the fortran tools come with a file "Makefile".
 
 On a linux system, the serial SCEPTIC code is built by:
-	make (This creates a file makefile, configures for
-		the user's architecture)
+	make 
+
+(It tries to choose a compiler automatically as available.)
+
 The mpi version is built by:
 	make scepticmpi
 
 The postprocessing routines are built by:
-	make all
+	make tools
+
+To make with a particular fortran compiler (e.g. pathf95) do
+   make clean
+   echo pathf95 > compiler
+   make sceptic
 		
 
 Running SCEPTIC
@@ -71,7 +78,8 @@ The subdirectory accis contains a graphics library used by SCEPTIC
 (copyright Ian Hutchinson).
 
 It will compile automatically, but both codes depend on having the X11
-libraries in the usual places.
+libraries in the usual places, and might require additional library
+paths to be specified.
 
 A guide for the accis routines is in accis/accissum.tex.
 

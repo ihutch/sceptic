@@ -678,8 +678,10 @@ c Small mesh written diagnostics.
          endif
          time=time+dt
  503     format(10f8.1)
- 504     format(10f8.3) 
-         call flush()
+ 504     format(10f8.3)
+c With gnu compilers the unity number is optional. But with pathscale
+c it is not; so specify directly. 
+         call flush(6)
       enddo
 c End of particle stepping section.
 

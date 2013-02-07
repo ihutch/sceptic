@@ -126,7 +126,7 @@ shielding.o
 MPIOBJECTS=mpibbdy.o sor2dmpi.o shielding_par.o 
 
 # So make does not do multiple tries. The default target is makefile first.
-all : makefile compiler sceptic scepticmpi tools
+all : makefile compiler sceptic scepticmpi
 
 sceptic : sceptic.F  piccom.f  ./accis/libaccisX.a $(OBJECTS) makefile compiler
 	$(G77) $(COMPILE-SWITCHES) -o sceptic sceptic.F  $(OBJECTS) $(LIBRARIES)
@@ -144,7 +144,7 @@ scepticmpi : sceptic.F  piccom.f piccomsor.f ./accis/libaccisX.a $(OBJECTS) $(MP
 orbitint : orbitint.f coulflux.o $(OBJECTS) ./accis/libaccisX.a makefile
 	$(G77) $(COMPILE-SWITCHES) -o orbitint orbitint.f $(OBJECTS) coulflux.o $(LIBRARIES)
 
-tools : makefile compiler
+tools : makefile compiler sceptic
 	make -C tools clean
 	make -C tools
 
