@@ -18,13 +18,13 @@ c      real thanglocal(0:NTHFULL)
       real phipic(1000),rhopic(1000),rhotrap(1000)
       real rpic(1000),rpicleft(1000),phicos(1000)
       real phiyukawa(1000)
-      integer nti0
+      integer nti0,nbsm
       parameter (nti0=100)
       real rti0(nti0)
       real phiti0(nti0)
       character*100 charin
       real fluxofangle(nth),cflux(nth)
-      integer jstepth
+      integer jstepth,nrend
       logical lpcic,ltempc,lphip,lreaddiag,lgraph,larrows,lconline
       logical lvfwrt,lseptp,lunlabel,ledge,ldens,langle,lnlog
       data lpcic/.false./
@@ -41,7 +41,7 @@ c      real thanglocal(0:NTHFULL)
       data ldens/.false./
       data langle/.false./
       data lnlog/.false./
-      data jstepth/1/
+      data jstepth/1/nbsm/0/nrend/0/
 
 c Deal with arguments
       do 1 i=1,iargc()
@@ -68,6 +68,8 @@ c Legacy usage for summarize:
          if(string(1:2) .eq. '-b') langle=.true.
          if(string(1:2) .eq. '-o') lnlog=.true.
          if(string(1:2) .eq. '-j') read(string(3:),*)jstepth
+         if(string(1:2) .eq. '-k') read(string(3:),*)nrend
+         if(string(1:2) .eq. '-m') read(string(3:),*)nbsm
          if(string(1:2) .eq. '-?') goto 51
          else
             filename=string
@@ -101,32 +103,35 @@ c Set arrow scale
       v1=max(1.,vd)
 c Start of Plotting:
 
+      if(nrend.eq.0 .or. nrend.gt.nrhere)nrend=nrhere
       call pfset(3)
       if(lgraph)then
 c Now we make the first plot a time trace.
          call yautoplot(fluxprobe,nsteps)
          call axlabels('step','Particles to probe')
          call pltend()
-
-c Old start of plotting.
          call multiframe(2,1,3)
-         call autoplot(rpic,rhopic,nrhere)
+         call autoinit(rpic,rhopic,nrend)
+         call axis()
          call axlabels('r','angle averaged density')
          call winset(.true.)
+         call smoothline(rpic,rhopic,nrend,nbsm)
          call vecw(rpic(1),1.,0)
-         call vecw(rpic(nrhere),1.,1)
+         call vecw(rpic(nrend),1.,1)
          call winset(.false.)
          call minmax(rho(1,1),nthhere*nrhere,rhmin,rhmax)
          if(ledge)rhmax=min(rhmax,1.5)
-         call pltinit(-rpic(nrhere),rpic(nrhere),0.,max(rhmax,1.1))
+         call pltinit(-rpic(nrend),rpic(nrend),0.,max(rhmax,1.1))
          call axis()
          call axis2()
          call axlabels('radial position','n/n!A!d;!d!@')
          do j=1,nthhere/2,jstepth
             call color(mod(j,15)+1)
             call winset(.true.)
-            call polyline(rpicleft,rho(1,nthhere-j+1),nrhere)
-            call polyline(rpic,rho(1,j),nrhere)
+c            call polyline(rpicleft,rho(1,nthhere-j+1),nrend)
+c            call polyline(rpic,rho(1,j),nrend)
+            call smoothline(rpicleft,rho(1,nthhere-j+1),nrend,nbsm)
+            call smoothline(rpic,rho(1,j),nrend,nbsm)
             call winset(.false.)
             write(charin,'(i3,f5.2)')j,tcc(j)
             call legendline(1.05,0.08*(j-1)/jstepth,
@@ -135,8 +140,8 @@ c Old start of plotting.
          call color(15)
          call legendline(1.05,0.08*(j-1)/jstepth,258,
      $        'angle:   j |cos!Aq!@|')
-         call vecw(-rpic(nrhere),1.,0)
-         call vecw(rpic(nrhere),1.,1)
+         call vecw(-rpic(nrend),1.,0)
+         call vecw(rpic(nrend),1.,1)
          call fwrite(vd,iwdth,2,charin)
          if(lvfwrt) call jdrwstr(0.05,0.72,
      $        'v!dd!d='//charin(1:iwdth)//char(0),1.)
@@ -172,11 +177,7 @@ c Ti=0 quasineutral case:
       do j=1,nrTi
          phipic(j)=phipic(j)-phiinf
       enddo
-      goto 102
- 101  write(*,*) 'Does not seem to be a Ti... file here.'
- 102  continue
 
-C End of stuff dependent on Ti file reading.
       open(13,status='unknown',file='phiout.dat')
       write(13,*)'dt,      vd,      Ti,      rmax,',
      $     '   fave, debyelen,    Vp [icoln,colnwt]'
@@ -191,11 +192,11 @@ c         write(*,*)'minmax',nr,nrhere,nthhere,pmin,pmax
          cscale=0.02
          if(abs(phipic(1)) .lt. 5.)cscale=0.1
          ppmax=1.2
-         call pltinit(rpic(1),rpic(nrhere),pmin,ppmax)
-         call polyline(rpic,phipic,nrhere)
+         call pltinit(rpic(1),rpic(nrend),pmin,ppmax)
+         call polyline(rpic,phipic,nrend)
          call axis()
          call vecw(rpic(1),0.,0)
-         call vecw(rpic(nrhere),0.,1)
+         call vecw(rpic(nrend),0.,1)
          vt2=vd**2+3.*Ti
 c Linearized shielding length corrected for finite size.
          slambda=sqrt(debyelen**2*vt2/(3.+vt2) + 1.)
@@ -210,15 +211,15 @@ c     $        ,vt2,slambda,vprobe,phipic(1)
 c            write(*,*)kk,rpic(kk),phiyukawa(kk)
          enddo
          call dashset(1)
-         call polyline(rpic,phiyukawa,nrhere)
+         call polyline(rpic,phiyukawa,nrend)
          call dashset(0)
          call axlabels('r',
      $        '<!Af!@>!A=Jf!@ dcos!Aq!@/2')
-         call scalewn(rpic(1),rpic(nrhere),pmin*cscale,ppmax*cscale,
+         call scalewn(rpic(1),rpic(nrend),pmin*cscale,ppmax*cscale,
      $        .false.,.false.)
          call color(iblue())
          call winset(.true.)
-         call polyline(rpic,phicos,nrhere)
+         call polyline(rpic,phicos,nrend)
          call winset(.false.)
          call axptset(1.,0.)
          call ticrev()
@@ -232,15 +233,15 @@ c         call multiframe(0,0,0)
          call axptset(0.,0.)
          call minmax(phi(1,1),nthhere*nrhere,rhmin,rhmax)
          if(ledge)rhmin=max(rhmin,-.4)
-         call pltinit(-rpic(nrhere),rpic(nrhere),rhmin,max(rhmax,0.1))
+         call pltinit(-rpic(nrend),rpic(nrend),rhmin,max(rhmax,0.1))
          call axis()
          call axis2()
          call axlabels('radial position','!Af!@')
          do j=1,nthhere/2,jstepth
             call color(mod(j,15)+1)
             call winset(.true.)
-            call polyline(rpicleft,phi(1,nthhere-j+1),nrhere)
-            call polyline(rpic,phi(1,j),nrhere)
+            call polyline(rpicleft,phi(1,nthhere-j+1),nrend)
+            call polyline(rpic,phi(1,j),nrend)
             call winset(.false.)
             write(charin,'(i3,f5.2)')j,tcc(j)
             call legendline(-.48,0.08*(j-1)/jstepth,
@@ -249,15 +250,15 @@ c         call multiframe(0,0,0)
          call color(15)
          call legendline(-.48,0.08*(j-1)/jstepth,258,
      $        'angle:   j |cos!Aq!@|')
-         call vecw(-rpic(nrhere),1.,0)
-         call vecw(rpic(nrhere),1.,1)
+         call vecw(-rpic(nrend),1.,0)
+         call vecw(rpic(nrend),1.,1)
          call fwrite(vd,iwdth,2,charin)
          if(lvfwrt) call jdrwstr(.05,0.72,
      $        'v!dd!d='//charin(1:iwdth)//char(0),1.)
          call winset(.true.)
          call dashset(4)
-         call polyline(rpicleft,phipic,nrhere)
-         call polyline(rpic,phipic,nrhere)
+         call polyline(rpicleft,phipic,nrend)
+         call polyline(rpic,phipic,nrend)
          call winset(.false.)
          call legendline(-.48,-0.08,
      $           0,'Upstream angle/time Average')
@@ -265,9 +266,9 @@ c         call multiframe(0,0,0)
          call pltend()
 c Contouring
 c         call condisphi(ir,jstepth,0.,vprobe,
-c     $     nrhere,nthhere,v1,larrows,lconline)
+c     $     nrend,nthhere,v1,larrows,lconline)
          call condisphi(ir,jstepth,pmin,pmax,
-     $     nrhere,nthhere,v1,larrows,lconline,lpcic,ledge)
+     $     nrend,nthhere,v1,larrows,lconline,lpcic,ledge)
          call pltend()
       endif
 
@@ -275,22 +276,24 @@ c Contouring:
       if(lseptp)then
          if(ltempc)then
             call condisplay2(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline)
+     $           nrend,nthhere,v1,larrows,lconline)
          endif
       else
          if(ldens)then
-            call conrho(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline,rholocal)
+c            call conrho(ir,jstepth,rhomax,rhomin,
+c     $           nrend,nthhere,v1,larrows,lconline,rholocal)
+            call conrho(ir,jstepth,rhomax,0.3,
+     $           nrend,nthhere,v1,larrows,lconline,rholocal)
          endif
          if(ltempc)then
             call contemp(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline,ledge)
+     $           nrend,nthhere,v1,larrows,lconline,ledge)
          endif
       endif
 
       if(lunlabel)then
          call condisunlabel(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline)
+     $           nrend,nthhere,v1,larrows,lconline)
          call pltend()
       endif
 
@@ -360,18 +363,26 @@ c     fix up as double on boundary.
       endif
 
       call exit
+ 101  write(*,*) 'Does not seem to be a file here:',filename
+
  51   write(*,*)"Usage: postproc [-f -x ... ] filename"
-      write(*,'(a)')" -f plot angle-averaged phi and phi contours.",
+      write(*,*)'-x [-p] turn off default graphs (flux, density)'
+     $     ,' & print instead' ,.not.lgraph
+      write(*,*)'-f turn on phi graphs line and contour.',lphip
+      write(*,'(a)')
      $     " -n contour n.      -t contour T.     -l contour lines.",
-     $     " -c CIC output. -j<n> theta plot step.",
-     $     " -r print diagnostics on file reading.",
-     $     " -i recalculate rho-infinity, -v do not write v_f value",
-     $     " -a put velocity arrows on T plots. -s separate T plots",
-     $     " -u plot unlabelled full sphere.  -x do no line graphs.",
+     $     " -j<n> theta plot step.      -v do not write v_d value.",
+     $     " -k<n> draw curves only to nr-cell n.",
      $     " -e use density contours spaced closer to 1, for edge.",
-     $     " -b plot angle distributions.",
-     $     " -o plot log(n) versus log(r), angle averaged & print."
-      
+     $     " -a put velocity arrows on T plots. -s separate T plots",
+     $     " -m<n> smooth line traces by integer n-points",
+     $     " -o plot log(n) versus log(r), angle averaged & print.",
+     $     " -r print diagnostics on file reading.",
+     $     " -i recalculate rho-infinity,  -c CIC output. ",
+     $     " -u plot unlabelled full sphere. ",
+     $     " -b plot angle distributions."
+
+
       call exit
       end
 c***************************************************************************
@@ -384,7 +395,6 @@ c Contouring of the charge density, rho, on distorted mesh.
 c Common data:
       include 'piccompost.f'
       real rholocal(0:NRFULL,0:NTHFULL)
-c      include 'cic/piccompost.f'
 c      save
       character*20 cstring
       character*30 tstring
@@ -397,6 +407,7 @@ c      save
       real basesize
       parameter (basesize=.02)
 
+      if(rhomin.gt.0)call setconlog(.true.)
       if(nthhere.gt.NTHFULL)then
          write(*,*)' Conrho error. Mesh required:',nrhere,nthhere,
      $        ' Exceeds allocated:',NRFULL,NTHFULL
@@ -497,6 +508,7 @@ c      call boxtitle('n/n!A!d;!d!@')
       endif
       
       call pltend()
+      call setconlog(.false.)
       end
 
 c***************************************************************************
@@ -1521,7 +1533,7 @@ c fix angle ends of rho and phi
       endif
 
       if(lreaddiag)then
-         write(*,*)'rho   ','rholocal',
+         write(*,*)'rho   ','rholocal',' ratio',
      $     ' ;  rho is from psum, rholocal from Ti file'
          do i=1,nrhere
             write(*,*)rho(i,1),rholocal(i,1),rho(i,1)/rholocal(i,1)
@@ -1570,4 +1582,4 @@ c__________________________________________________________________
       call exit
  101  ierr=101
       end
-
+c************************************************************************

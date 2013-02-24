@@ -46,17 +46,34 @@ c absolute
          labs=.true.
       endif
       if(zg1-zg0.eq.0.) stop 'ERROR gradtri: zero dzng'
-      hr=(ng1-ng0)/(zg1-zg0)
+      if(lclog)then
+c Logarithmic
+         hr=(ng1-ng0)/(log(zg1)-log(zg0))
+      else
+c Linear
+         hr=(ng1-ng0)/(zg1-zg0)
+      endif
       hmin= 1.e30
       hmax=-1.e30
       adj=0.5
       do i=1,3
          if(labs)then
 c absolute normalized to color index
-            h(i)=(d(i)-zg0)*hr+ng0-adj
+            if(lclog)then
+c Logarithmic
+               h(i)=(log(d(i))-log(zg0))*hr+ng0-adj
+            else
+c Linear
+               h(i)=(d(i)-zg0)*hr+ng0-adj
+            endif
          else
+            if(lclog)then
+               h(i)=(log((x(i)*d(1)+y(i)*d(2)+z(i)*d(3))/dn)-log(zg0))
+     $              *hr+ng0
+            else
 c Distance in d-direction normalized to effective color index.
-            h(i)=((x(i)*d(1)+y(i)*d(2)+z(i)*d(3))/dn-zg0)*hr+ng0
+               h(i)=((x(i)*d(1)+y(i)*d(2)+z(i)*d(3))/dn-zg0)*hr+ng0
+            endif
          endif
          if(h(i).gt.hmax)then 
             hmax=h(i)

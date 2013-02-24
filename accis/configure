@@ -9,7 +9,7 @@ if [ -x "`which mpif77`" ] ; then
 # By default use mpif77 and if it is based on GNU use nobackslash.
    echo Choosing compiler mpif77
    COMPILER="mpif77 -f77=g77"
-   if [ -z "`mpif77 --version | grep GNU`" ] ; then
+   if [ -z "`mpif77 -f77=g77 --version | grep GNU`" ] ; then
        NOBACKSLASH=
    fi
 else

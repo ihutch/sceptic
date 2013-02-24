@@ -679,7 +679,7 @@ c Small mesh written diagnostics.
          time=time+dt
  503     format(10f8.1)
  504     format(10f8.3)
-c With gnu compilers the unity number is optional. But with pathscale
+c With gnu compilers the unit number is optional. But with pathscale
 c it is not; so specify directly. 
          call flush(6)
       enddo
@@ -1121,7 +1121,7 @@ c     normalize to rhoinf and the probe area to give normalized flux density
             totalf(k)=zmom(nstepmax,fieldz,k)*debyelen**2 +zmom(nstepmax
      $        ,epressz,k)+zmom(nstepmax,partz,k)+zmom(nstepmax,collision
      $        ,k)
-            write(*,'(f5.2,$)')r(izmrad(k))
+            write(*,'(f6.2,$)')r(izmrad(k))
             write(*,505)(zmom(nstepmax,j,k),j=1,5),totalf(k)
          enddo
  505     format(6f12.5)
