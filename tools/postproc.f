@@ -1,6 +1,4 @@
-C Postprocessing of a pair of output files.
-c Will still work without the Ti file in a pinch.
-c
+C Postprocessing
 c********************************************************************
 c Split out the file reading part from the rest. July 2004.
 c Removed infinity recalculation, and related code.
@@ -16,7 +14,7 @@ c      real thanglocal(0:NTHFULL)
      $     charge2,ffield2,felec2,fion2,ftot2
 
       real phipic(1000),rhopic(1000),rhotrap(1000)
-      real rpic(1000),rpicleft(1000),phicos(1000)
+      real rpic(1000),rpicleft(1000),phicos(1000),phipicexp(1000)
       real phiyukawa(1000)
       integer nti0,nbsm
       parameter (nti0=100)
@@ -148,6 +146,16 @@ c            call polyline(rpic,rho(1,j),nrend)
          call pltend()
          call multiframe(0,0,0)
       endif
+c Ti=0 quasineutral case:
+      do j=1,nti0
+         phiti0(j)=-0.5*j/float(nti0)
+         rti0(j)=sqrt(exp(-0.5-phiti0(j))/sqrt(-2.*phiti0(j)))
+      enddo
+      do j=1,nrhere
+         phipic(j)=phipic(j)-phiinf
+c         phipicexp(j)=exp(-phipic(j)/Ti)
+         phipicexp(j)=sqrt(1.-4.*phipic(j)/(3.14159*Ti))
+      enddo
       if(lnlog)then
 c         call lautoplot(rpic,rhopic,nrhere,.true.,.true.)
          call pltinit(0.,1.,0.,1.)
@@ -157,8 +165,12 @@ c         call lautoplot(rpic,rhopic,nrhere,.true.,.true.)
          call axlabels('r','angle averaged density')
          call color(11)
 c         write(*,*)(rhotrap(k),k=1,nrhere)
+         call winset(.true.)
          call polyline(rpic,rhotrap,nrhere)
+         call color(5)
+         call polyline(rpic,phipicexp,nrhere)
          call color(15)
+         call winset(.false.)
          call pltend()
          open(15,status='unknown',file='rhopic.dat')
          write(15,*)'dt,      vd,      Ti,      rmax,',
@@ -169,14 +181,6 @@ c         write(*,*)(rhotrap(k),k=1,nrhere)
          write(15,'(2f12.5)')(rpic(jj),rhopic(jj),jj=1,nrhere)
          close(15)
       endif
-c Ti=0 quasineutral case:
-      do j=1,nti0
-         phiti0(j)=-0.5*j/float(nti0)
-         rti0(j)=sqrt(exp(-0.5-phiti0(j))/sqrt(-2.*phiti0(j)))
-      enddo
-      do j=1,nrTi
-         phipic(j)=phipic(j)-phiinf
-      enddo
 
       open(13,status='unknown',file='phiout.dat')
       write(13,*)'dt,      vd,      Ti,      rmax,',
