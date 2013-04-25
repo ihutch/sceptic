@@ -22,6 +22,7 @@ else
      	   echo Choosing compiler g77
      	   COMPILER=g77
 	else
+	   echo Did not find mpif77 g77 or gfortran. Use ${F77}[?]
 	   COMPILER=$F77
 	   NOBACKSLASH=
      	fi

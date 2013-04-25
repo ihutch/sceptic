@@ -206,7 +206,7 @@ FORT_INT *scrxpix, *scrypix, *vmode, *ncolor;
       printf("\n\tno appropriate visual found\n\n");
         exit(0); 
     }else{
-      printf("\tvisual %#x selected\n", (int)accis_vi->visualid); 
+      printf("\tGLX visual %#x selected\n", (int)accis_vi->visualid); 
     }/* %p hexadecimal*/
 
 /* Start of Xlib calls ******************/

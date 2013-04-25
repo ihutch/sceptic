@@ -15,6 +15,7 @@ c      real thanglocal(0:NTHFULL)
 
       real phipic(1000),rhopic(1000),rhotrap(1000)
       real rpic(1000),rpicleft(1000),phicos(1000),phipicexp(1000)
+      real phipicsqrt(1000)
       real phiyukawa(1000)
       integer nti0,nbsm
       parameter (nti0=100)
@@ -41,6 +42,7 @@ c      real thanglocal(0:NTHFULL)
       data lnlog/.false./
       data jstepth/1/nbsm/0/nrend/0/
 
+      expm1=exp(-1.)
 c Deal with arguments
       do 1 i=1,iargc()
          call getarg(i,string)
@@ -99,6 +101,7 @@ c Read the outputfile
 
 c Set arrow scale
       v1=max(1.,vd)
+c      v1=vd
 c Start of Plotting:
 
       if(nrend.eq.0 .or. nrend.gt.nrhere)nrend=nrhere
@@ -151,24 +154,69 @@ c Ti=0 quasineutral case:
          phiti0(j)=-0.5*j/float(nti0)
          rti0(j)=sqrt(exp(-0.5-phiti0(j))/sqrt(-2.*phiti0(j)))
       enddo
+      rr=0.5*(rpic(2)+rpic(1))
+      er0=(rr)**2*(phipic(2)-phipic(1))/(rpic(2)
+     $     -rpic(1))
+      er0=er0*(1+1./rr)*0.5
+      er1=er0
+c      phiinf=phipic(nrhere)
       do j=1,nrhere
          phipic(j)=phipic(j)-phiinf
-c         phipicexp(j)=exp(-phipic(j)/Ti)
-         phipicexp(j)=sqrt(1.-4.*phipic(j)/(3.14159*Ti))
+c         phipicexp(j)=exp(min(-phipic(j)/Ti,10.))
+         phipicexp(j)=1.-phipic(j)/Ti
+         phipicsqrt(j)=sqrt(1.-4.*phipic(j)/(3.14159*Ti))
+         if(j.lt.nrhere .and. phipic(j+1)*rpic(j+1).gt.phipic(1)*expm1
+     $        .and.phipic(j)*rpic(j).le.phipic(1)*expm1)then
+c Print out the effective Yukawa potential decay length
+            write(*,*)debyelen,rpic(j)
+     $           ,'  radius where phi.r->exp(-1) at debyelen '
+c     $           ,phipic(j),rpic(j)*phipic(j)/phipic(1)
+         endif
+         if(j.lt.nrhere)then
+            rr=0.5*(rpic(j+1)+rpic(j))
+            er2=(rr)**2*(phipic(j+1)-phipic(j))
+     $           /(rpic(j+1)-rpic(j))
+            er2=er2*(1+1./rr)*0.5
+
+c            write(*,*)'er0,er1,er2',er0,er1,er2
+            if(er2.lt.er0*expm1
+     $           .and.er1.ge.er0*expm1)then
+c Print out the effective Yukawa field decay length
+               write(*,*)debyelen,rpic(j)
+     $              ,'  radius where E.r^2->exp(-1) at debyelen '
+c     $              ,er0,er1,er2
+            endif
+            er1=er2
+         endif
       enddo
       if(lnlog)then
 c         call lautoplot(rpic,rhopic,nrhere,.true.,.true.)
          call pltinit(0.,1.,0.,1.)
-         call scalewn(1.,200.,1.,100.,.true.,.true.)
+         call scalewn(1.,rpic(nrhere),1.,100.,.true.,.true.)
          call polyline(rpic,rhopic,nrhere)
+         xg=0.55
+         yg=.9
+         call legendline(xg,yg,0,' <n>')
          call axis()
-         call axlabels('r','angle averaged density')
-         call color(11)
-c         write(*,*)(rhotrap(k),k=1,nrhere)
+         call axlabels('r','<n> (!A=J!@n dcos!Aq!@/2)')
          call winset(.true.)
-         call polyline(rpic,rhotrap,nrhere)
-         call color(5)
+         call color(4)
+         call dashset(1)
+         call polyline(rpic,phipicsqrt,nrhere)
+         yg=.85
+         call legendline(xg,yg,0,' !A)!@(1-4e!Af!@/!Ap!@T!di!d)')
+         call color(2)
+         call dashset(2)
          call polyline(rpic,phipicexp,nrhere)
+         yg=.8
+c         call legendline(xg,yg,0,' exp(-e!Af!@/T!di!d)')
+         call legendline(xg,yg,0,' 1-e!Af!@/T!di!d')
+         call color(3)
+         call dashset(3)
+c         write(*,*)(rhotrap(k),k=1,nrhere)
+         yg=.75
+         call legendline(xg,yg,0,' n!dtrapped!d')
+         call polyline(rpic,rhotrap,nrhere)
          call color(15)
          call winset(.false.)
          call pltend()
@@ -286,7 +334,7 @@ c Contouring:
          if(ldens)then
 c            call conrho(ir,jstepth,rhomax,rhomin,
 c     $           nrend,nthhere,v1,larrows,lconline,rholocal)
-            call conrho(ir,jstepth,rhomax,0.3,
+            call conrho(ir,jstepth,rhomax,0.5,
      $           nrend,nthhere,v1,larrows,lconline,rholocal)
          endif
          if(ltempc)then
@@ -1337,7 +1385,8 @@ c      write(*,*)charin
       nrhere=nrTi
 c      write(*,*)'nrTi=',nrTi
       do i=1,nrTi
-         read(10,*,err=203)rpic(i),phipic(i)
+         read(10,*,err=203)rpic(i),phipic(i),diagrho(i)
+         diagrho(i)=diagrho(i)/rhoinf
       enddo
       read(10,*)charin
 c      write(*,*)charin(1:78)

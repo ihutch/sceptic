@@ -335,12 +335,16 @@ int txtmode_()
   XEvent event; 
   accisrefresh_();
   /*usleep(100000);/* Still struggling with bad match events */
-  /* Try to get the focus into this window for keyboard control.*/
+  /* Try to get the focus into this window for keyboard control. Won't 
+   always work because the window might not actually be mapped yet.*/
   ACCIS_SET_FOCUS;
   do{
     /*    printf("Executing XtNextEvent"); */
-    XtNextEvent(&event);
-    /* XNextEvent(accis_display,&event); is equivalent */
+    /* XtNextEvent(&event); */
+    XNextEvent(accis_display,&event); /* is equivalent */
+    /* For some reason, this focussing of windows must be explicit
+     because the window manager doesn't act on it independently.*/
+    if(event.type == EnterNotify){  ACCIS_SET_FOCUS;}
     XtDispatchEvent(&event);  
     /*    printf("The event type: %d\n",event); */
   }while(event.type != ButtonPress && event.type != KeyPress );

@@ -732,9 +732,13 @@ vecfill, scolor, accisgraddef, acgradcolor, getrgbcolor are public,
 for calling by higher level routines, and possibly the user.
 
 <div class="p"><!----></div>
-For X window systems, vecx.c requires the Xlib and Xt libraries, calling
-for compiler/linker arguments such as  -L/usr/X11R6/lib/ -lXt
--lX11. The driver vecglx.c requires GL and GLU, instead of Xt.
+For X window systems, vecx.c requires the X header files such as
+X11/StringDefs.h and the Xlib and Xt libraries, calling for
+compiler/linker arguments such as -L/usr/X11R6/lib/ -lXt -lX11. The
+driver vecglx.c requires GL and GLU, instead of Xt.  Typically these
+requirements are present in current linux distributions only if the
+development packages of X11 etc are installed. These usually go by
+names like libx11-dev, libxt-dev.
 
 <div class="p"><!----></div>
 
@@ -742,5 +746,5 @@ for compiler/linker arguments such as  -L/usr/X11R6/lib/ -lXt
 T<sub><span class="small">E</span></sub>X
 by <a href="http://hutchinson.belmont.ma.us/tth/">
 T<sub><span class="small">T</span></sub>H</a>,
-version 4.03.<br />On 17 Feb 2013, 12:12.</small>
+version 4.03.<br />On 27 Mar 2013, 12:48.</small>
 </html>

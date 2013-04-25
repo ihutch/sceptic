@@ -525,9 +525,14 @@ vec4014.f. Of these driver files, the routines svga, txtmode, vec,
 vecfill, scolor, accisgraddef, acgradcolor, getrgbcolor are public,
 for calling by higher level routines, and possibly the user.
 
-For X window systems, vecx.c requires the Xlib and Xt libraries, calling
-for compiler/linker arguments such as  -L/usr/X11R6/lib/ -lXt
--lX11. The driver vecglx.c requires GL and GLU, instead of Xt.
+For X window systems, vecx.c requires the X header files such as
+X11/StringDefs.h and the Xlib and Xt libraries, calling for
+compiler/linker arguments such as -L/usr/X11R6/lib/ -lXt -lX11. The
+driver vecglx.c requires GL and GLU, instead of Xt.  Typically these
+requirements are present in current linux distributions only if the
+development packages of X11 etc are installed. These usually go by
+names like libx11-dev, libxt-dev.
+
 
 
 \end
