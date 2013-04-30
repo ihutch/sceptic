@@ -690,6 +690,16 @@ MINMAX2(xa,iL1,ix,iy,min,max) Find min and max of 2-d array of
 leading dimension iL1, over indices (ix,iy).
 
 <div class="p"><!----></div>
+BOXCARAVE(nt,nb,xv,xavev) Box-car average the vector xv of length nt,
+into xavev over a box extending from i-nb to i+nb. (So if nb=0 no 
+averaging is done.)
+
+<div class="p"><!----></div>
+TRIANGAVE(nt,nb,xv,xavev) Average the vector xv of length nt, into
+xavev using triangular weighting proportional to 1-abs(j)/(nr+1), for
+j from -nr to +nr.
+
+<div class="p"><!----></div>
 FWRITE(x,iwdth,ipoint,cstring) Format write the float x into cstring
 with specified ipoint decimal places. Total width returned as iwdth.
 
@@ -746,5 +756,5 @@ names like libx11-dev, libxt-dev.
 T<sub><span class="small">E</span></sub>X
 by <a href="http://hutchinson.belmont.ma.us/tth/">
 T<sub><span class="small">T</span></sub>H</a>,
-version 4.03.<br />On 27 Mar 2013, 12:48.</small>
+version 4.03.<br />On 25 Apr 2013, 12:31.</small>
 </html>

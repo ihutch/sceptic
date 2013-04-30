@@ -15,6 +15,7 @@ c      real thanglocal(0:NTHFULL)
 
       real phipic(1000),rhopic(1000),rhotrap(1000)
       real rpic(1000),rpicleft(1000),phicos(1000),phipicexp(1000)
+      real dencos(1000)
       real phipicsqrt(1000)
       real phiyukawa(1000)
       integer nti0,nbsm
@@ -90,7 +91,7 @@ c Legacy usage for summarize:
 c Read the outputfile
       call readoutput(lreaddiag,lpcic,ledge,
      $     filename,rholocal,diagtrap,nrhere,nthhere,nphere,
-     $     phipic,rhopic,rhotrap,rpic,rpicleft,phicos,
+     $     phipic,rhopic,rhotrap,rpic,rpicleft,phicos,dencos,
      $     rhomax,rhomin,
      $     nrti,phiinf,nastep,nsteps,
      $     dt,rmax,fave,debyelen,vprobe,
@@ -117,6 +118,9 @@ c Now we make the first plot a time trace.
          call axlabels('r','angle averaged density')
          call winset(.true.)
          call smoothline(rpic,rhopic,nrend,nbsm)
+         call color(4)
+         call smoothline(rpic,dencos,nrend,nbsm)
+         call color(15)
          call vecw(rpic(1),1.,0)
          call vecw(rpic(nrend),1.,1)
          call winset(.false.)
@@ -272,6 +276,9 @@ c            write(*,*)kk,rpic(kk),phiyukawa(kk)
          call color(iblue())
          call winset(.true.)
          call polyline(rpic,phicos,nrend)
+         write(*,*)nrend,3,'  rpic,     phicos,    phipic,      dencos'
+         write(*,'(f12.5,3g14.5)')(rpic(kk),phicos(kk),phipic(kk)
+     $        ,dencos(kk),kk=1,nrend)
          call winset(.false.)
          call axptset(1.,0.)
          call ticrev()
@@ -1342,7 +1349,7 @@ c***************************************************************************
 c Data reading subroutine
       subroutine readoutput(lreaddiag,lpcic,ledge,
      $     filename,rholocal,diagtrap,nrhere,nthhere,nphere,
-     $     phipic,rhopic,rhotrap,rpic,rpicleft,phicos,
+     $     phipic,rhopic,rhotrap,rpic,rpicleft,phicos,dencos,
      $     rhomax,rhomin,
      $     nrti,phiinf,nastep,nsteps,
      $     dt,rmax,fave,debyelen,vprobe,
@@ -1351,7 +1358,7 @@ c Data reading subroutine
       logical lreaddiag,lpcic,ledge
       character*100 string,filename
       real phipic(1000),rhopic(1000),rhotrap(1000)
-      real rpic(1000),rpicleft(1000),phicos(1000)
+      real rpic(1000),rpicleft(1000),phicos(1000),dencos(1000)
       include 'piccompost.f'
       real rholocal(0:NRFULL,0:NTHFULL),diagtrap(0:NRFULL,0:NTHFULL)
       character*256 charin
@@ -1500,9 +1507,9 @@ c      write(*,*)((diagtrap(k1,k2),k1=1,nrhere),k2=1
 c     $     ,nthhere)
 
  402  close(10)
-      write(*,*)'nrhere,nthhere,icolntype,colwt'
-      write(*,*)nrhere,nthhere,icolntype,colwt,pinfty,efprobe
-      write(*,*)'Final read string=',string(1:60)
+c      write(*,*)'nrhere,nthhere,icolntype,colwt'
+c      write(*,*)nrhere,nthhere,icolntype,colwt,pinfty,efprobe
+c      write(*,*)'Final read string=',string(1:60)
       if(lreaddiag)then
          write(*,*)'Finished reading'
          write(*,*)'vrsum(1)'
@@ -1603,6 +1610,7 @@ c fix angle ends of rho and phi
          rhopic(i)=0.
          rhotrap(i)=0.
          phicos(i)=0.
+         dencos(i)=0.
 c         write(*,*)'th   tcc   phi'
          do j=jmin,jmax
             rhopic(i)=rhopic(i)+rholocal(i,j)
@@ -1610,8 +1618,11 @@ c         write(*,*)'th   tcc   phi'
 c            if(diagtrap(i,j).eq.0)write(*,*)i,j
 c     rhopic(i)=rhopic(i)+rho(i,j)
 c \int cos(\theta) \phi(\theta) d\cos(\theta)
+c In postproc, th is used as the weighting of the cells, essentially 
+c the delta of cos theta that corresponds to each cell.
             phicos(i)=phicos(i)+th(j)*tcc(j)*phi(i,j)
-c            write(*,'(4f10.4)')th(j),tcc(j),phi(i,j),phicos(i)
+            dencos(i)=dencos(i)+th(j)*tcc(j)*rholocal(i,j)
+c            write(*,'(5f10.4)')th(j),tcc(j),phi(i,j),phicos(i),dencos(i)
          enddo
          rhopic(i)=rhopic(i)/float(jmax-jmin+1)
          rhotrap(i)=rhotrap(i)/float(jmax-jmin+1)+0.01

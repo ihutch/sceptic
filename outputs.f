@@ -109,6 +109,8 @@ c End of output file.
       innm=lentrim(filename)
       filename(innm-3:innm)='.frc'
       call outforce(filename,i)
+      filename(innm-3:innm)='.dst'
+      if(ldist)call outdist(filename,i)
       end
 c************************************************************************
 c     Writes a txt file with the orbits of the traced particles
@@ -220,6 +222,33 @@ c Perhaps this extra storage is unnecessary.
      $        +zmn(i,fieldz,k)+zmn(i,epressz,k)+zmn(i,collision,k),i=1
      $        ,istepmax)
       enddo
+      close(9)
+      end
+c*********************************************************************
+c Write a third file with the averaged velocity distribution data.
+      subroutine outdist(filename,istepmax)
+      character*(*) filename
+      include 'piccom.f'
+
+      open(9,file=filename)
+      write(9,*)'Velocity Distributions. Use plottraces.'
+      write(9,'(a,a)')'  dt    vd     Ti     steps  rhoinf ' ,
+     $       'phiinf  fave  debyelen Vp damplen  Bz...'
+      write(9,'(2f7.4,f7.3,i5,f8.1,f7.3,f8.4,f8.3,f8.3,f6.2,f7.3,$)')
+     $     dt,vd,Ti,i,rhoinf,log(rhoinf),fave,debyelen,vprobe,damplen,Bz
+      if(icolntype.gt.0)then
+         write(9,'(i2,f8.4)')icolntype,colnwt
+      else
+         write(9,*)
+      endif
+      write(9,*)'v, vrdiagin, vtdiagin '
+      write(9,'(a)')':-xv'
+      write(9,'(a)')':-yf(v)'
+      write(9,*)nvmax,2
+      do k=1,nvmax
+         write(9,*)vdiag(k),vrdiagin(k),vtdiagin(k)
+      enddo
+      write(9,*)
       close(9)
       end
 c**********************************************************************

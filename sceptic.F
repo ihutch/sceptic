@@ -362,7 +362,8 @@ c Initialize the fields. (Changed the order of finit and injinit)
 c Initialize the random functions for reinjection.
       call injinit(icolntype,bcr)
 c Initialize velocity diagnostics
-      vrange=8.*sqrt(Ti)+1.4*abs(vd)+1.4*sqrt(abs(vprobe))
+      vrange=8.*sqrt(Ti)+1.4*abs(vd)+2.9*sqrt(abs(vprobe))
+      write(*,*)'vrange=',vrange
       if(icolntype.ne.0)vrange=vrange+3.5*abs(vd)
       do kk=1,nvmax
 c Should happen in advancing now.
