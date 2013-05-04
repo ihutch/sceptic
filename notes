@@ -624,8 +624,85 @@ output till the program stops. Perhaps this is because the gl threads
 don't get any time till then. Need EXPOSE_ACTION. That fixes it.
 
 Tweaks to the tools/makefile to make work reliably.
-Finally go the ability to compile on loki (using g77 etc).
+Finally got the ability to compile on loki (using g77 etc).
 Try with the pathscale compiler. I get back to the old error that
 dtin appears to be a nan after the first step. Found the problem
 in the setting of bdtnow. Somehow the result of the max function
-is different in pathscale than in gnu.
+is different in pathscale than in gnu. 
+
+2 May 13
+
+Thoughts about more comprehensive distribution diagnostics. 
+Current distribution diagnostics in advancing are totally ad hoc.
+Actually the sensible place to put them would really be in 
+chargetomesh. We don't need to do what advancing does in specifically
+calculating the theta position. The theta and r mesh positions are 
+calculated fresh in ptomesh. At that stage the most natural thing
+would be to update a distribution diagnostic appropriately. 
+A distribution diagnostic that was vx, vy, vz would avoid having
+to take square-roots and would therefore presumably be cheaper even
+if done for the entire particle population. However, with 60 velocity
+bins, which is what is currently used, there would be 180 times the 
+mesh size, if we collected data over the entire mesh. Since
+nrsize=200, nthsize=201, we would then be dealing with a diagnostic 
+that would be 180x200x201 = 8M reals, 32M bytes. It's not that big
+but there might be a communication bottleneck. Currently there are
+16 x 200x201 variables. So it would be an increase of about 10 times
+in storage, 8 variables are reduced, so 20 times in communication.
+
+If a concatenation of cells by 4 in r and theta were adopted, 
+we'd reduce the number by 16, so it would be unimportant extra work
+at that size. One way to approach this whole question is to have
+a specified size of distribution diagnostic data and scale the 
+cell concatenation to fit into it. There would also be a necessity for
+time averaging.
+
+Discovered a memory leak or gradual expansion in the GL graphics. 
+This is prevented by turning off the graphics. 
+However a more permanent fix is to make VECX=vecx the default,
+because the X graphics driver does not have that problem. One
+suspects that the issue is with the GL command tracking somehow.
+
+Including 
+      integer nrdist,ntdist,nvdist
+      parameter (nrdist=200,ntdist=200,nvdist=60)
+      real fvdist(nvdist,3,nrdist,ntdist)
+
+Makes virtual 141MB versus 113M without. Difference is 28MB, as estimated.
+The storage cost is not the issue. It's the communications.
+Cutting nobsmax to 50 from 100 reduces to 100M. 
+Then cutting nstepmax to 5001 from 10001 reduces to 89M.
+Sort of indicates that there's about 30M associated with nstepmax.
+Cutting nrsize in half hardly reduces the virtual. Surprising.
+
+Over a 1GB network, 30MB is nominally 1/30 s, which is short compared
+with a timestep. However, the reduce is going to be quite a few of these
+communications, so it might not be totally negligible. There's quite
+a risk that the large factor of increase in communication will hurt.
+
+Included the above with a REDUCE on t400 gives time 13.728 versus 11.3
+sec for a 20 step test. Thus there's a 20% penalty for communicating
+the whole thing. The penalty per step is about 0.1s. Not completely 
+negligible, but not too bad. Of course this is not a network
+communication. 
+
+At the moment the averaging steps appears to be set by
+      nsamax=min(39,maxsteps/10)+1
+normally to 40. Therefore the averaging is not over all that many steps.
+We might want to do a separate averaging process for the distribution. 
+
+How much benefit do we really get from using all the steps? Maybe not
+the number of steps averaged over, because there's some dependency,
+but perhaps a substantial fraction of it. 
+
+Did a test with the reduce of fvdist with dimensions as above on loki
+#PBS -l nodes=8:ppn=8
+50 steps nr=50 nt=30 ni=500000 and compare without the reduce.
+
+Times taken 28s without 50s with reduce. Thus, on loki, the communications
+for the full array are significant but not a dominant effect, even for 
+this rather quick case: 
+time mpiexec /home/hutch/src/sceptic/scepticmpi.orig -nr50 -nt30 -ni500000 -x$X -v$V -l$LAMBDA -d.1 -c40 -t.01 -vn0. -p-2 --sp -s50 -e5,1 -er3 -er5 -er10 -er20 -er40 -er80 -kt1 -k$NU --subcyc --bcphi4 -f -g
+
+In absolute terms, the communication is costing about 0.5s per step for 64
+processes that's not negligible.

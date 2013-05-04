@@ -54,13 +54,14 @@ c Highest occupied particle slot.
       real cerr,bdyfc,Ti,vd,Bz
       logical diags,lplot,ldist,linsulate,lfloat,lat0,lfext,localinj
       logical lfixedn
+      integer nfvdist
       integer myid,numprocs
       real rmtoz
       common /piccom/xp,npart,vzinit,psum,dtprec,ptsum,
      $     vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,vzsum,
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,ninjcomp,
      $     lplot,ldist,linsulate,lfloat,lat0,lfext,localinj,lfixedn,
-     $     myid,numprocs,rmtoz,ipf,iocprev,Bz,lsubcycle,verlet
+     $     nfvdist,myid,numprocs,rmtoz,ipf,iocprev,Bz,lsubcycle,verlet
 c*********************************************************************
 c Radius mesh
       real r(0:nrsize),rcc(0:nrsize)

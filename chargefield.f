@@ -1,8 +1,12 @@
 
 c***********************************************************************
-      subroutine chargetomesh()
+      subroutine chargetomesh(istep)
+c Assign charge to mesh etc. for step number istep.
+      integer istep
+
 c Common data:
       include 'piccom.f'
+c      include 'distcom.f'
 
 c      logical istrapped
       logical istrapped2
@@ -44,12 +48,12 @@ c                  if(istrapped(i))then
 c By comparison this call is about 4.8s. I.e. the call is 1/4 of the cost
 c of istrapped, and is a ~6% extra cost.
 c               if(.false..and.
-               if(
-     $              istrapped2(i,irl,rf,ithl,thf,ipl,pf,st,ct,sp,cp,rp
-     $              ,zetap,ih,hf))then
-                  call chargetrapped(i,irl,rf,ithl,thf,
-     $                 ipl,pf,st,ct,sp,cp,rp)
-               endif
+               if(istrapped2(i,irl,rf,ithl,thf,ipl,pf,st,ct,sp,cp,rp
+     $              ,zetap,ih,hf))call chargetrapped(i,irl,rf,ithl,thf,
+     $              ipl,pf,st,ct,sp,cp,rp)
+
+               if(istep.gt.maxsteps-nfvdist+1)call distaccum(i,irl,rf
+     $              ,ithl,thf,ipl,pf,st,ct,sp,cp,rp)
             endif
          endif
       enddo
@@ -530,5 +534,44 @@ c if ir.eq.nrused, the cell is already half the size
          collf=0.
       endif
 c      write(*,*)'ir,vz,partsum,vd,collf',ir,vz,partsum,vd,collf
+      end
+c*****************************************************************
+      subroutine distaccum(i,irl,rf,ithl,thf,ipl,pf,st,ct,sp,cp,rp)
+c Accumulate particle i contribution to fvdist.
+c Its ptomesh parameters are passed as follows
+c The left hand mesh point and the fractional mesh distance of the
+c position of particle i, in irl,rf,itl,tf,ipl,pf 
+c [Actually ipl and pf are unused and unset in 2-D.]
+c The sines and cosines of theta and phi in st,ct,sp,cp
+c The radius in rp.
+
+      include 'piccom.f'
+      include 'distcom.f'
+
+c Cylindrical Radial velocity
+         vxyr=xp(4,i)*cp+xp(5,i)*sp
+c Spherical and cylindrical azimuthal velocity:
+         vp=-xp(4,i)*sp+xp(5,i)*cp
+c Longitudinal velocity
+         vz=xp(6,i)
+c Spherical Radial velocity
+         vr=vz*ct+vxyr*st
+c Spherical Tangential velocity without azimuthal component.
+c I.e. v_theta.
+         vt=-vz*st+vxyr*ct
+c Cylindrical radial, azimuthal, and longitudinal bins.
+         ivxy=min(1+max(0,nint(nvmax*(vxyr/vrange+.499))),nvmax)
+         ivp=min(1+max(0,nint(nvmax*(vp/vrange + .499))),nvmax)
+         ivz=min(1+max(0,nint(nvmax*(vz/vrange+.499))),nvmax)
+c Spherical Radial and angular direction velocity bins: 
+         ivr=min(1+max(0,nint(nvmax*(vr/vrange + .499))),nvmax)
+         ivt=min(1+max(0,nint(nvmax*(vt/vrange + .499))),nvmax)
+
+c Update accumulators.
+         fvrtdist(ivxy,1,irl,ithl)=fvrtdist(ivxy,1,irl,ithl)+1.
+         fvrtdist(ivp,2,irl,ithl)=fvrtdist(ivp,2,irl,ithl)+1.
+         fvrtdist(ivz,3,irl,ithl)=fvrtdist(ivz,3,irl,ithl)+1.
+         fvrtdist(ivr,4,irl,ithl)=fvrtdist(ivr,4,irl,ithl)+1.
+         fvrtdist(ivt,5,irl,ithl)=fvrtdist(ivt,5,irl,ithl)+1.
 
       end

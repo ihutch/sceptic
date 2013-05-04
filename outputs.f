@@ -5,7 +5,7 @@ c 2012 version appears to corrupt MPI somehow.
 
 c*********************************************************************
 c     Writes the main output file
-      subroutine output(dt,damplen,i,fave,icolntype,colnwt)
+      subroutine output(dt,damplen,itotsteps,fave,icolntype,colnwt)
 c Common data:
       include 'piccom.f'
       include 'colncom.f'
@@ -32,18 +32,18 @@ c Write out averaged results.
 c -log(rhoinf)
       enddo
       write(10,'(a)')'Number of steps, Particles to probe each step'
-      write(10,*)i
-      write(10,*)(fluxprobe(j),j=1,i)
+      write(10,*)itotsteps
+      write(10,*)(fluxprobe(j),j=1,itotsteps)
       write(10,'(a)')'Number of theta cells, Number of steps, Particles'
-      write(10,*)NTHUSED,i
+      write(10,*)NTHUSED,itotsteps
       do j=1,NTHUSED
          ninth(j)=0
       enddo
       nastep=0
-      do k=1,i
+      do k=1,itotsteps
          write(10,*)(ninthstep(j,k),j=1,NTHUSED)
 c     Just save the last quarter for the average
-         if(k.gt.3*i/4)then
+         if(k.gt.3*itotsteps/4)then
             nastep=nastep+1
             do j=1,NTHUSED
                ninth(j)=ninth(j)+ninthstep(j,k)
@@ -72,7 +72,7 @@ c     Just save the last quarter for the average
       write(10,'(a,i4,i4)')'Volinv. Grid',NRUSED
       write(10,'(10f8.3)')(volinv(k),k=1,NRUSED)
 
-      call outsums(dt,i+1)
+      call outsums(dt,itotsteps+1)
 
 c Output time-averages of z-force components stored in zmom(nstepmax,*,*).
 c Particle units nTr^2, Electric nT lambda_D^2.
@@ -106,11 +106,14 @@ c     $     f10.5,' vneutral=',f8.4,' Tneutral=',f8.4)
 
 c End of output file.
       close(10)
+
       innm=lentrim(filename)
       filename(innm-3:innm)='.frc'
-      call outforce(filename,i)
+      call outforce(filename,itotsteps)
+      filename(innm-3:innm)='.vdg'
+      if(ldist)call outvdiag(filename,itotsteps)
       filename(innm-3:innm)='.dst'
-      if(ldist)call outdist(filename,i)
+      if(nfvdist.gt.0)call outvdist(filename)
       end
 c************************************************************************
 c     Writes a txt file with the orbits of the traced particles
@@ -194,14 +197,14 @@ c Construct a filename that contains many parameters
       end
 c*********************************************************************
 c Write a second file with the force data as a function of step
-      subroutine outforce(filename,istepmax)
+      subroutine outforce(filename,itotsteps)
       character*(*) filename
       include 'piccom.f'
       real zmn(nstepmax,5,nrfrcmax)
 
 c Apply normalization factors but don't change the zmom.
 c Perhaps this extra storage is unnecessary.
-      do i=1,istepmax
+      do i=1,itotsteps
          do k=1,nrfrc
             zmn(i,enccharge,k)=zmom(i,enccharge,k)
             zmn(i,partz,k)=zmom(i,partz,k)/rhoinf
@@ -217,16 +220,17 @@ c Perhaps this extra storage is unnecessary.
       do k=1,nrfrc
          write(9,'(a,i3,a,f8.3)')'legend: Sphere',k,' Radius'
      $        ,r(izmrad(k))
-         write(9,*)istepmax,6
+         write(9,*)itotsteps,6
          write(9,'(i5,6f12.5)')(i,(zmn(i,j,k),j=1,5),zmn(i,partz,k)
      $        +zmn(i,fieldz,k)+zmn(i,epressz,k)+zmn(i,collision,k),i=1
-     $        ,istepmax)
+     $        ,itotsteps)
       enddo
       close(9)
       end
 c*********************************************************************
-c Write a third file with the averaged velocity distribution data.
-      subroutine outdist(filename,istepmax)
+c Write a third file with the averaged velocity distribution data
+c from the single region.
+      subroutine outvdiag(filename,itotsteps)
       character*(*) filename
       include 'piccom.f'
 
@@ -250,6 +254,41 @@ c Write a third file with the averaged velocity distribution data.
       enddo
       write(9,*)
       close(9)
+      end
+c**********************************************************************
+      subroutine outvdist(filename)
+      character*(*) filename
+      include 'piccom.f'
+      include 'distcom.f'
+      open(22,file=filename,status='unknown',err=101)
+      close(22,status='delete')
+      open(22,file=filename,status='new',form='unformatted',err=101)
+      write(*,*)'Writing fvrtdist for',nvdist,5,NRUSED,NTHUSED
+      write(22)nvdist,5,NRUSED,NTHUSED
+      write(22)((((fvrtdist(iv,is,ir,it)
+     $     ,iv=1,nvdist),is=1,5),ir=1,NRUSED),it=1,NTHUSED)
+      return
+ 101  continue
+      write(*,*)'Error opening for writing file:',filename
+      end
+c**********************************************************************
+      subroutine readvdist(filename)
+      character*(*) filename
+      include 'piccom.f'
+      include 'distcom.f'
+      open(22,file=filename,status='old',form='unformatted',err=101)
+      read(22)nvd,nst,NRUSED,NTHUSED
+      if(nvd.ne.nvdist.or.nst.ne.5.or.
+     $     NRUSED.gt.nrsize.or.NTHUSED.gt.nthsize)then 
+         write(*,*)'Incorrect size parameters:',nvd,nst,NRUSED,NTHUSED
+      else
+         read(22)((((fvrtdist(iv,is,ir,it)
+     $        ,iv=1,nvdist),is=1,nst),ir=1,NRUSED),it=1,NTHUSED)
+         write(*,*)'Read fvrtdist for',nvdist,nst,NRUSED,NTHUSED
+      endif
+      return
+ 101  continue
+      write(*,*)'Error opening for reading file:',filename
       end
 c**********************************************************************
 c Write out the particle data.

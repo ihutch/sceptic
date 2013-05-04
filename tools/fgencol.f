@@ -12,7 +12,7 @@ c Update July 2006. Included in cvs.
       real charge2(nptmax),ffield2(nptmax),felec2(nptmax), fion2(nptmax)
      $     ,ftot2(nptmax),ffl2(nptmax)
       real fcol(nptmax),fcoul(nptmax),fcombined(nptmax),fcomb2(nptmax)
-      real fcolk(nptmax),collmom(nptmax)
+      real fcolk(nptmax),fcollmom(nptmax)
       real v(nptmax),vprbarr(nptmax)
       real phit1(nptmax),phit2(nptmax),vtheory(nptmax),qt1(nptmax)
       real colnwtarr(nptmax),fluxarr(nptmax),changlaflux(nptmax)
@@ -26,7 +26,7 @@ c     (Leo)
       real pz
       character*100 dirjf,filei
 
-      include 'piccompost.f'
+      include 'piccom.f'
 
 
 
@@ -258,11 +258,11 @@ c     in the whole domain. (IHH) Compare vzsum and vr/tsum approaches.
                   write(*,*)'vd,pz,pzvz',vd,pz,pzvz
                   write(*,*) "vmoy/vd ",vmoy/(36*200000),vd
                   write(*,*) "Probe/Total charge ",charge1(i),charge2(i)
-                  collmom(i)=-pz*colnwt
-                  write(*,*) "DDDDD ",collmom(i),colnwt
-                  ftot2(i)=ftot2(i)+collmom(i)
+                  fcollmom(i)=-pz*colnwt
+                  write(*,*) "DDDDD ",fcollmom(i),colnwt
+                  ftot2(i)=ftot2(i)+fcollmom(i)
 
-c     write(*,*) vd,rhoinf,collmom(i)
+c     write(*,*) vd,rhoinf,fcollmom(i)
                endif
             else
                goto 11
@@ -549,7 +549,7 @@ c We have a number of different collisionalities. Force:
                   call polymark(colnwtarr,ffl2,i,2)
                   call polymark(colnwtarr,felec2,i,3)
                   call polymark(colnwtarr,fion2,i,4)
-                  call polymark(colnwtarr,collmom,i,6)
+                  call polymark(colnwtarr,fcollmom,i,6)
                   call legendline(.0,yleg,1,' Total SCEPTIC')
                   call legendline(.0,yleg-.05,2,' E-field')
                   call legendline(.0,yleg-.1,3,' Electrons')
@@ -734,8 +734,8 @@ c     (Leo)
                   call polyline(v,fion2,i)
 c (Leo)
                   if(collsum)then
-                     call polymark(v,collmom,i,6)
-                     call polyline(v,collmom,i)
+                     call polymark(v,fcollmom,i,6)
+                     call polyline(v,fcollmom,i)
                   endif
                endif
             endif
@@ -1016,7 +1016,7 @@ c      kappai=(4/3.)*sqrt(2.*Ti)/(colnwt)
 c*******************************************************************
       subroutine readfile(filename,nrhere,nthhere)
 
-      include 'piccompost.f'
+      include 'piccom.f'
       logical lreaddiag
       character*100 string,filename
 

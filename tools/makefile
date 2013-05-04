@@ -47,7 +47,7 @@ endif
 COMPILE-SWITCHES = -Wall -O2
 
 #pattern rule, compile using the external definitions of commons, no backslash.
-%.o : %.f piccompost.f makefile;
+%.o : %.f piccom.f makefile;
 	$(G77) -c $(COMPILE-SWITCHES) $*.f
 
 %.o : %.F piccom.f makefile;
@@ -61,22 +61,22 @@ COMPILE-SWITCHES = -Wall -O2
 
 all : ../accis/libaccisX.a postprocB postproc parrot fluxVp newsumplot fcol 
 
-postproc : postproc.f piccompost.f ../accis/libaccisX.a coulflux.f makefile
+postproc : postproc.f piccom.f ../accis/libaccisX.a coulflux.f makefile
 	$(G77) $(COMPILE-SWITCHES) -g  -o postproc postproc.f coulflux.f $(ACCISLIB) $(LIBRARIES)
 
-postprocnew : postprocnew.f piccompost.f ../accis/libaccisX.a coulflux.f makefile
+postprocnew : postprocnew.f piccom.f ../accis/libaccisX.a coulflux.f makefile
 	$(G77) $(COMPILE-SWITCHES) -g  -o postprocnew postprocnew.f coulflux.f $(ACCISLIB) $(LIBRARIES)
 
 ../accis/libaccisX.a : ../accis/*.f
 	make -C ../accis
 
-parrot : parrot.f piccompost.f ../accis/libaccisX.a makefile
+parrot : parrot.f piccom.f ../accis/libaccisX.a makefile
 	$(G77) $(COMPILE-SWITCHES) -o parrot parrot.f -laccisX $(ACCISLIB) $(LIBRARIES)
 
 fluxVp : fluxVp.f ../accis/libaccisX.a coulflux.f makefile
 	$(G77) $(COMPILE-SWITCHES) -g -o fluxVp fluxVp.f coulflux.f $(ACCISLIB) $(LIBRARIES)
 
-postprocB : postprocB.f piccompost.f ../accis/libaccisX.a coulflux.f 
+postprocB : postprocB.f piccom.f ../accis/libaccisX.a coulflux.f 
 	$(G77) $(COMPILE-SWITCHES) -g  -o postprocB postprocB.f  $(ACCISLIB) $(LIBRARIES)
 
 fcol : fcol.f kennedyallen.o makefile

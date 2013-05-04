@@ -30,17 +30,17 @@ else
    endif
  else
 # VECX not vec4014 or vecx
-   ifeq ("$(TESTGL)","")
+   ifeq ("$(TESTX11)","")
+    ACCISDRV=accisX
+    GLULIBS=
+    LIBRARIES = $(LIBPATH) -l$(ACCISDRV) -lXt -lX11 $(GLULIBS)
+    VECX=vecx
+   else
+    ifeq ("$(TESTGL)","")
      ACCISDRV=accisX
      GLULIBS= -lGL -lGLU
      LIBRARIES = $(LIBPATH) -l$(ACCISDRV) -lXt -lX11 $(GLULIBS)
      VECX=vecglx
-   else
-    ifeq ("$(TESTX11)","")
-     ACCISDRV=accisX
-     GLULIBS=
-     LIBRARIES = $(LIBPATH) -l$(ACCISDRV) -lXt -lX11 $(GLULIBS)
-     VECX=vecx
     else
      ACCISDRV=accis
      LIBRARIES = $(LIBPATH) -l$(ACCISDRV)
@@ -125,16 +125,20 @@ shielding.o
 
 MPIOBJECTS=mpibbdy.o sor2dmpi.o shielding_par.o 
 
+COMMONS=piccom.f colncom.f distcom.f
+###########################################################################
 # So make does not do multiple tries. The default target is makefile first.
 all : makefile compiler sceptic scepticmpi
+	./sceptic -s5 -nr20 -nt20 -ni100000 -v1. -f -g 
+# By default run a test case with no graphics.
 
-sceptic : sceptic.F  piccom.f  ./accis/libaccisX.a $(OBJECTS) makefile compiler
+sceptic : sceptic.F  $(COMMONS)  ./accis/libaccisX.a $(OBJECTS) makefile compiler
 	$(G77) $(COMPILE-SWITCHES) -o sceptic sceptic.F  $(OBJECTS) $(LIBRARIES)
 
-sceptico : sceptic.F  piccom.f  ./accis/libaccisX.a $(OBJECTSO) makefile
+sceptico : sceptic.F  $(COMMONS)  ./accis/libaccisX.a $(OBJECTSO) makefile
 	$(G77) $(COMPILE-SWITCHES) -o sceptico sceptic.F  $(OBJECTSO) $(LIBRARIES)
 
-scepticmpi : sceptic.F  piccom.f piccomsor.f ./accis/libaccisX.a $(OBJECTS) $(MPIOBJECTS) makefile
+scepticmpi : sceptic.F  $(COMMONS) piccomsor.f ./accis/libaccisX.a $(OBJECTS) $(MPIOBJECTS) makefile
 	$(G77) $(MPICOMPILE-SWITCHES) ${NGW} -o scepticmpi  sceptic.F   $(OBJECTS) $(MPIOBJECTS) $(LIBRARIES)
 
 ./accis/libaccisX.a : ./accis/*.f
@@ -154,7 +158,7 @@ coulflux.o : tools/coulflux.f
 fvinjecttest : fvinjecttest.F makefile fvinject.o reinject.o initiate.o advancing.o chargefield.o randf.o reindiag.o fvcom.f
 	$(G77)  -o fvinjecttest $(COMPILE-SWITCHES) fvinjecttest.F fvinject.o reinject.o initiate.o advancing.o chargefield.o randf.o reindiag.o $(LIBRARIES)
 
-fvinject.o : fvinject.f fvcom.f piccom.f
+fvinject.o : fvinject.f fvcom.f $(COMMONS)
 	$(G77) -c $(COMPILE-SWITCHES) fvinject.f
 
 sceptic.tar.gz : makefile ./accis/libaccisX.a sceptic $(MPIexecutable)
@@ -208,12 +212,12 @@ cleanall :
 ftnchek :
 	ftnchek -nocheck -nof77 -calltree=text,no-sort -mkhtml -quiet -brief sceptic.F *.f
 
-
+#######################################################################
 #pattern rules need to be at end not to override specific rules
-%.o : %.f piccom.f fvcom.f makefile;
+%.o : %.f $(COMMONS) fvcom.f makefile;
 	$(G77) -c $(COMPILE-SWITCHES) $*.f
 
-%.o : %.F piccom.f makefile;
+%.o : %.F $(COMMONS) makefile;
 	$(G77) -c $(COMPILE-SWITCHES) $*.F
 
 % : %.f makefile
