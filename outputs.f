@@ -263,28 +263,46 @@ c**********************************************************************
       open(22,file=filename,status='unknown',err=101)
       close(22,status='delete')
       open(22,file=filename,status='new',form='unformatted',err=101)
-      write(*,*)'Writing fvrtdist for',nvdist,5,NRUSED,NTHUSED
-      write(22)nvdist,5,NRUSED,NTHUSED
+      write(22)nvdist,5,nrused,nthused,vrange
+      write(22)(rcc(ir),ir=1,nrused),(tcc(it),it=1,nthused)
+c      write(22)(th(it),it=1,nthused)
+c      write(22)(volinv(ir),ir=1,nrused)
       write(22)((((fvrtdist(iv,is,ir,it)
-     $     ,iv=1,nvdist),is=1,5),ir=1,NRUSED),it=1,NTHUSED)
+     $     ,iv=1,nvdist),is=1,5),ir=1,nrused),it=1,nthused)
+      write(22)((rhodist(ir,it),ir=1,nrused),it=1,nthused)
+      if(nthused.le.10.and.nrused.le.10)then
+         write(*,*)'Written fvrtdist for',nvdist,5,nrused,nthused
+         do it=1,nthused
+            write(*,100)(rhodist(ir,it),ir=1,nrused)
+         enddo
+ 100     format(10F8.3)
+      endif
       return
  101  continue
       write(*,*)'Error opening for writing file:',filename
       end
 c**********************************************************************
-      subroutine readvdist(filename)
+      subroutine readvdist(filename,isw)
       character*(*) filename
       include 'piccom.f'
       include 'distcom.f'
       open(22,file=filename,status='old',form='unformatted',err=101)
-      read(22)nvd,nst,NRUSED,NTHUSED
+      read(22)nvd,nst,nrused,nthused,vrange
       if(nvd.ne.nvdist.or.nst.ne.5.or.
-     $     NRUSED.gt.nrsize.or.NTHUSED.gt.nthsize)then 
-         write(*,*)'Incorrect size parameters:',nvd,nst,NRUSED,NTHUSED
+     $     nrused.gt.nrsize.or.nthused.gt.nthsize)then 
+         write(*,*)'incorrect size parameters:',nvd,nst,nrused,nthused
       else
+         if((isw-(isw/2)*2).eq.1)then
+            write(*,*)'reading fvrtdist, parameters:',nvd,nst,nrused
+     $           ,nthused
+         endif
+         read(22)(rcc(ir),ir=1,nrused),(tcc(it),it=1,nthused)
+c         read(22)(th(it),it=1,nthused)
+c         read(22)(volinv(ir),ir=1,nrused)
          read(22)((((fvrtdist(iv,is,ir,it)
-     $        ,iv=1,nvdist),is=1,nst),ir=1,NRUSED),it=1,NTHUSED)
-         write(*,*)'Read fvrtdist for',nvdist,nst,NRUSED,NTHUSED
+     $        ,iv=1,nvdist),is=1,nst),ir=1,nrused),it=1,nthused)
+c         write(*,*)'finished reading fvrtdist'
+         read(22)((rhodist(ir,it),ir=1,nrused),it=1,nthused)
       endif
       return
  101  continue

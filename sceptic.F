@@ -1,3 +1,4 @@
+
 c Main program for pic code
       program sceptic
 
@@ -1026,20 +1027,27 @@ c         write(*,*)'ninner=',ninner,'nrein=',nrein
          end
 c***************************************************************
       subroutine distreduce()
-#ifdef MPI
 c Final reduce for the distribution diagnostics.
-      include 'mpif.h'
       include 'piccom.f'
       include 'distcom.f'
+#ifdef MPI
+      include 'mpif.h'
+#endif
 c real fvrtdist(nvdist,5,0:nrdist,0:nthdist)
       if(nfvdist.gt.0)then
+#ifdef MPI
 c MPI-2 required for this in_place reduce:
          call MPI_REDUCE(MPI_IN_PLACE,fvrtdist,nvdist*5*(nrsize+1)
      $        *(nthsize+1),MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
-c Normalize by number of steps accumulated
-         fac=1./nfvdist
-         do it=0,nthsize
+#endif
+c         write(*,*)'Normalizing fvrtdist for ',nfvdist,'  steps'
+c Normalize by number of steps accumulated etc.
+         do it=1,nth
+            prefac=(nthused-1.)/(nfvdist*rhoinf)
+            if(it.eq.1.or.it.eq.nth)prefac=2.*prefac+1.e-5
             do ir=0,nrsize
+               fac=prefac*volinv(ir)
+               rhodist(ir,it)=rhodist(ir,it)*fac
                do is=1,5
                   do iv=1,nvdist
                      fvrtdist(iv,is,ir,it)=fvrtdist(iv,is,ir,it)*fac
@@ -1048,7 +1056,6 @@ c Normalize by number of steps accumulated
             enddo
          enddo
       endif
-#endif
       end
 c***************************************************************
       subroutine aveupstep()

@@ -706,3 +706,14 @@ time mpiexec /home/hutch/src/sceptic/scepticmpi.orig -nr50 -nt30 -ni500000 -x$X 
 
 In absolute terms, the communication is costing about 0.5s per step for 64
 processes that's not negligible.
+
+Realized that we don't need to reduce until the end, so communication becomes
+irrelevant. We can afford the whole array.
+
+4 May 13
+
+Implementation of more comprehensive distribution diagnostics.
+Rationalization of piccom, getting rid of piccompost.
+
+vdist is not really working yet. The density is not correct and nothing
+else is debugged.

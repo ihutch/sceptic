@@ -113,7 +113,7 @@ c     BC
 c     lflag, decide if we call bbdy for the first time or not
       logical lflag
       
-      include 'piccomsor.f'
+      include 'sorcom.f'
 
 c     Whether the topology dimension is periodic or not
       logical lperiod(ndims)

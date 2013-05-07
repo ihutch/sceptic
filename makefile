@@ -1,7 +1,7 @@
 # This makefile assumes the shell is Bash.
 #########################################################################
 # To get to compile with X, you might need to supplement this path.
-LIBPATH= -L./accis/ -L/usr/lib/mesa
+LIBPATH= -L. -L./accis/ -L/usr/lib/mesa
 #########################################################################
 # Test whether X libraries are found. Null => yes.
  TESTGL:=$(shell ld  $(LIBPATH) -lGLU -lGL -o /dev/null 2>&1 | grep GL)
@@ -16,16 +16,16 @@ LIBPATH= -L./accis/ -L/usr/lib/mesa
 # accis configuration. So we decide here. 
 ifeq ("$(VECX)","vec4014")
  ACCISDRV=accis
- LIBRARIES = $(LIBPATH) -l$(ACCISDRV)
-else
+ LIBRARIES = $(LIBPATH) -lsceptic -l$(ACCISDRV)
+ else
  ifeq ("$(VECX)","vecx")
    ifeq ("$(TESTX11)","")
      ACCISDRV=accisX
-     LIBRARIES = $(LIBPATH) -l$(ACCISDRV) -lXt -lX11 $(GLULIBS)
+     LIBRARIES = $(LIBPATH) -lsceptic -l$(ACCISDRV) -lXt -lX11 $(GLULIBS)
    else
 # Wanted vecx but could not have it:
      ACCISDRV=accis
-     LIBRARIES = $(LIBPATH) -l$(ACCISDRV)
+     LIBRARIES = $(LIBPATH) -lsceptic -l$(ACCISDRV)
      VECX:=vec4014
    endif
  else
@@ -33,17 +33,17 @@ else
    ifeq ("$(TESTX11)","")
     ACCISDRV=accisX
     GLULIBS=
-    LIBRARIES = $(LIBPATH) -l$(ACCISDRV) -lXt -lX11 $(GLULIBS)
+    LIBRARIES = $(LIBPATH) -lsceptic -l$(ACCISDRV) -lXt -lX11 $(GLULIBS)
     VECX=vecx
    else
     ifeq ("$(TESTGL)","")
      ACCISDRV=accisX
      GLULIBS= -lGL -lGLU
-     LIBRARIES = $(LIBPATH) -l$(ACCISDRV) -lXt -lX11 $(GLULIBS)
+     LIBRARIES = $(LIBPATH) -lsceptic -l$(ACCISDRV) -lXt -lX11 $(GLULIBS)
      VECX=vecglx
     else
      ACCISDRV=accis
-     LIBRARIES = $(LIBPATH) -l$(ACCISDRV)
+     LIBRARIES = $(LIBPATH) -lsceptic -l$(ACCISDRV)
      VECX:=vec4014
     endif
    endif
@@ -125,21 +125,19 @@ shielding.o
 
 MPIOBJECTS=mpibbdy.o sor2dmpi.o shielding_par.o 
 
-COMMONS=piccom.f colncom.f distcom.f
+COMMONS=piccom.f colncom.f distcom.f sorcom.f
 ###########################################################################
 # So make does not do multiple tries. The default target is makefile first.
-all : makefile compiler sceptic scepticmpi
+all : makefile compiler libsceptic.a sceptic scepticmpi 
 	./sceptic -s5 -nr20 -nt20 -ni100000 -v1. -f -g 
 # By default run a test case with no graphics.
 
-sceptic : sceptic.F  $(COMMONS)  ./accis/libaccisX.a $(OBJECTS) makefile compiler
-	$(G77) $(COMPILE-SWITCHES) -o sceptic sceptic.F  $(OBJECTS) $(LIBRARIES)
+libsceptic.a : compiler makefile $(OBJECTS) $(MPIOBJECTS) $(COMMONS)
+	rm -f libsceptic.a
+	@ar -rs libsceptic.a $(OBJECTS) $(MPIOBJECTS) $(UTILITIES)
 
-sceptico : sceptic.F  $(COMMONS)  ./accis/libaccisX.a $(OBJECTSO) makefile
-	$(G77) $(COMPILE-SWITCHES) -o sceptico sceptic.F  $(OBJECTSO) $(LIBRARIES)
-
-scepticmpi : sceptic.F  $(COMMONS) piccomsor.f ./accis/libaccisX.a $(OBJECTS) $(MPIOBJECTS) makefile
-	$(G77) $(MPICOMPILE-SWITCHES) ${NGW} -o scepticmpi  sceptic.F   $(OBJECTS) $(MPIOBJECTS) $(LIBRARIES)
+scepticmpi : sceptic.F  $(COMMONS) ./accis/libaccisX.a $(OBJECTS) $(MPIOBJECTS) makefile
+	$(G77) $(MPICOMPILE-SWITCHES) ${NGW} -o scepticmpi  sceptic.F $(LIBRARIES)
 
 ./accis/libaccisX.a : ./accis/*.f
 #	make VECX=vecx -C accis

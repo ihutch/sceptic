@@ -46,41 +46,43 @@ endif
 
 COMPILE-SWITCHES = -Wall -O2
 
+LIBRARIES=-L../ -lsceptic $(ACCISLIB)
+
 #pattern rule, compile using the external definitions of commons, no backslash.
-%.o : %.f piccom.f makefile;
+%.o : %.f piccom.f makefile  ../libsceptic.a;
 	$(G77) -c $(COMPILE-SWITCHES) $*.f
 
-%.o : %.F piccom.f makefile;
+%.o : %.F piccom.f makefile ../libsceptic.a;
 	$(G77) -c $(COMPILE-SWITCHES) $*.F
 
-% : %.f
-	$(G77)  -o $* $(COMPILE-SWITCHES) $*.f  $(ACCISLIB) $(LIBRARIES)
+% : %.f ../libsceptic.a
+	$(G77)  -o $* $(COMPILE-SWITCHES) $*.f  $(LIBRARIES)
 
-% : %.F
-	$(G77)  -o $* $(COMPILE-SWITCHES) $*.F  $(ACCISLIB) $(LIBRARIES)
+% : %.F ../libsceptic.a
+	$(G77)  -o $* $(COMPILE-SWITCHES) $*.F  $(LIBRARIES)
 
 all : ../accis/libaccisX.a postprocB postproc parrot fluxVp newsumplot fcol 
 
 postproc : postproc.f piccom.f ../accis/libaccisX.a coulflux.f makefile
-	$(G77) $(COMPILE-SWITCHES) -g  -o postproc postproc.f coulflux.f $(ACCISLIB) $(LIBRARIES)
+	$(G77) $(COMPILE-SWITCHES) -g  -o postproc postproc.f coulflux.f $(LIBRARIES)
 
 postprocnew : postprocnew.f piccom.f ../accis/libaccisX.a coulflux.f makefile
-	$(G77) $(COMPILE-SWITCHES) -g  -o postprocnew postprocnew.f coulflux.f $(ACCISLIB) $(LIBRARIES)
+	$(G77) $(COMPILE-SWITCHES) -g  -o postprocnew postprocnew.f coulflux.f $(LIBRARIES)
 
 ../accis/libaccisX.a : ../accis/*.f
 	make -C ../accis
 
 parrot : parrot.f piccom.f ../accis/libaccisX.a makefile
-	$(G77) $(COMPILE-SWITCHES) -o parrot parrot.f -laccisX $(ACCISLIB) $(LIBRARIES)
+	$(G77) $(COMPILE-SWITCHES) -o parrot parrot.f -laccisX $(LIBRARIES)
 
 fluxVp : fluxVp.f ../accis/libaccisX.a coulflux.f makefile
-	$(G77) $(COMPILE-SWITCHES) -g -o fluxVp fluxVp.f coulflux.f $(ACCISLIB) $(LIBRARIES)
+	$(G77) $(COMPILE-SWITCHES) -g -o fluxVp fluxVp.f coulflux.f $(LIBRARIES)
 
 postprocB : postprocB.f piccom.f ../accis/libaccisX.a coulflux.f 
-	$(G77) $(COMPILE-SWITCHES) -g  -o postprocB postprocB.f  $(ACCISLIB) $(LIBRARIES)
+	$(G77) $(COMPILE-SWITCHES) -g  -o postprocB postprocB.f  $(LIBRARIES)
 
 fcol : fcol.f kennedyallen.o makefile
-	$(G77)  -o fcol $(COMPILE-SWITCHES) fcol.f  kennedyallen.o $(ACCISLIB) $(LIBRARIES)
+	$(G77)  -o fcol $(COMPILE-SWITCHES) fcol.f  kennedyallen.o $(LIBRARIES)
 
 clean :
 
