@@ -136,14 +136,14 @@ libsceptic.a : compiler makefile $(OBJECTS) $(MPIOBJECTS) $(COMMONS)
 	rm -f libsceptic.a
 	@ar -rs libsceptic.a $(OBJECTS) $(MPIOBJECTS) $(UTILITIES)
 
-scepticmpi : sceptic.F  $(COMMONS) ./accis/libaccisX.a $(OBJECTS) $(MPIOBJECTS) makefile
+scepticmpi : sceptic.F  $(COMMONS) $(ACCISLIB) $(OBJECTS) $(MPIOBJECTS) makefile
 	$(G77) $(MPICOMPILE-SWITCHES) ${NGW} -o scepticmpi  sceptic.F $(LIBRARIES)
 
-./accis/libaccisX.a : ./accis/*.f
+$(ACCISLIB) : ./accis/*.f
 #	make VECX=vecx -C accis
 	make -C accis
 
-orbitint : orbitint.f coulflux.o $(OBJECTS) ./accis/libaccisX.a makefile
+orbitint : orbitint.f coulflux.o $(OBJECTS) $(ACCISLIB) makefile
 	$(G77) $(COMPILE-SWITCHES) -o orbitint orbitint.f $(OBJECTS) coulflux.o $(LIBRARIES)
 
 tools : makefile compiler sceptic
@@ -159,7 +159,7 @@ fvinjecttest : fvinjecttest.F makefile fvinject.o reinject.o initiate.o advancin
 fvinject.o : fvinject.f fvcom.f $(COMMONS)
 	$(G77) -c $(COMPILE-SWITCHES) fvinject.f
 
-sceptic.tar.gz : makefile ./accis/libaccisX.a sceptic $(MPIexecutable)
+sceptic.tar.gz : makefile $(ACCISLIB) sceptic $(MPIexecutable)
 	make -C accis mproper
 	make -C tools clean
 	make makefile
@@ -218,8 +218,8 @@ ftnchek :
 %.o : %.F $(COMMONS) makefile;
 	$(G77) -c $(COMPILE-SWITCHES) $*.F
 
-% : %.f makefile
+% : %.f makefile $(ACCISLIB)
 	$(G77)  -o $* $(COMPILE-SWITCHES) $*.f  $(LIBRARIES)
 
-% : %.F makefile
+% : %.F makefile $(ACCISLIB)
 	$(G77)  -o $* $(COMPILE-SWITCHES) $*.F  $(LIBRARIES)
