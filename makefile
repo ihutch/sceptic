@@ -75,8 +75,8 @@ endif
 # export this so it is inherited by sub-makes.
 export G77
 ###################################################################
-XLIB=$LIBPATH
 NOWARN=-Wno-unused-label -Wno-unused-dummy-argument
+XLIB=$LIBPATH
 MPIexecutable=scepticmpi
 ###################################################################
 #__________________________________________________________________________
@@ -130,6 +130,7 @@ COMMONS=piccom.f colncom.f distcom.f sorcom.f
 # So make does not do multiple tries. The default target is makefile first.
 all : makefile compiler libsceptic.a sceptic scepticmpi 
 	./sceptic -s5 -nr20 -nt20 -ni100000 -v1. -f -g 
+	echo $(COMPCOM)
 # By default run a test case with no graphics.
 
 libsceptic.a : compiler makefile $(OBJECTS) $(MPIOBJECTS) $(COMMONS)
@@ -184,10 +185,12 @@ compiler : makefile
   then GHERE="g77";\
   else GHERE="f77";fi\
  fi;\
- echo "Chosen G77="$${GHERE}; G77=$${GHERE}; echo $${G77} > compiler;
+ echo "Chosen G77="$${GHERE}; G77=$${GHERE}; echo $${G77} > compiler;\
 # To obtain this information, one has to make a second time.
+	@echo 'To set compiler manually do: make cleanall; echo "compiler command" >compiler'
+	@echo 'Then might need to use:  make NOWARN='
 	@echo "*********** Remaking with chosen G77 ****************"
-	@export MAKEFLAGS=; make sceptic
+	@export MAKEFLAGS=; make libsceptic.a
 
 clean :
 	make -C accis mproper
@@ -199,16 +202,21 @@ clean :
 	rm -f *~
 	rm -f *.liv
 	rm -f sceptic.tar.gz
+	rm -f libsceptic.a
 	make -C tools clean
 
 cleanall :
 	make clean
 	rm -f sceptic scepticmpi fvinjecttest fvinittest
-	rm -f *.dat
+	rm -f *.dat *.dst
 	rm -f *.frc
+	rm -f compiler
 
 ftnchek :
 	ftnchek -nocheck -nof77 -calltree=text,no-sort -mkhtml -quiet -brief sceptic.F *.f
+
+help :
+	@echo 'To set compiler manually do: echo "<compilercommand>" >compiler'
 
 #######################################################################
 #pattern rules need to be at end not to override specific rules

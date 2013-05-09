@@ -228,7 +228,7 @@ c     $      costheta*vz+sintheta*vx
      $        qz(izfv),qz(izfv+1)
 c Don't try to plot here. Just try again.
          goto 2
-         ldiaginj=.true.
+c         ldiaginj=.true.
       endif
 c End of solving for the reinjection th,vx,vz.
 c___________________________________________________________________
