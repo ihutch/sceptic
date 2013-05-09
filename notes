@@ -717,3 +717,25 @@ Rationalization of piccom, getting rid of piccompost.
 
 vdist is not really working yet. The density is not correct and nothing
 else is debugged.
+
+9 May 13
+
+vdist is working.
+
+Distribution-saving version of sceptic seems to go slower with two-process
+than with one process: 
+
+     	  One process	Two processes
+100x100
+Non-saving   9.69	9.93 s
+Saving	    12.85	18.81 s.
+20x20
+Non-saving   8.13	8.82
+Saving	     9.74	10.66
+
+200x200	     
+Non-saving  18.67	15.1
+Saving	    30.37	39.3
+
+Strange. I suppose it might be a cache problem. Certainly there will be
+a lot of random accesses to the memory. I'll bet that's it.

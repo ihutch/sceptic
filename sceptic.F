@@ -307,6 +307,8 @@ c         write(*,*)'Command line and defaults:'
      $        ' dt=',f6.4,' rmax=',f5.1,' vd=',f6.3,' vp=',f8.4)
          if(lsubcycle)write(*,*)'Subcycling on!'
       endif
+c Checks:
+      if(nfvdist.gt.maxsteps)nfvdist=maxsteps
       if(maxsteps.gt.nstepmax-1) Stop 'Too many steps requested.'
       lplot=diags.and.(myid.eq.0)
       k=0
@@ -1036,11 +1038,21 @@ c Final reduce for the distribution diagnostics.
 c real fvrtdist(nvdist,5,0:nrdist,0:nthdist)
       if(nfvdist.gt.0)then
 #ifdef MPI
+         if(myid.eq.0)then
 c MPI-2 required for this in_place reduce:
-         call MPI_REDUCE(MPI_IN_PLACE,fvrtdist,nvdist*5*(nrsize+1)
-     $        *(nthsize+1),MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+            call MPI_REDUCE(MPI_IN_PLACE,fvrtdist,nvdist*5*(nrsize+1)
+     $           *(nthsize+1),MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+            call MPI_REDUCE(MPI_IN_PLACE,rhodist,(nrsize+1)
+     $           *(nthsize+1),MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+         else
+            call MPI_REDUCE(fvrtdist,NULL,nvdist*5*(nrsize+1)
+     $           *(nthsize+1),MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+            call MPI_REDUCE(rhodist,NULL,(nrsize+1)
+     $           *(nthsize+1),MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+         endif
 #endif
 c         write(*,*)'Normalizing fvrtdist for ',nfvdist,'  steps'
+c         write(*,*)'Rhoinf=',rhoinf
 c Normalize by number of steps accumulated etc.
          do it=1,nth
             prefac=(nthused-1.)/(nfvdist*rhoinf)

@@ -12,6 +12,7 @@ c      real xplot2(0:nthsize),yplot2(0:nthsize)
       filename=' '
       isw=0
       jstepth=1
+      rhomax=1.
       ir1=1
       it1=1
       ir2=2
@@ -24,16 +25,20 @@ C         write(*,*)'Argument:',string(1:40)
             goto 3
          endif
          if(string(1:1) .eq. '-') then
-         if(string(1:2) .eq. '-x') lgraph=.not.lgraph
-         if(string(1:2) .eq. '-f') lphip=.true.
-         if(string(1:2) .eq. '-n') ldens=.true.
-         if(string(1:2) .eq. '-t') ltempc=.true.
-         if(string(1:2) .eq. '-l') lconline=.true.
-         if(string(1:2) .eq. '-a') larrows=.true.
-         if(string(1:2) .eq. '-i') read(string(3:),*)isw
-         if(string(1:2) .eq. '-k') read(string(3:),*)nrend
-         if(string(1:2) .eq. '-m') read(string(3:),*)nbsm
-         if(string(1:2) .eq. '-?') goto 11
+            if(string(1:2) .eq. '-x') lgraph=.not.lgraph
+            if(string(1:2) .eq. '-f') lphip=.true.
+            if(string(1:2) .eq. '-n') ldens=.true.
+            if(string(1:2) .eq. '-t') ltempc=.true.
+            if(string(1:2) .eq. '-l') lconline=.true.
+            if(string(1:2) .eq. '-a') larrows=.true.
+            if(string(1:2) .eq. '-i') read(string(3:),*)isw
+            if(string(1:2) .eq. '-p')then
+               read(string(3:),*,err=201,end=201)ir1,ir2,it1,it2
+ 201           if(ir2.le.ir1)ir2=ir1+1
+               if(it2.le.it1)it2=it1+1
+            endif
+            if(string(1:2) .eq. '-m') read(string(3:),*)nbsm
+            if(string(1:2) .eq. '-?') goto 11
          else
             filename=string
          endif
@@ -48,6 +53,9 @@ c      write(*,*)'isw=',isw
          goto 11
       endif
 
+      call minmax2(rhodist(1,1),nrdist+1,nrused-1,nthused-1,rhomin
+     $     ,rhomax)
+      write(*,*)'rhomax,rhomin',rhomax,rhomin
 c Now process. Draw a contour plot of rhodist, and indicate where we are.
       if(nthused.le.10.and.nrused.le.10)then
          write(*,*)'rcc,tcc,th:'
@@ -69,7 +77,6 @@ c Fix up grid edges.
 
 c Default positions
       ir=1
-      rhomax=1.
       v1=1.
 
  10   continue
@@ -102,11 +109,17 @@ c Plotting
       call multiframe(2,2,3)
 
       call plotdists(ir1,ir2,it1,it2)
-      call conrho(ir,jstepth,rhomax,0.5,
-     $           nrused,nthused,v1,larrows,lconline,rhodist)
-c      call pltend()
-c      call color(15)
+         call conrho(ir,jstepth,rhomax,rhomin,nrused,nthused,v1,larrows
+     $        ,lconline,rhodist)
+c         write(*,*)ir1,it1,rhodist(ir1,it1),rhomin,rhomax
+      if(abs(rhodist(ir1,it1)-rhomax)
+     $     .gt.2.*abs(rhodist(ir1,it1)-rhomin))then
+         call color(14)
+      else
+         call color(15)
+      endif
       call polyline(xplot1,yplot1,ic)
+      call color(15)
 
       call uinterface(iquit,laspect,jsw,iclipping
      $     ,ir1,it1,ir2,it2,nrused+1,nthused+1,icontour,iweb)
@@ -115,7 +128,8 @@ c      call color(15)
       call exit(0)
  11   continue
       write(*,*)'Usage ...'
-
+      write(*,*)'-p<ir1,ir2,it1,it2> specify initial cell.'
+      write(*,*)'-i1 give read-back commentary.'
       end
 c***************************************************************************
 c Contouring of the charge density, rho, on distorted mesh.
@@ -173,6 +187,7 @@ c      write(*,*)rcc(nrhere),nrhere,nthhere,rpmax
 c         zclv(j)=rhomin+(rhomax-rhomin)*(0.95*(j-1)/float(ncont-1))
          zclv(j)=(rhomax-rhomin)*(1.*(j-1)/float(ncont-1))+rhomin
       enddo
+c      write(*,*)rhomax,rhomin,(zclv(j),j=1,ncont)
       icl=-ncont
 
 c      call multiframe(2,2,3)

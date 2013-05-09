@@ -103,20 +103,20 @@ c I.e. v_theta.
          vt=-vz*st+vxy*ct
       if(diags .or. irl.le.2) then
 c These extra accumulations increase time by about 10%.
-         vxy=xp(4,i)*cp + xp(5,i)*sp
-         vr=vxy*st + xp(6,i)*ct
+c         vxy=xp(4,i)*cp + xp(5,i)*sp
+c         vr=vxy*st + xp(6,i)*ct
          vrsum(irl,ithl)=vrsum(irl,ithl) + rt1*vr
          vrsum(irl+1,ithl)=vrsum(irl+1,ithl) + rt2*vr
          vrsum(irl,ithl+1)=vrsum(irl,ithl+1) + rt3*vr
          vrsum(irl+1,ithl+1)=vrsum(irl+1,ithl+1) + rt4*vr
 
-         vt= vxy*ct - xp(6,i)*st
+c         vt= vxy*ct - xp(6,i)*st
          vtsum(irl,ithl)=vtsum(irl,ithl) + rt1*vt
          vtsum(irl+1,ithl)=vtsum(irl+1,ithl) + rt2*vt
          vtsum(irl,ithl+1)=vtsum(irl,ithl+1) + rt3*vt
          vtsum(irl+1,ithl+1)=vtsum(irl+1,ithl+1) + rt4*vt
 
-         vp=-xp(4,i)*sp  + xp(5,i)*cp
+c         vp=-xp(4,i)*sp  + xp(5,i)*cp
          vpsum(irl,ithl)=vpsum(irl,ithl) + rt1*vp
          vpsum(irl+1,ithl)=vpsum(irl+1,ithl) + rt2*vp
          vpsum(irl,ithl+1)=vpsum(irl,ithl+1) + rt3*vp

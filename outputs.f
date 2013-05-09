@@ -256,6 +256,7 @@ c from the single region.
       close(9)
       end
 c**********************************************************************
+c V-distributions over the entire used cell array.
       subroutine outvdist(filename)
       character*(*) filename
       include 'piccom.f'
