@@ -106,6 +106,9 @@ c     bcr : BC on reinjection
 c Signal that fvcom is not initialized. After initialization it is .ne.0
       qthfv(nthfvsize)=0.
 
+c Number injected particles recorded
+      mcrninjd = 0
+
 c Deal with arguments
       if(iargc().eq.0) goto 51
       do 1 i=1,iargc()
@@ -730,6 +733,9 @@ c Draw some final diagnostic figures, if flag set.
 c Write the output files.
 c         call output(dt,damplen,i-1,fave,icolntype,colnwt)
          call output(dt,damplen,itotsteps,fave,icolntype,colnwt)
+#ifdef HDF
+         call outputhdf(dt,i-1,fave,icolntype,colnwt)
+#endif
          if (norbits.ge.1) call orbitoutput()
       endif
 

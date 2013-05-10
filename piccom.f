@@ -198,3 +198,11 @@ c Data necessary for the orbit tracking
       logical orbinit
       integer maxsteps,trackinit
       common /orbtrack/orbinit,maxsteps,trackinit
+c*********************************************************************
+c Monte Carlo based reinjection (mcr)
+c     Number of injected particles
+      integer mcrninjd
+c     Positions and velocities of injected particles (6-d phase-space)
+      real mcrxpinjd(ndim,npartmax)
+c     Mcr common block
+      common /mcr/mcrninjd,mcrxpinjd
