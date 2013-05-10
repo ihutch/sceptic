@@ -1,6 +1,5 @@
 c*********************************************************************
 c        Draw a vector to the plotter file, normalized coords   */
-c New  version Apr 92. Compact file writing by lines.
       subroutine vecnp(nx,ny,ud)
       real nx,ny
       integer ud
@@ -88,55 +87,55 @@ c*********************************************************************/
       parameter (crlf=' \')
 c See lnswrt below for the end-of line character definition here.
 c g77 is incapable of handling non-printable characters properly.
-      common /cacom/ca
+      save ca
 
-      data ca(00001:00023)/'%!PS-Adobe-2.0 EPSF-2.0'/
+      data ca(00001:00023)/'%!PS-Adobe-3.0 EPSF-2.0'/
       data ca(00024:00025)/crlf/
       data ca(00026:00053)/'%%BoundingBox: 28 28 575 762'/
       data ca(00054:00055)/crlf/
-      data ca(00056:00097)/'/SP0  {16 setlinewidth 1.000 1.000 1.000 s'/
+      data ca(00056:00097)/'/SP0  {12 setlinewidth 1.000 1.000 1.000 s'/
       data ca(00098:00113)/'etrgbcolor } def'/
       data ca(00114:00115)/crlf/
-      data ca(00116:00157)/'/SP1  {16 setlinewidth 0.000 0.000 0.545 s'/
+      data ca(00116:00157)/'/SP1  {12 setlinewidth 0.000 0.000 0.545 s'/
       data ca(00158:00173)/'etrgbcolor } def'/
       data ca(00174:00175)/crlf/
-      data ca(00176:00217)/'/SP2  {16 setlinewidth 0.180 0.545 0.341 s'/
+      data ca(00176:00217)/'/SP2  {12 setlinewidth 0.180 0.545 0.341 s'/
       data ca(00218:00233)/'etrgbcolor } def'/
       data ca(00234:00235)/crlf/
-      data ca(00236:00277)/'/SP3  {16 setlinewidth 0.125 0.698 0.667 s'/
+      data ca(00236:00277)/'/SP3  {12 setlinewidth 0.125 0.698 0.667 s'/
       data ca(00278:00293)/'etrgbcolor } def'/
       data ca(00294:00295)/crlf/
-      data ca(00296:00337)/'/SP4  {16 setlinewidth 0.698 0.133 0.133 s'/
+      data ca(00296:00337)/'/SP4  {12 setlinewidth 0.698 0.133 0.133 s'/
       data ca(00338:00353)/'etrgbcolor } def'/
       data ca(00354:00355)/crlf/
-      data ca(00356:00397)/'/SP5  {16 setlinewidth 0.580 0.000 0.827 s'/
+      data ca(00356:00397)/'/SP5  {12 setlinewidth 0.580 0.000 0.827 s'/
       data ca(00398:00413)/'etrgbcolor } def'/
       data ca(00414:00415)/crlf/
-      data ca(00416:00457)/'/SP6  {16 setlinewidth 0.957 0.643 0.376 s'/
+      data ca(00416:00457)/'/SP6  {12 setlinewidth 0.957 0.643 0.376 s'/
       data ca(00458:00473)/'etrgbcolor } def'/
       data ca(00474:00475)/crlf/
-      data ca(00476:00517)/'/SP7  {16 setlinewidth 0.439 0.502 0.565 s'/
+      data ca(00476:00517)/'/SP7  {12 setlinewidth 0.439 0.502 0.565 s'/
       data ca(00518:00533)/'etrgbcolor } def'/
       data ca(00534:00535)/crlf/
-      data ca(00536:00577)/'/SP8  {16 setlinewidth 0.745 0.745 0.745 s'/
+      data ca(00536:00577)/'/SP8  {12 setlinewidth 0.745 0.745 0.745 s'/
       data ca(00578:00593)/'etrgbcolor } def'/
       data ca(00594:00595)/crlf/
-      data ca(00596:00637)/'/SP9  {16 setlinewidth 0.000 0.000 1.000 s'/
+      data ca(00596:00637)/'/SP9  {12 setlinewidth 0.000 0.000 1.000 s'/
       data ca(00638:00653)/'etrgbcolor } def'/
       data ca(00654:00655)/crlf/
-      data ca(00656:00697)/'/SP10 {16 setlinewidth 0.000 1.000 0.000 s'/
+      data ca(00656:00697)/'/SP10 {12 setlinewidth 0.000 1.000 0.000 s'/
       data ca(00698:00713)/'etrgbcolor } def'/
       data ca(00714:00715)/crlf/
-      data ca(00716:00757)/'/SP11 {16 setlinewidth 0.000 1.000 1.000 s'/
+      data ca(00716:00757)/'/SP11 {12 setlinewidth 0.000 1.000 1.000 s'/
       data ca(00758:00773)/'etrgbcolor } def'/
       data ca(00774:00775)/crlf/
-      data ca(00776:00817)/'/SP12 {16 setlinewidth 1.000 0.000 0.000 s'/
+      data ca(00776:00817)/'/SP12 {12 setlinewidth 1.000 0.000 0.000 s'/
       data ca(00818:00833)/'etrgbcolor } def'/
       data ca(00834:00835)/crlf/
-      data ca(00836:00877)/'/SP13 {16 setlinewidth 1.000 0.000 1.000 s'/
+      data ca(00836:00877)/'/SP13 {12 setlinewidth 1.000 0.000 1.000 s'/
       data ca(00878:00893)/'etrgbcolor } def'/
       data ca(00894:00895)/crlf/
-      data ca(00896:00937)/'/SP14 {16 setlinewidth 1.000 1.000 0.000 s'/
+      data ca(00896:00937)/'/SP14 {12 setlinewidth 1.000 1.000 0.000 s'/
       data ca(00938:00953)/'etrgbcolor } def'/
       data ca(00954:00955)/crlf/
       data ca(00956:00976)/'/D    {  lineto } def'/
@@ -169,7 +168,7 @@ c g77 is incapable of handling non-printable characters properly.
       data ca(01387:01428)/'/LT6  { LS 3 LM 1 LM 1 LM 1 LM 1 LM 1 LE }'/
       data ca(01429:01432)/' def'/
       data ca(01433:01434)/crlf/
-      data ca(01435:01476)/'/SP15 {16 setlinewidth 0.000 0.000 0.000 s'/
+      data ca(01435:01476)/'/SP15 {12 setlinewidth 0.000 0.000 0.000 s'/
       data ca(01477:01492)/'etrgbcolor } def'/
       data ca(01493:01494)/crlf/
       data ca(01495:01533)/'/SF where { pop }  { /SF 1 def } ifelse'/
@@ -270,6 +269,7 @@ c Fill the path just drawn. A path is a set of vectors all drawn with
 c pen down one after the other. The vecfill is dummy except for X11.
       subroutine pathfill()
       include 'plotcom.h'
+c      write(*,*)'Called pathfill'
       if(pfsw.ge.0) call vecfill()
       if(abs(pfsw) .eq. 2 .or. abs(pfsw) .eq. 3)
      $     call abufwrt(' false upath ufill ',19,12)
@@ -288,9 +288,10 @@ c*******************************************************************
       common /pltfi/nr,nu,nd,ns,ne,no
 
       character*60 string 
+c      write(*,*)'gradcolor',i
       if(pfsw.ge.0) call acgradcolor(i)
       if(abs(pfsw).eq.3 .or. abs(pfsw).eq.2)then
-c        write(*,*)'Calling getrgbcolor',i,ired,igreen,iblue
+c         write(*,*)'Calling getrgbcolor',i,ired,igreen,iblue
          call getrgbcolor(i,ired,igreen,iblue)
 c         write(*,*)i,ired,igreen,iblue
          call abufwrt(spc,ns,12)
@@ -299,6 +300,9 @@ c         write(*,*)i,ired,igreen,iblue
          blue=iblue/65535.
 c Stroke the previous path, if necessary.
          if(updown.ne.0) call abufwrt(endpair,ne,12)
+c         if(red.gt.1.or.green.gt.1.or.blue.gt.1)then
+c            write(*,*)i,red,green,blue,ired,igreen,iblue
+c         endif
          write(string,'(3f8.4,'' setrgbcolor '')')
      $        red,green,blue
          call abufwrt(string,istlen(string,59)+1,12)
@@ -336,4 +340,83 @@ c Calibration
          call vecfill()
       enddo
       call vecn(crsrx,crsry,0)
+      end
+c*********************************************************************
+c*********************************************************************
+      integer function npgradtri(x,y,z,h,i3d)
+c Draw triangle color gradient to the postscript file, 
+c using level 3 command shfill.
+c Returns 1 for success. 
+c i3d indicates 3d x,y,z if 1, 2d x,y if 0. color in h. */
+      real x(3),y(3),z(3),h(3)
+
+      include 'plotcom.h'
+      include 'world3.h'
+      integer pldx,pldy
+      integer plx,ply
+      common /plcoord/ plx,ply
+
+      integer ipscale
+      parameter (ipscale=10)
+c Bigger scale is supposed to prevent rounding problems. See 1016 below.
+      character*4 pu,pd, spc, endpair
+      character*17 postlude
+      character*300 prelude
+      integer nr,nu,nd,ns,ne,no
+      common /pltfc/pu,pd,spc,endpair,postlude,prelude
+      common /pltfi/nr,nu,nd,ns,ne,no
+
+      character*60 string 
+      real xn,yn,zn,xs,ys,zs
+
+c If a dummy routine avoiding level-3 postscript, return 0.
+c      npgradtri=0
+c      return
+
+
+      call nlwrt(12)
+      call abufwrt('<< /ShadingType 4 /ColorSpace /DeviceRGB ',41,12)
+      call abufwrt('/DataSource [ ',13,12)
+c      call abufwrt('% (edge-flag x- y-positions',27,12)
+c      call abufwrt(' color-triplet)x3',17,12)
+
+      do i=1,3
+         if(i3d.eq.1)then
+            call wxyz2nxyz(x(i),y(i),z(i),xn,yn,zn)
+            call trn32(xn,yn,zn,xs,ys,zs,0)
+            xn=xs+xcbc2
+            yn=ys+ycbc2
+         else
+            xn=wx2nx(x(i))
+            yn=wy2ny(y(i))
+            call tn2s(xn,yn,sx,sy)
+         endif
+         pldx=int(ipscale*(25+1000*xn))
+         pldy=int(ipscale*(25+1000*yn))
+         plx=pldx
+         ply=pldy
+
+         li=h(i)+1
+         call getrgbcolor(li,ired,igreen,iblue)
+         call abufwrt(spc,ns,12)
+         red=ired/65535.
+         green=igreen/65535.
+         blue=iblue/65535.
+         
+         call nlwrt(12)
+         call abufwrt('  0  ',5,12)
+         call ibufwrt(pldx,12)
+         call abufwrt(spc,ns,12)
+         call ibufwrt(pldy,12) 
+         call abufwrt(spc,ns,12)
+         write(string,'(3f8.4,'' '')')red,green,blue
+         call abufwrt(string,istlen(string,59)+1,12)
+
+      enddo
+
+      call abufwrt('] >> shfill ',12,12)
+      call nlwrt(12)
+
+      npgradtri=1
+
       end

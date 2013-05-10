@@ -160,7 +160,7 @@ c Based on Numerical Recipes.
       SUBROUTINE QROMBu(FUNC,A,B,SS)
       save
       external func
-      PARAMETER (EPS=1.E-6, JMAX=12, JMAXP=JMAX+1, K=5, KM=K-1)
+      PARAMETER (EPS=1.E-5, JMAX=12, JMAXP=JMAX+1, K=5, KM=K-1)
       DIMENSION S(JMAXP),H(JMAXP)
 
       H(1)=1.

@@ -8,9 +8,7 @@ c Automatic plotting of an array versus its index
       real xfac,xdelta
       integer nxfac
       call minmax(y,n,ymin,ymax)
-c      call fitrange(1.,float(n),ticnum,nxfac,xfac,xdelta,xmin,xmax)
       call fitrange(ymin,ymax,ticnum,nxfac,xfac,xdelta,ymin,ymax)
-c      call pltinit(xmin,xmax,ymin,ymax)
       call pltinit(1.,float(n),ymin,ymax)
       call axis()
       call ypolyline(y,n)
@@ -50,13 +48,60 @@ c******************************************************************
       call pltinit(xmin,xmax,ymin,ymax)
       end
 c********************************************************************
+      subroutine manautoinit(x,y,n,isw,sxmin,sxmax,symin,symax)
+c Initialize either using the autoscaling of the arrays or else
+c override one or more of the limits using the inputs sxmin...symax.
+c INPUT x,y,n,isw
+c INOUT sxmin,sxmax,symin,symax
+c 
+c Bits 0-3 of isw when set enforce override of xmin[0]...ymax[4].
+c If a bit is not set, the corresponding limit is returned in the
+c corresponding variable sxmin...symax. 
+c So e.g. isw=3 sets xmin=sxmin, xmax=sxmax, symin=ymin, symax=ymax.
+      real x(n),y(n),sxmin,sxmax,symin,symax
+      integer n,isw
+      include 'plotcom.h'
+      real xmin,xmax,ymin,ymax
+      real xfac,xdelta
+      integer nxfac,i
+      call minmax(x,n,xmin,xmax)
+      call minmax(y,n,ymin,ymax)
+      call fitrange(xmin,xmax,ticnum,nxfac,xfac,xdelta,xmin,xmax)
+      call fitrange(ymin,ymax,ticnum,nxfac,xfac,xdelta,ymin,ymax)
+      i=1
+      if(isw/2**(i-1)-2*(isw/2**i).ne.0)then
+         xmin=sxmin
+      else
+         sxmin=xmin
+      endif
+      i=2
+      if(isw/2**(i-1)-2*(isw/2**i).ne.0)then
+         xmax=sxmax
+      else
+         sxmax=xmax
+      endif
+      i=3
+      if(isw/2**(i-1)-2*(isw/2**i).ne.0)then
+         ymin=symin
+      else
+         symin=ymin
+      endif
+      i=4
+      if(isw/2**(i-1)-2*(isw/2**i).ne.0)then
+         ymax=symax
+      else
+         symax=ymax
+      endif
+      call pltinit(xmin,xmax,ymin,ymax)
+      end
+c********************************************************************
 c    Automatic symbol plotting of Arrays*/
       subroutine automark(x, y, n, isym)
       real x(n),y(n)
       integer n,isym
       call autoinit(x,y,n)
       call axis()
-      call polymark(x,y,n,isym)
+      if(isym.gt.0)call polymark(x,y,n,isym)
       return
       end
 c******************************************************************
@@ -112,13 +157,4 @@ c or draw full cube
 c I don't know why the calling of cubed changes the behaviour of axproj.
       call axproj(icorner)
 c      call axis()
-      end
-c******************************************************************
-      subroutine poly3line(x,y,z,n)
-      integer n,i
-      real x(n),y(n),z(n)
-      call vec3w(x(1),y(1),z(1),0)
-      do 1 i=2,n
-	 call vec3w(x(i),y(i),z(i),1)
-    1 continue
       end

@@ -48,7 +48,8 @@ c       Contour without labels, direct on mesh.
 c	write(*,*) 'Done scalewn'
 c The coloring does not work properly on some displays unless initialized.
 c	call accisgradinit(0,0,0,64000,64000,64000)
-	call contourl(z,pp,iLx,nx,ny,cl,nl,r,r,16)
+c Test of smooth output.
+ 	call contourl(z,pp,iLx,nx,ny,cl,nl,r,r,16+64)
 c	call contourl(z,pp,iLx,nx,ny,cl,nl,r,r,16)
 c	write(*,*) 'Done contourl'
 	call color(5)
@@ -60,6 +61,9 @@ c If we look from underneath, redraw the web over the contour plot.
 	call color(15)
 c How to enable interactive plot rotation. Just this call instead of pltend:
 	if(ieye3d().ne.0) goto 98
+c	call autoplot(x,y,ny)
+c	call pltend()
+c	call autoplot(x,y,ny)
 c	call pltend()
 	end
 

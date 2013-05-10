@@ -84,11 +84,12 @@ c Pick angle zt of poloidal impact and angle eta of impact parameter
       ceta=cos(eta)
       seta=sin(eta)
 c Choose impact parameter, preventing overflow.
-      chium2=-averein/Ti/(u+eup)**2
+      chium2=-averein/Ti/(u**2+eup)
       if(chium2.le.-1.) then
-         write(*,*)'Impossible chium2=',chium2,' averein=', averein,
-     $        ' u=',u,' iv=',iv
-c         stop
+c         write(*,'(a,f8.5,a,f8.5,a,f8.5,a,f8.5,a,f8.5)'
+c     $        )'Impossible chium2=',chium2,' averein=', averein,' u=',u
+c     $        ,' Ti=',Ti
+         goto 1
       endif
 c      if(.not.lfixedn)chium2=0.
       brcsq=ran0(idum)*(1.+chium2)
@@ -129,13 +130,19 @@ c Obtain angle coordinate and map back to th for phihere.
       ic1=x
       ic2=ic1+1
       dc=x-ic1
+      if(.not.ic1.ge.1)then
+         write(*,*)'Invtfunc angle error in ogenreinject'
+         write(*,*)'ct,x,rs,xp(3,i),ic1',ct,x,rs,xp(3,i),icl
+         write(*,*)crt,srt,ceta,seta,cosal,sinal,brc,chium2,p2
+         stop
+      endif
 c This expression should work for CIC And NGP.
       phihere=(phi(NRUSED,ic1)+phi(NRFULL,ic1))*0.5*(1.-dc)
      $        +(phi(NRUSED,ic2)+phi(NRFULL,ic2))*0.5*dc
 c Section to correct the injection velocity and direction (but not the
 c position) to account for local potential. 26 July 2004.
       if(localinj)then
-         brcsq=(brcsq*(1.-phihere/Ti/(u+eup)**2)/(1.+chium2))
+         brcsq=(brcsq*(1.-phihere/Ti/(u**2+eup))/(1.+chium2))
          if(brcsq.lt. 0.) then
 c     This launch cannot penetrate at this angle. But it would have done
 c     if the potential were equal here to averein. Thus it probably
@@ -144,7 +151,7 @@ c     should not be counted as part of the launch effort. So
             ilocalfail=ilocalfail+1
             goto 1
          endif
-         chium2=-phihere/Ti/(u+eup)**2
+         chium2=-phihere/Ti/(u**2+eup)
          brc=sqrt(brcsq)
       endif
 c Injection velocity components normalized in the rotated frame:
@@ -214,11 +221,13 @@ c Initialize the distributions describing reinjected particles
       integer icolntype
 c Common data:
       include 'piccom.f'
+      include 'colncom.f'
 c Passing the drift velocity to fv.
       common /distfunc/ud,uneutral
 c Velocity in this routine is normalized to a nominal ion thermal velocity
 c which for a Maxwellian-related form is sqrt(2T_i/m).
       ud=vd/sqrt(2.*Ti)
+      uneutral=vneutral/sqrt(2.*Ti)
 c Range of velocities permitted for injection.
       vspread=3.+5.*abs(ud)
 

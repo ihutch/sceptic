@@ -3,7 +3,7 @@ c Version 2.5; Aug 2004
       integer npartmax,npart,nr,nth,ndim,np
 c Number of particles: npartmax, radial and theta mesh size: nr, nth.
 c Don't change anything else.
-      parameter (npartmax=400000,np=1,ndim=6)
+      parameter (npartmax=1000000,np=1,ndim=6)
 c Use of particle advance subcycling in inner regions for accuracy.
       logical lsubcycle
 c Integrator type. True=old, False=new symplectic schemes
@@ -54,13 +54,14 @@ c Highest occupied particle slot.
       real cerr,bdyfc,Ti,vd,Bz
       logical diags,lplot,ldist,linsulate,lfloat,lat0,lfext,localinj
       logical lfixedn
+      integer nfvdist
       integer myid,numprocs
       real rmtoz
       common /piccom/xp,npart,vzinit,psum,dtprec,ptsum,
      $     vrsum,vtsum,vpsum,v2sum,vr2sum,vtp2sum,vzsum,
      $     phi,rho,cerr,bdyfc,Ti,vd,diags,ninjcomp,
      $     lplot,ldist,linsulate,lfloat,lat0,lfext,localinj,lfixedn,
-     $     myid,numprocs,rmtoz,ipf,iocprev,Bz,lsubcycle,verlet
+     $     nfvdist,myid,numprocs,rmtoz,ipf,iocprev,Bz,lsubcycle,verlet
 c*********************************************************************
 c Radius mesh
       real r(0:nrsize),rcc(0:nrsize)
@@ -107,8 +108,8 @@ c from 0 to 9)
       common /rancom/Gcom,Vcom,Qcom,pu1,pu2,Pc,infdbl,bcphi,bcr
 c********************************************************************
 c diagnostic data
-      integer nvmax,nrein,nreintry,ninner,nstepmax
-      parameter (nvmax=60,nstepmax=10001)
+      integer nvmax,nrein,nreintry,ninner,nstepmax,nrfrcmax
+      parameter (nvmax=60,nstepmax=10001,nrfrcmax=10)
       real nvdiag(nvmax),nvdiagave(nvmax),vdiag(nvmax)
       real vrdiagin(nvmax),vtdiagin(nvmax)
       real vrange
@@ -128,9 +129,16 @@ c Total energy collected
       real enerprobe
 c Z-momentum flux across outer boundary.
       real zmout
+c An array of particle zmomentum data:
+      real zmparts(nrfrcmax)
+      equivalence (zmomprobe,zmparts(1))
+      equivalence (zmout,zmparts(2))
+c To be obtained at radial mesh numbers
+      integer izmrad(nrfrcmax)
 c Combined zmom data: charge, fields, electron pressure, ion momentum.
-c For inner 1, outer 2.
-      real zmom(nstepmax,5,2)
+c For inner 1, outer 2, Then possibly more radii.
+      real zmom(nstepmax,5,nrfrcmax)
+      integer nrfrc
 c collmomtot is the reduced collmom for each time-step
       real collmomtot(nstepmax)
 c enertot is the reduced enerprobe for each time-step
@@ -158,7 +166,7 @@ c Cell in which to accumulate distribution functions
      $     diagchi,nrein,nreintry,ninner,fluxprobe,ninthstep,ninth,
      $     rhoinf,diagvr,vrdiagin,vtdiagin,
      $     spotrein,averein,fluxrein,ntrapre,adeficit,
-     $     ircell,itcell,zmout,zmomprobe,collmom,finthave,zmom,
+     $     ircell,itcell,nrfrc,zmparts,izmrad,collmom,finthave,zmom,
      $     collmomtot,enerprobe,enertot,diagtrap
 c*********************************************************************
 c Poisson coefficients for iterative solution, etc.

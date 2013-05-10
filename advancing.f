@@ -13,6 +13,7 @@ c Common data:
       include 'piccom.f'
       include 'colncom.f'
 
+      parameter (vsmall=1.e-20)
       real accel(3)
       real dt
 c moved to piccom.f      logical lsubcycle
@@ -38,7 +39,7 @@ c         ichoose=ran0(idum)*icycle
          lcollide=.false.
          icycle=1
          ichoose=1
-         tau=1.e20
+         tau=vsmall
       endif
 
       idum=1
@@ -58,10 +59,11 @@ c Zero the sums.
       ninner=0
       fluxrein=0.
       ntrapre=0
-      zmomprobe=0.
+      do k=1,nrfrc
+         zmparts(k)=0.
+      enddo
       enerprobe=0.
       collmom=0.
-      zmout=0.
       iocthis=0.
       do j=1,nth
          ninth(j)=0
@@ -78,6 +80,11 @@ c Zero the sums.
             vzsum(i,j)=0.
             ptsum(i,j)=0.
          enddo
+      enddo
+      do j=1,nvmax
+         nvdiag(j)=nvdiag(j)*(nstepsave-1.)/nstepsave
+         vtdiagin(j)=vtdiagin(j)*(nstepsave-1.)/nstepsave
+         vrdiagin(j)=vrdiagin(j)*(nstepsave-1.)/nstepsave
       enddo
 
       ido=npart
@@ -120,257 +127,265 @@ c          if(mod(i,1000).eq.0) write(*,'(i1,$)')isubcycle
 
 c If prior step was ended by a collision, restart the particle velocity.
 
-               if(lcstep)then
-                  call postcollide(i,tisq)
-                  lcstep=.false.
+            if(lcstep)then
+               call postcollide(i,tisq)
+               lcstep=.false.
 c     Because postcollide selects the velocity and the position at the
 c     same time, we need to set dtprec to zero, in order to offset v and
 c     x by half a time step properly.
-                  dtprec(i)=0
-               endif
-               dt=min(dts,remdt)
-               if(lcollide .and. mod(i,icycle).eq.ichoose)then
+               dtprec(i)=0
+            endif
+            dt=min(dts,remdt)
+            if(lcollide .and. mod(i,icycle).eq.ichoose)then
 c Here we calculate the time to next collision: cdt
 c Based on random number draw and poisson distribution.
-                  cdt= -alog(ran0(idum))*tau
+               cdt= -alog(ran0(idum))*tau
 c Using this approximation instead saves negligible time:
 c                  cdt= ran0(idum)*tau
 c So I conclude that the only loss of time is initialization.
-                  if(cdt.lt.dt)then
+               if(cdt.lt.dt)then
 c Collision at the end of cdt step.
-                     dt=cdt
-                     lcstep=.true.
-                     ncollide=ncollide+1
-                  endif
+                  dt=cdt
+                  lcstep=.true.
+                  ncollide=ncollide+1
                endif
-               if(.not.dt.lt.1000.)then
+            endif
+            if(.not.dt.lt.1000.)then
 c Error trap 
-                  write(*,*)'dt error: dt, cdt, dts, remdt',
-     $                 dt, cdt, dts, remdt
-               endif
-               remdt=remdt-dt
+               write(*,*)'dt error: dt, cdt, dts, remdt',
+     $              dt, cdt, dts, remdt
+            endif
+            remdt=remdt-dt
 
 c Except for the first time, find new position.
-               if(ic.ne.1)then 
-                  ih=1
-                  hf=77.
-                  call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,
+            if(ic.ne.1)then 
+               ih=1
+               hf=77.
+               call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,
      $              sp,cp,rp,zetap,ih,hf)
-               endif            
-               call getaccel(i,accel,il,rf,ith,tf,ipl,pf,st,ct,
-     $              sp,cp,rp,zetap,ih,hf)
+            endif            
+            call getaccel(i,accel,il,rf,ith,tf,ipl,pf,st,ct,
+     $           sp,cp,rp,zetap,ih,hf)
 
 
 c For acceleration, when dt is changing, use the average of prior and
 c present values: dtnow.
 c               if(dtprec(i).eq.0.)dtprec(i)=dt
-               dtnow=0.5*(dt+dtprec(i))
+            dtnow=0.5*(dt+dtprec(i))
 
-               if(.not.verlet) then  
-
-     
+            if(.not.verlet) then  
 c     New integrators accounting for the fact that we know what an orbit
 c     is in a uniform E-field parallel to a uniform B.
 
 c     Kick (Because of the E-field from the probe)
-                  do j=4,6
-                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow
-                  enddo
+               do j=4,6
+                  xp(j,i)=xp(j,i)+accel(j-3)*dtnow
+               enddo
 
 c     Drift with Bz.ne.0 (Cyclotronic integrator) Perpendicular direction
-                  if(Bz.ne.0) then
-                     cosomdt=cos(Bz*dt)
-                     sinomdt=sin(Bz*dt)
-                     xp(1,i)=xp(1,i)+
-     $                    (xp(5,i)*(1-cosomdt)+xp(4,i)*sinomdt)/Bz
-                     xp(2,i)=xp(2,i)+
-     $                    (xp(4,i)*(cosomdt-1)+xp(5,i)*sinomdt)/Bz
-                     
-                     temp=xp(4,i)
-                     xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
-                     xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
-                  else
-                     do j=1,2
-                        xp(j,i)=xp(j,i)+xp(j+3,i)*dt
-                     enddo          
-                  endif
+               if(Bz.ne.0) then
+                  cosomdt=cos(Bz*dt)
+                  sinomdt=sin(Bz*dt)
+                  xp(1,i)=xp(1,i)+
+     $                 (xp(5,i)*(1-cosomdt)+xp(4,i)*sinomdt)/Bz
+                  xp(2,i)=xp(2,i)+
+     $                 (xp(4,i)*(cosomdt-1)+xp(5,i)*sinomdt)/Bz
+                  
+                  temp=xp(4,i)
+                  xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
+                  xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
+               else
+                  do j=1,2
+                     xp(j,i)=xp(j,i)+xp(j+3,i)*dt
+                  enddo          
+               endif
 
 c     Additional drift of the z position and velocity due to the
 c     external E-field (if neutral collisions)
-                  xp(3,i)=xp(3,i)+xp(6,i)*dt+0.5*Eneutral*dt**2
-                  xp(6,i)=xp(6,i)+Eneutral*dt
+               xp(3,i)=xp(3,i)+xp(6,i)*dt+0.5*Eneutral*dt**2
+               xp(6,i)=xp(6,i)+Eneutral*dt
 
-               else
+            else
 c     Old Verlet integrator
 
 
 c     Getaccel returns the accel based on the charge-field calculation.
-                  accel(3)=accel(3)+Eneutral
+               accel(3)=accel(3)+Eneutral
 
-                  if(Bz.eq.0.)then
+               if(Bz.eq.0.)then
 c     Don't use split steps if Bz=0, for speed gain of 9%.
-                     do j=4,6
-                        xp(j,i)=xp(j,i)+accel(j-3)*dtnow
-                     enddo
-                     do j=1,3
-                        xp(j,i)=xp(j,i)+xp(j+3,i)*dt
-                     enddo
+                  do j=4,6
+                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow
+                  enddo
+                  do j=1,3
+                     xp(j,i)=xp(j,i)+xp(j+3,i)*dt
+                  enddo
 
-                  else
+               else
 c Old Boris integrator
 
 c First half of velocity advance:    AccelPhi/2+AccelBz+AccelPhi/2
-                     do j=4,6
-                        xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
-                     enddo
+                  do j=4,6
+                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
+                  enddo
 c B-field rotation
-                     cosomdt=cos(Bz*dtnow)
-                     sinomdt=sin(Bz*dtnow)         
-                     temp=xp(4,i)
-                     xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
-                     xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
+                  cosomdt=cos(Bz*dtnow)
+                  sinomdt=sin(Bz*dtnow)         
+                  temp=xp(4,i)
+                  xp(4,i)=temp*cosomdt+xp(5,i)*sinomdt
+                  xp(5,i)=xp(5,i)*cosomdt-temp*sinomdt
 c Second half of velocity advance
-                     do j=4,6
-                        xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
-                     enddo
-                     
-                     do j=1,3
-                        xp(j,i)=xp(j,i)+xp(j+3,i)*dt
-                     enddo
-                  endif
-
+                  do j=4,6
+                     xp(j,i)=xp(j,i)+accel(j-3)*dtnow/2
+                  enddo
+                  
+                  do j=1,3
+                     xp(j,i)=xp(j,i)+xp(j+3,i)*dt
+                  enddo
                endif
+            endif
 
-               dtprec(i)=dt
-               rn2=0.
-               xdv=0.
-               v2=0.
+            dtprec(i)=dt
 
-c Position advance
-               do j=1,3
-                  rn2=rn2+xp(j,i)**2
-                  xdv=xdv+xp(j,i)*xp(j+3,i)
-                  v2=v2+xp(j+3,i)**2
-               enddo
-           
+            rn2=0.
+            xdv=0.
+            v2=0.
+c Escape tests:
+            do j=1,3
+               rn2=rn2+xp(j,i)**2
+               xdv=xdv+xp(j,i)*xp(j+3,i)
+               v2=v2+xp(j+3,i)**2
+            enddo
 c The time prior to step end of closest approach
-               tm=xdv/v2
-               rn=sqrt(rn2)
+            tm=xdv/v2
+            rn=sqrt(rn2)
 c  Test if we went through the probe and came back out.
-               if((0..lt.tm .and. tm.lt.dt .and.
-     $              (rn2 - tm**2*v2).lt.rp2))then
+            if((0..lt.tm .and. tm.lt.dt .and.
+     $           (rn2 - tm**2*v2).lt.rp2))then
 c For a long time this had an error: used  tm**2/v2 erroneously. 
 c Corrected 9 Apr 07.
-                  if(rn.gt.r(1))then
+               if(rn.gt.r(1))then
 c     write(*,*)'Through probe',tm,(rn2 - tm**2*v2)
-                     rn=0.
+                  rn=0.
+               endif
+            endif
+c-----------------------------------------------------------------          
+c See if we crossed a relevant radius. If so, then collect force data,
+c consisting of the inward momentum flux.
+            do kk=3,nrfrc
+               if((rp-r(izmrad(kk)))*(rn-r(izmrad(kk))).lt.0.)then
+c This longer version was found to give correct results ...
+                  if(rp.ge.r(izmrad(kk)))then
+                     zmparts(kk)=zmparts(kk)+xp(6,i)
+                  else
+                     zmparts(kk)=zmparts(kk)-xp(6,i)
                   endif
                endif
+            enddo
 
-c-----------------------------------------------------------------               
 c Handling boundaries :
-               if(rn.le.r(1)) then
-                  ninner=ninner+1
-
+            if(rn.le.r(1)) then
+               ninner=ninner+1
 c     Solve for sphere crossing step fraction, s.
 c It ought to be possible to do this with the tm-related information.
-                  a=0.
-                  b=0.
-                  c=0.
-                  do j=1,3
-                     a=a+(dt*xp(j+3,i))**2
-                     b=b-2.*xp(j,i)*(dt*xp(j+3,i))
-                     c=c+xp(j,i)**2
-                  enddo
-                  c=c-r(1)**2
-                  s=(-b+sqrt(b**2-4.*a*c))/(2.*a)
-                  xc=xp(1,i)-s*dt*xp(4,i)
-                  yc=xp(2,i)-s*dt*xp(5,i)
-                  zc=xp(3,i)-s*dt*xp(6,i)
-                  ctc=zc/sqrt(xc**2+yc**2+zc**2)
-                  
+               a=vsmall
+               b=0.
+               c=0.
+               do j=1,3
+                  a=a+(dt*xp(j+3,i))**2
+                  b=b-2.*xp(j,i)*(dt*xp(j+3,i))
+                  c=c+xp(j,i)**2
+               enddo
+               c=c-r(1)**2
+               s=(-b+sqrt(b**2-4.*a*c))/(2.*a)
+               xc=xp(1,i)-s*dt*xp(4,i)
+               yc=xp(2,i)-s*dt*xp(5,i)
+               zc=xp(3,i)-s*dt*xp(6,i)
+               ctc=zc/sqrt(xc**2+yc**2+zc**2+vsmall)
+               
 c     Interpolate onto the theta mesh as in ptomesh               
-                  ithc=interpth(ctc,tfc)
-                  if(LCIC)then
-                     icell=nint(ithc+tfc)
-                  else
-                     icell=ithc
-                  endif
-                  ninth(icell)=ninth(icell)+1
-c     Collected momentum and energy
-                  zmomprobe=zmomprobe+xp(6,i)
-                  enerprobe=enerprobe+0.5*v2
-                  collmom=collmom+vzinit(i)
-               elseif(rn.ge.r(nr))then
-c     Left the grid outer boundary.
-                  zmout=zmout-xp(6,i)
-c     Did not leave the grid. Jump to subcycle end.
+               if(.not.ctc.le.1)then
+                  write(*,*)'Sphere crossing error',ctc,s,a,b,c,xc,yc,zc
+               endif
+               ithc=interpth(ctc,tfc)
+               if(LCIC)then
+                  icell=nint(ithc+tfc)
                else
-                  goto 81
+                  icell=ithc
                endif
+               ninth(icell)=ninth(icell)+1
+c     Collected momentum and energy
+               zmomprobe=zmomprobe+xp(6,i)
+               enerprobe=enerprobe+0.5*v2
+               collmom=collmom+vzinit(i)
+            elseif(rn.ge.r(nr))then
+c     Left the grid outer boundary.
+               zmout=zmout-xp(6,i)
+            else
+c     Did not leave the grid. Jump to subcycle end.
+               goto 81
+            endif
 c We left. If we haven't exhausted complement, restart particle i.
-               if(nrein.lt.ninjcomp) then
-                  call reinject(i,dtin,icolntype,bcr)
-c              Keep record of injected particles for testing
-               if (mcrninjd.lt.npartmax) then
-                  mcrninjd = mcrninjd + 1
-                  mcrxpinjd(1,mcrninjd) = xp(1,i)
-                  mcrxpinjd(2,mcrninjd) = xp(2,i)
-                  mcrxpinjd(3,mcrninjd) = xp(3,i)
-                  mcrxpinjd(4,mcrninjd) = xp(4,i)
-                  mcrxpinjd(5,mcrninjd) = xp(5,i)
-                  mcrxpinjd(6,mcrninjd) = xp(6,i)
-               endif
+            if(nrein.lt.ninjcomp) then
+               call reinject(i,dtin,icolntype,bcr)
+c            Keep record of injected particles for testing
+             if (mcrninjd.lt.npartmax) then
+                mcrninjd = mcrninjd + 1
+                mcrxpinjd(1,mcrninjd) = xp(1,i)
+                mcrxpinjd(2,mcrninjd) = xp(2,i)
+                mcrxpinjd(3,mcrninjd) = xp(3,i)
+                mcrxpinjd(4,mcrninjd) = xp(4,i)
+                mcrxpinjd(5,mcrninjd) = xp(5,i)
+                mcrxpinjd(6,mcrninjd) = xp(6,i)
+             endif
 c Diagnostics
-                  call diaginject(xp(1,i))
+               call diaginject(xp(1,i))
 
-                  dtprec(i)=dtin
-                  ipf(i)=1
-                  zmout=zmout+xp(6,i)
-                  vzinit(i)=xp(6,i)
-                  if(i.le.norbits) then
-                     if (.not.(orbinit))
-     $                    iorbitlen(i)=0
-                  endif
+               dtprec(i)=dtin
+               ipf(i)=1
+               zmout=zmout+xp(6,i)
+               vzinit(i)=xp(6,i)
+               if(i.le.norbits) then
+                  if (.not.(orbinit))
+     $                 iorbitlen(i)=0
+               endif
 c If an ion is reinjected but was to collide outside, it should not collide
 c after reinjection !
-                  lcstep=.false.
-
-
+               lcstep=.false.
 c     New reinjection handling. Simply use the rest of the time step with
 c     the new particle starting just at the edge. Get new position:
-                  ih=1
-                  hf=77.
-                  call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,
-     $                 sp,cp,rp,zetap,ih,hf)
+               ih=1
+               hf=77.
+               call ptomesh(i,il,rf,ith,tf,ipl,pf,st,ct,
+     $              sp,cp,rp,zetap,ih,hf)
 c     Set the external step length, (isubcycle=1).
-                  dts=dtin
+               dts=dtin
 c     The ion is reinjected with v and x synchronized. We set dtprec to
 c     zero to offset v and x by half a timestep
-                  dtprec(i)=0
+               dtprec(i)=0
 c     Call the timestep fraction-remaining random.
-                  remdt=dtin*ran0(idum)
-
+               remdt=dtin*ran0(idum)
 
 c     Jump to subcycle end.
-                  goto 81
-               else
-                  ipf(i)=0
-               endif
+               goto 81
+            else
+               ipf(i)=0
+            endif
 c Break from subcycles after dealing with a particle that left.
-               goto 82  
-           
- 81            continue
+            goto 82  
+            
+ 81         continue
 c     Explicit cycle controlled by remaining time in step:
-               if(remdt.gt.0.) goto 80
+            if(remdt.gt.0.) goto 80
 c     .................... End of Subcycle Loop .................
 c     Break jump point:
- 82            continue
+ 82         continue
 c -----------------------------------------------------------
-               
-               if(ldist) then
+            
+            if(ldist) then
 c Start of Various distribution diagnostics.
-               rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2)
+               rn=sqrt(xp(1,i)**2+xp(2,i)**2+xp(3,i)**2+vsmall)
+c               write(*,*)ircell,itcell,rn,r(nr-1)
 c     Diagnostics of f_r(rmax):
                if(rn.gt.r(nr-1))then
                   v=(xp(4,i)*xp(1,i)+xp(5,i)*xp(2,i)+xp(6,i)*xp(3,i))/rn
@@ -380,6 +395,9 @@ c     Diagnostics of f_r(rmax):
                elseif(rn.gt.r(ircell).and.rn.le.r(ircell+1))then
 c     Inner distribution Diagnostics: Assumes reinject never gets here.
                   ctc=xp(3,i)/rn
+                  if(.not.ctc.le.1)then
+                     write(*,*)'Inner diagn error',ctc,xp(3,i),rn
+                  endif
                   ithc=interpth(ctc,thc)
                   if(ithc.eq.itcell)then
                      vz=xp(6,i)
@@ -425,11 +443,13 @@ c            write(*,*)'Reinjecting empty slot',i
 
             call reinject(i,dtin,icolntype,bcr)
 c Diagnostics
-                  call diaginject(xp(1,i))
+            call diaginject(xp(1,i))
 
             dtprec(i)=dtin
             ipf(i)=1
             iocthis=i
+c Ought to have momentum collection here.
+
          elseif(i.ge.iocprev)then
 c     Break if inactive slot and we have exhausted the complement of
 c     injections.  And we have reached the maximum occupied slot of
@@ -441,7 +461,7 @@ c---------------- End of padvnc particle iteration ------------------
  401  continue
 
       NCneutral=ncollide
-c      write(*,*)'ncollide=',ncollide,' icycle=',icycle
+c      if(myid.eq.0)write(*,*)'ncollide=',ncollide,' icycle=',icycle
 c We just want the diagnostics with the true particles for now
 c      iocthis=min(iocthis,npartmax)
 
@@ -453,6 +473,7 @@ c     if(.not.lfixedn)write(*,504)ninjcomp,nrein,i,iocprev
  502  format('Distrib. rn=',f6.3,' ithc=',i4,' vr=',f6.3)
  501  format('accel=',3f11.4,' xp=',3f11.4)
 
+c      write(*,'(a,7f8.1)')' zmparts=',(zmparts(k),k=1,nrfrc)
       end
 c***********************************************************************
 c***********************************************************************
@@ -474,6 +495,8 @@ c If ih.ne.0 on entry, calculate the half-mesh postion, zetap,ih,hf.
 c      common /angles/ct,st,cp,sp,rp
 c Common data:
       include 'piccom.f'
+      real vsmall
+      parameter (vsmall=1.e-20)
       real rsp
       real x,y,z
       external interpth
@@ -492,7 +515,7 @@ C Find the cell and cell fraction we are at.
       y=xp(2,i)
       z=xp(3,i)
 
-      rsp=x**2+y**2
+      rsp=x**2+y**2+vsmall
 c The square roots here cost perhaps 1/3 of this routine. 
       rp=sqrt(rsp+z**2)
 c 
@@ -515,13 +538,8 @@ c
       endif
       st=rsp/rp
       ct=z/rp
-c      pf=atan2(sp,cp)
-      pf=1
-c Not using pf at present.
-c      ipl=pf*dpinv +1
-c      pf=pf*dpinv -ipl
-c
-      if(abs(1+int((ct-th(1))*tfac)).gt.ntpre)then
+c      if(.not.abs(1+int((ct-th(1))*tfac)).le.ntpre)then
+      if(.not.ct.le.1.)then
          write(*,*)'ptomesh overflow. Probably particle NAN'
          write(*,*)'i,irl,rf,ithl,thf',i,irl,rf,ithl,thf
          write(*,*)'ct,th(1),tfac,z,rp',ct,th(1),tfac,z,rp
@@ -864,9 +882,9 @@ c If prespecified probe potential
       endif
       end
 
-c****************************************************************** Set
-c     the finite volumes coefficients for the outer boundary, as well as
-c     the probe potential.
+c****************************************************************** 
+c     Set the finite volumes coefficients for the outer boundary, as
+c     well as the probe potential.
       subroutine fcalc_bc(dt,rshield,icolntype,colnwt)
       
       include 'piccom.f'

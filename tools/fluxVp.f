@@ -462,9 +462,11 @@ c     $        debl1(1),debl1(i),.false.,.false.)
          call eye3d(isw)
          if(isw.eq.1)goto 21
       enddo
-      return
+c      return
+      call exit()
  105  write(*,*)'Error opening file:',filename
-      return
+      call exit()
+c      return
       end
 c*************************************************************
       subroutine freeflight(vmax,Ti,isw)

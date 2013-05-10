@@ -7,8 +7,8 @@ c Must launch at least two files to work properly
 
 c********************************************************************
       character*100 string,filename
-      include 'piccompost.f'
-      real rholocal(0:NRFULL,0:NTHFULL)
+      include 'piccom.f'
+      real rholocal(0:nrsize,0:nthsize)
       common /forces/ charge1,ffield1,felec1,fion1,ftot1,
      $     charge2,ffield2,felec2,fion2,ftot2
       real phipic(1000),rhopic(1000)
@@ -83,7 +83,6 @@ c     Read the outputfile
      $        filename,rholocal,nrhere,nthhere,nphere,
      $        phipic,rhopic,rpic,rpicleft,phicos,
      $        rhomax,rhomin,nrti,phiinf,nastep,nsteps,dt,rmax,fave,
-     $        debyelen,vprobe,
      $        ierr)
 
 c     Creating a list with all the Bz to analyse, and the corresponding
@@ -637,14 +636,14 @@ c Data reading subroutine
      $     phipic,rhopic,rpic,rpicleft,phicos,
      $     rhomax,rhomin,
      $     nrti,phiinf,nastep,nsteps,
-     $     dt,rmax,fave,debyelen,vprobe,
+     $     dt,rmax,fave,
      $     ierr)
       logical lreaddiag,lpcic,ledge
       character*100 string,filename
       real phipic(1000),rhopic(1000)
       real rpic(1000),rpicleft(1000),phicos(1000)
-      include 'piccompost.f'
-      real rholocal(0:NRFULL,0:NTHFULL)
+      include 'piccom.f'
+      real rholocal(0:nrsize,0:nthsize)
       character*100 charin
       common /forces/ charge1,ffield1,felec1,fion1,ftot1,
      $     charge2,ffield2,felec2,fion2,ftot2
@@ -734,10 +733,10 @@ c Read in  summed results.
      $     dt,vd,Ti,i,rmax,rhoinf,debyelen,vprobe
  200  continue
       read(10,*)nrhere,nthhere,nphere
-      if(nrhere.gt.NRUSED .or. nthhere.gt.NTHUSED)then
+      if(nrhere.gt.nrsize .or. nthhere.gt.nthsize)then
          write(*,*)'Required dimensions: nr',nrhere,' nth',nthhere
          write(*,*)'are too large for the allocated values:'
-     $        ,NRUSED,NTHUSED
+     $        ,nrsize,nthsize
          stop
       endif
       read(10,*)string

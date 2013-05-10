@@ -27,7 +27,6 @@ c
       call trn32(x,y,z,x2,y2,z2,1)
       call color(15)
       call cubed(0)
-c      call puteye(x2,y2,z2)
       end
 c***************************************************************************
       subroutine viewrot(xmoved,ymoved,x0,y0,z0,xn,yn,zn)

@@ -579,7 +579,7 @@ c Alternative coded plot:
                enddo
                call axlabels(
      $     'Collision Frequency !An!@!dc!d/[v!dti!d/!Al!@!ds!d]',
-     $              'Flux /OML-value',)
+     $              'Flux /OML-value')
                call polyline(colflampe,flampe,nflampe)
 c               call pfpsset(0)
                call legendline(.5,.25,4,' !Al!@!dDe!d=666.7 r!dp!d')

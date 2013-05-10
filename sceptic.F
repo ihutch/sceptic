@@ -1,3 +1,4 @@
+
 c Main program for pic code
       program sceptic
 
@@ -21,6 +22,8 @@ c Common storage
       include 'piccom.f'
       include 'colncom.f'
       include 'fvcom.f'
+
+c      include 'distcom.f'
       data rmax/5./
       data dtf/0.025/bdt/1./
       data success/.false./
@@ -32,7 +35,6 @@ c Parallel processing MPI options.
 #ifdef MPI
       include 'mpif.h'
       double precision sortime
-      integer rc
       call MPI_INIT( ierr )
       call MPI_COMM_RANK( MPI_COMM_WORLD, myid, ierr )
       call MPI_COMM_SIZE( MPI_COMM_WORLD, numprocs, ierr )
@@ -58,6 +60,7 @@ c Common defaults. Avoid block data.
       diags=.true.
       finaldiags=.true.
       ldist=.false.
+      nfvdist=0
       avelim=0.6
       nstepsave=0
       nsamax=60
@@ -72,7 +75,6 @@ c Common defaults. Avoid block data.
       linsulate=.false.
       lfloat=.false.
       rmtoz=1.
-      ierad=1
       rhomin=0.
       rhomax=0.
       lat0=.false.
@@ -95,6 +97,7 @@ c     bcphi : BC on potential
 c     bcr : BC on reinjection
       bcr=0
       Bz=0.
+      nrfrc=2
       infdbl=.false.
       orbinit=.false.
       lsubcycle=.false.
@@ -117,8 +120,12 @@ c Deal with arguments
          if(string(1:8) .eq. '--rhoinf')then
             read(string(9:),*)rhoinf
             lfixedn=.false.
+         elseif(string(1:3).eq.'-ri')then
+            read(string(4:),*)rhoinf
+            lfixedn=.false.
+         elseif(string(1:2) .eq. '-r')then
+            readpart=.true.
          endif
-         if(string(1:2) .eq. '-r') readpart=.true.
          if(string(1:2) .eq. '-w') writepart=.true.
          if(string(1:3) .eq. '-gc') then
             lcolcont=.false.
@@ -139,7 +146,20 @@ c Deal with arguments
          if(string(1:7) .eq. '--fcalc') lfcalcl=.true.
          if(string(1:2) .eq. '-f') finaldiags=.false.
          if(string(1:3) .eq. '-er') then
-            read(string(4:),*)ierad
+            if(nrfrc.ne.nrfrcmax)then
+               nrfrc=nrfrc+1
+            else
+               if(myid.eq.0)write(*,'(a,i3)')'Too many force radii'
+     $              ,nrfrc+1
+            endif
+            read(string(4:),*)izmrad(nrfrc)
+c            if(myid.eq.0)write(*,*)'nrfrc,izmrad(nrfrc)',nrfrc
+c     $           ,izmrad(nrfrc)
+         elseif(string(1:3).eq.'-ef')then
+            read(string(4:),*,err=271,end=271)nfvdist
+            goto 272
+ 271        nfvdist=1
+ 272        continue
          elseif(string(1:2) .eq. '-e') then
             ldist=.true.
 c try to read the cell from the rest of the string.
@@ -261,31 +281,27 @@ c Set Array sizes, allowed variable.
          NRFULL=nr
          NTHFULL=nth
       endif
+      izmrad(1)=1
+      izmrad(2)=nr
 
-c     bcphi=4 is only valid without drift velocity, and with local
-c     reinjection. Otherwise we have no analytic solution of the plasma
-c     profiles in the quasineutral region.
+c     bcphi=4 is only strictly valid without drift velocity, and with local
+c     reinjection. But it is useful sometimes for stability.
       if(bcphi.eq.4) then
-         if(vd.ne.0) then
-            write(*,*) "bcphi=4 is only valid with vd=0. Set vd=0"
-            vd=0
-         endif
          if(icolntype.ne.1) then
-            icolntype=1
-            write(*,*) "bcphi=4 is only valid with kt=1. Set kt=1"
+            if(myid.eq.0)write(*,*) "bcphi=4 is only valid with kt=1."
          endif
          if(bcr.ne.0) then
-            write(*,*) "bcphi=4 is only valid with bcr=0. Set bcr=0"
-            bcr=0
+            if(myid.eq.0)write(*,*) "bcphi=4 is only valid with bcr=0."
+c            bcr=0
          endif
       endif
          
 
 c Orbit tracking setting. This is when we want to follow orbits of particles
-c having a thermal speed directed in the z direction, but different impact
+c having a speed directed in the z direction, but different impact
 c parameters
       trackinit=maxsteps/2
-      write(*,*)'trackinit=',trackinit
+c      if(myid.eq.0)write(*,*)'trackinit=',trackinit
       if(myid.eq.0)then
 c         write(*,*)'Command line and defaults:'
          write(*,505)nr,nth,npart,Bz
@@ -295,6 +311,8 @@ c         write(*,*)'Command line and defaults:'
      $        ' dt=',f6.4,' rmax=',f5.1,' vd=',f6.3,' vp=',f8.4)
          if(lsubcycle)write(*,*)'Subcycling on!'
       endif
+c Checks:
+      if(nfvdist.gt.maxsteps)nfvdist=maxsteps
       if(maxsteps.gt.nstepmax-1) Stop 'Too many steps requested.'
       lplot=diags.and.(myid.eq.0)
       k=0
@@ -302,12 +320,14 @@ c         write(*,*)'Command line and defaults:'
 c     Parallel solver stuff
 
 c Don't need the parallel solver for 0 Debye length
-      if ((debyelen.eq.0).or.infdbl) sorparallel=.false.
+      if((debyelen.eq.0).or.infdbl)sorparallel=.false.
 
 #ifdef MPI
-      if (sorparallel) then
+      if(sorparallel)then
+         if(myid.eq.0)write(*,*)'Initializing sorparallel',numprocs
          call sorparinit(myid2,sor_comm)
       elseif (myid.eq.0) then
+         write(*,*)'Serial sor solve only'
          myid2=0
       else
          myid2=-1
@@ -357,17 +377,20 @@ c Initialize the fields. (Changed the order of finit and injinit)
 c Initialize the random functions for reinjection.
       call injinit(icolntype,bcr)
 c Initialize velocity diagnostics
-      vrange=8.*sqrt(Ti)+1.4*abs(vd)+1.4*sqrt(abs(vprobe))
+      vrange=8.*sqrt(Ti)+1.4*abs(vd)+2.9*sqrt(abs(vprobe))
+c      write(*,*)'vrange=',vrange
+      if(icolntype.ne.0)vrange=vrange+3.5*abs(vd)
       do kk=1,nvmax
-         nvdiag(kk)=0
-         vrdiagin(kk)=0
-         vtdiagin(kk)=0
-         vdiag(kk)=vrange*(float(kk-1)/nvmax-0.499)
+c Should happen in advancing now.
+c         nvdiag(kk)=0
+c         vrdiagin(kk)=0
+c         vtdiagin(kk)=0
+         vdiag(kk)=vrange*(float(kk-1)/(nvmax-1.)-0.495)
       enddo
 
       if(.not.lfixedn)then
-         ninjcomp0=dtf*rhoinf*sqrt(Ti)*
-     $        smaxflux(vd/sqrt(2.*Ti),0.)*r(NRFULL)**2
+         ninjcomp0=int(dtf*rhoinf*sqrt(Ti)*
+     $        smaxflux(vd/sqrt(2.*Ti),0.)*r(NRFULL)**2)
          ninjcomp=ninjcomp0
          if(myid.eq.0) write(*,*)'Initial:  rhoinf=',rhoinf
      $        ,'  ninjcomp=',ninjcomp
@@ -377,11 +400,15 @@ c Initialize velocity diagnostics
 c Initialize collisions and related fields.
       call colninit(colnwt,icolntype)
 c Read in the previous particle distribution and averages.
-      if(readpart) call partrd(success)
+      if(readpart)then
+         call basefilename(icolntype,colnwt,string)
+         write(string(lentrim(string)+1:),'(''.'',i3.3)')myid
+         call partrd(string,success)
+      endif
 c Or Initialize (load) particles
       if(.not.success) call pinit(icolntype)
 c Assign charge to mesh
-      call chargetomesh()
+      call chargetomesh(0)
 c Collect the partial sums of moments of distribution.
       call sumreduce()
       call rhocalc(lsmooth)
@@ -399,6 +426,10 @@ c Print out diagnostics for tiny meshes.
             call multiframe(2,2,3)
          endif
       endif
+c     Timing
+#ifdef MPI
+      sortime=MPI_WTIME()
+#endif
 
       time=0.
 c Save the permanent plot switch.
@@ -406,15 +437,10 @@ c Save the permanent plot switch.
       maccel=maxsteps/3
       nsamax=min(39,maxsteps/10)+1
       if(success)nstepsave=nsamax
-c      nsamax=2
-      write(*,*)'maccel,nsamax,nstepsave',maccel,nsamax,nstepsave
-c     Timing
-#ifdef MPI
-      sortime=MPI_WTIME()
-#endif
-      
       if (myid.eq.0) then
-         write(*,*) "Maxsteps : ",maxsteps
+c         write(*,*)'maccel,nsamax,nstepsave',maccel,nsamax
+c     $     ,nstepsave
+c         write(*,*) "Maxsteps : ",maxsteps
       endif
 c Main Stepping loop.
       do i=1,maxsteps
@@ -425,11 +451,11 @@ c     Acceleration for first 1/3rd of steps.  The following two
 c     expressions are equivalent for maxsteps>>1. The second one
 c     corresponds to the first version of SCEPTIC. We use it.
 c         bdtnow=max(1.,(bdt-1.)*(maccel-i+2)/(maccel+1.)+1.)
-         bdtnow=max(1.,bdt*(maccel-i)/(maccel-1.))
+         bdtnow=max(1.,bdt*(maccel-i)/max(1.,(maccel-1.)))
          dt=bdtnow*dtf
 c         write(*,*) colnwt,Eneutral
 c         write(*,*)'bdtnow,btd,maccel,dt,dtf=',bdtnow,bdt,maccel,dt,dtf
-         ninjcomp=bdtnow*ninjcomp0
+         ninjcomp=int(bdtnow*ninjcomp0)
 c     Here there is a problem if we have ipstep!=1 because it is
 c     essential that right after changing pfset one should call
 c     pltinit. Otherwise initialization may be incorrect. This problem
@@ -439,7 +465,7 @@ c     As a result the last plot is only saved if it is on the maxsteps step.
 
 c     If this flag is on, then we force the tracked particles to have the
 c     following properties.
-         if (myid.eq.0.and.i.eq.trackinit.and.orbinit) then 
+         if (orbinit.and.myid.eq.0.and.i.eq.trackinit) then 
             h=1./2*rmax
             do k=1,norbits
                iorbitlen(k)=0
@@ -456,8 +482,7 @@ c     following properties.
 
          if(i.eq.maxsteps)call pfset(ipfsw)
 c Assign charge to mesh
-
-         call chargetomesh()
+         call chargetomesh(i)
 
 c Collect the partial sums of moments of distribution.
          call sumreduce()
@@ -465,12 +490,6 @@ c Collect the partial sums of moments of distribution.
 
 c myid.eq.0 for the master node.
          if(myid.eq.0)then
-            
-c     Refresh precalculated fuctions
-            
-c     if ((mod(i,20).eq.0)) then
-c               call injinit(icolntype,bcr)
-c     endif
             
 c     Plot density contours.
             if(lplot)then
@@ -481,9 +500,7 @@ c     Plot density contours.
                   call pltinit(0.,1.,0.,1.)
                endif
             endif
-
             call rhocalc(lsmooth)
-               
          endif
 
 #ifdef MPI
@@ -506,7 +523,6 @@ c Accumulate trapped density
             call diagtrapcalc()
          endif
 
- 
 c If we use floating potential, the slaves may need rhoinf and fluxes
 #ifdef MPI
 c     Needs to bcast rhoinf in any case to get the last line of the
@@ -537,29 +553,29 @@ c                        yvpre=fluxrein/nrein
                         yvpre=float(nrein)/ninjcomp
                      endif
                   endif
-                  write(*,'(2f7.3,i7,f7.3)')
+                  if(myid.eq.0)write(*,'(2f7.3,i7,f7.3)')
      $              fluxprobe(i-1)/(4.*pi*r(1)**2)/rhoinf/dtf,
      $              (phi(NRFULL,NTHUSED/2)+phi(NRUSED,NTHUSED/2))*.5,
      $                 mtrap,yvpre
                endif
-               if(.not.lfixedn) write(*,601)ninjcomp,nrein,rhoinf,
-     $              bdtnow,iocprev
+               if(.not.lfixedn.and.myid.eq.0) write(*,601)ninjcomp,nrein
+     $              ,rhoinf,bdtnow,iocprev
  601           format('ninjcomp=',i6,'  nrein=',i6,'  rhoinf=',f8.2,
      $              '  bdtnow',f7.4
      $              ,'  iocprev=',i6)
                if((debyelen.ne.0.).and.(.not.infdbl) .and. mod(i,100).eq
      $              .1)then
-                  write(*,*)
+                  if(myid.eq.0)write(*,*)
      $              'Step:SOR Step:SOR Step:SOR',
      $              ' Step:SOR Step:SOR',
      $              '  Flux, Phiedge, Trap,', cfinal
                elseif((debyelen.eq.0..or.infdbl).and. mod(i,100).eq.1
      $                 )then
-                  write(*,*) ' Step Step Step Step Step',
+                  if(myid.eq.0)write(*,*) ' Step Step Step Step Step',
      $                 '  Flux, Phiedge, Trap,',cfinal
                endif
             endif
-            write(*,'(i5,$)')i
+            if(myid.eq.0)write(*,'(i5,$)')i
          endif
 
 c Avoid ugly printing on the screen :
@@ -568,7 +584,6 @@ c Avoid ugly printing on the screen :
             call MPI_BARRIER(MPI_COMM_WORLD,ierr)
          endif
 #endif
-
 
 c     Calculate the potential field, unless it is fixed.
          if(.not.lfext)then
@@ -585,13 +600,11 @@ c     Calculate the potential field, unless it is fixed.
 #ifdef MPI
                elseif(sorparallel.and.myid2.ge.0) then
                   call fcalc_shielding_par(dt,rshield,sor_comm,myid2)
-                  
 #endif
                endif
             endif
          endif
          
-c         write(*,*)'Called fcalc'
 c     Broadcast back to the slaves.
 #ifdef MPI
          call MPI_BCAST(phi,(nrsize+1)*(nthsize+1),
@@ -609,26 +622,21 @@ c Liveoutput. Saves the potential distribution at each step to look at waves
             if(i.ge.0.75*maxsteps.and.live)
      $           call outputlive(dt,i,icolntype)
 
-
 c     Damping on ion motion by artificial potential modification.
             if(.not.lfext.and.damplen.gt.0.) call damp(dt,damplen)
             
 c     Evaluate total charge and z-forces. Not yet implemented for NGP.
             if(LCIC)then
-               call esforce(ierad,qp,fz,epz,collf,colnwt)
-               zmom(i,enccharge,1)=qp
-               zmom(i,fieldz,1)=fz
-               zmom(i,epressz,1)=epz
-               zmom(i,collision,1)=collf
-               call esforce(nrused,qp,fz,epz,collf,colnwt)
-               zmom(i,enccharge,2)=qp
-               zmom(i,fieldz,2)=fz
-               zmom(i,epressz,2)=epz
-               zmom(i,collision,2)=collf
+               do k=1,nrfrc
+                  call esforce(izmrad(k),qp,fz,epz,collf,colnwt)
+                  zmom(i,enccharge,k)=qp
+                  zmom(i,fieldz,k)=fz
+                  zmom(i,epressz,k)=epz
+                  zmom(i,collision,k)=collf
+               enddo
             endif
             
          endif
-
 
 c     Plot radial average velocity and temperatures.
          if(lplot)then
@@ -637,6 +645,7 @@ c     Plot radial average velocity and temperatures.
                call vdiagsout(.false.)
                call vdiagsin(.false.)
             endif
+            call accisrefresh()
          endif
 
 c     Main particle advance, including collisions.
@@ -644,20 +653,15 @@ c     Main particle advance, including collisions.
 c         write(*,*)'Calling padvnc'
          call padvnc(dt,icolntype,colnwt,i)
 
-c         write(*,*)'Called padvnc'
-
-c Obsolete separate advance and collide:
-c         call padvnc(dt,icolntype,i)
-c         if(icolntype.ne.0) call collide(dt,colnwt,icolntype)
-
 c     Reduce back the flux and distribution data from the particle advance.
          call partreduce(i)
 
 c     Adjust to the flux that would have occurred for standard step size.
          fluxprobe(i)=fluxprobe(i)/bdtnow
 c     
-         zmom(i,partz,1)=zmom(i,partz,1)/dt
-         zmom(i,partz,2)=zmom(i,partz,2)/dt
+         do k=1,nrfrc
+            zmom(i,partz,k)=zmom(i,partz,k)/dt
+         enddo
          collmomtot(i)=collmomtot(i)/dt
          enertot(i)=enertot(i)/dt
          
@@ -671,8 +675,10 @@ c Small mesh written diagnostics.
          endif
          time=time+dt
  503     format(10f8.1)
- 504     format(10f8.3) 
-         call flush()
+ 504     format(10f8.3)
+c With gnu compilers the unit number is optional. But with pathscale
+c it is not; so specify directly. 
+         call flush(6)
       enddo
 c End of particle stepping section.
 
@@ -698,16 +704,11 @@ c Average various fluxes and fields:
       if(lplot) call pltend()
 c Restore the permanent plotting switch.
       lplot=lpstore
-
-      if(writepart) call partwrt()
-      
+      if(writepart) call partwrt(icolntype,colnwt)
       diags=.true.
-
-      call chargetomesh()
-
+      call chargetomesh(i)
       call sumreduce()
-
-
+      call distreduce()
 
 c Draw some final diagnostic figures, if flag set.    
       if(finaldiags.and.myid.eq.0)then
@@ -728,19 +729,22 @@ c Draw some final diagnostic figures, if flag set.
             call charsize(0.0,0.0)
          endif
       endif
+
       if(myid.eq.0)then
 c Write the output file.
-         call output(dt,damplen,i-1,fave,icolntype,colnwt)
+c         call output(dt,damplen,i-1,fave,icolntype,colnwt)
+         call output(dt,damplen,itotsteps,fave,icolntype,colnwt)
+#ifdef HDF
          call outputhdf(dt,i-1,fave,icolntype,colnwt)
+#endif
          if (norbits.ge.1) call orbitoutput()
       endif
 
 #ifdef MPI
       if (myid2.eq.0) then
-         write(*,*) "time : ",MPI_WTIME()-sortime
+         write(*,*)myid, '  MPI Time taken : ',MPI_WTIME()-sortime
       endif
-
-      call MPI_FINALIZE(rc)
+      call MPI_FINALIZE(ierr)
 #endif
 
 c      call plotinject(Ti)
@@ -748,57 +752,70 @@ c      call plotinject(Ti)
 c Use call exit to avoid silly fortran message.
       call exit(0)
 
+
  51   continue
 c Help section
+ 500   format(a,i6,a,i6)
+ 501   format(a,f6.2,a,f6.2)
+ 499   format(a,f6.4,a,f6.2)
       write(*,*)
      $ 'Usage: sceptic [-t.. -s.. -d.. -c..',
      $     ' -x.. -v.. -p.. -l.. -e[..] -r -w -g -?]'
       write(*,*)' e.g. ./sceptic -v0.2 -nr50 -nt30 -d.05'
       write(*,*)' Switch arguments (defaults):[.ff=float, nnn=integer]'
-      write(*,*)' -t.ff ion temp Ti (1);',
-     $     ' -snnn max time steps (500);'
-      write(*,*)' -d.ff time step dt (.025);',
-     $     ' -c.ff initial accel factor (1)'
-      write(*,*)' -cmax.ff -cmin.ff limits of rho plotting (auto)'
-      write(*,*)' -v.ff drift velocity (0.0);',
-     $     ' -x.ff max r of domain (5)'
-      write(*,*)' -p.ff probe potential (-4.) -pf float -pi insulate;',
-     $     ' -b.ff Boundary factor (4)'
-      write(*,*) ' -l.ff Debye length (.1) ; -z.ff External Ez (0)'
-      write(*,*) ' -onnn Rand orbits to plot (0) ; -oinnn Cold orbits',
-     $     'orbits (0)'
+      write(*,501)'  -t.ff  ion temp Ti       ',Ti
+     $     ,'      -v.ff  drift velocity      ',vd
+      write(*,499)'  -d.ff  time step dt      ',dtf,
+     $     '      -c.ff  initial accel factor',bdt
+      write(*,501)'  -x.ff  max r of domain   ',rmax,
+     $     '      -l.ff  Debye length        ',debyelen
+      write(*,500)'  -nrnnn  radial mesh-size ',nr
+     $     ,'      -nt  angular mesh size    ',nth
+      write(*,'(a,i8,a,i5)')'  -ninnn  particle number',npart
+     $     ,'      -snnn  max time steps      ',maxsteps
+      write(*,501)'  -ri.ff  set injectn rate ',rhoinf
+     $     ,'         rather than particle number.'
+      write(*,501)'  -p.ff  probe potential   ',vprobe
+     $     ,'      -pf  float   -pi  insulate;'
+c,' -b.ff Boundary factor (4)'
+      write(*,501)'  -mfff  ratio of mass to Z',rmtoz
+     $     ,'      -z.ff  External Ez         ',Ezext
+      write(*,*)' -ktnnn  collision type (0: none, 1 direct, 2 remote).'
+     $     ,' -k.ff collision freq.'
+      write(*,501)'  -vn.ff  neutral velocity ',vneutral
+     $     ,'         for collisions.'
+      write(*,*)' -r  read particle data (no),'
+     $     ,'         -w  write ptcl. data (no)'
+      write(*,*)
+     $     ' -onnn Rand orbits to plot (0) ;      -oinnn Cold '
+     $     ,'orbits (0)'
+      write(*,*)' -g no diags,                        '
+     $     ,' -f no final diags'
+      write(*,*)' -g<nnn> plots only on nnn th step;',
+     $     '   -a<n> save plots to disk (pfset n)'
+      write(*,501)'  -cmax.ff -cmin.ff limits of rho plotting (auto)'
       write(*,*)' -e[ir,it] distribution function diagnostics',
      $     ' [in cell ir,it](1,1);'
-      write(*,*)' -r read particle data (no), -w write ptcl. data (no)'
-      write(*,*)' -g<nnn> diag plots only on nnn th step;',
-     $     ' -a<n> save plots to disk (pfset n)'
-      write(*,*)' -g no diags, -f no final diags -? Print this help.'
-      write(*,*)' -nrnnn, -ntnnn, -ninnn, set radial, angle mesh-size',
-     $     ', particle number.'
-      write(*,*)' -ernnn radius at which to calculate q,E-force.',
-     $     ' -mfff ratio of mass to Z (1.)'
-      write(*,*)' -ktnnn collision type (0: none, 1 direct, 2 remote).'
-     $     ,' -k.ff collision freq.'
-      write(*,*)' -vn.ff neutral drift velocity for collisions (0).'
+      write(*,*)' -ef[nfvdist] collect distributions over'
+     $     ,' cell-mesh for last nfvdist steps(1).'
+      write(*,*)' -ernnn radii where to calculate q,E-force (repeat).'
       write(*,*)' --at0 set theta acceleration artificially to zero.'
       write(*,*)' --localinj use local potential for injection.',
      $     ' --smooth symmetrize in angle.'
       write(*,*)' --fextccccc.. use symmetric potential read from file.'
       write(*,*)' --fcalc use old potential solver (for validation etc)'
       write(*,*)' --damp.ff specify damping length (typically ~rmax).'
-      write(*,*)' --rhoinf.ff specify constant injection rate, rather',
-     $     ' than particle number.'
       write(*,*)' --sp use parallel bloc solver, ',
      $     ' -liv save phi(nr,nt) for the last 75% steps'
       write(*,*)' --bcphi(0) BC potential (0:spherical sym, ',
      $     '1 : Quasi neutrality on outer 15%,',
-     $     '    2: Phiout=0, 3: dPhiout/dz=0,',
-     $     '    4: dPhiout/dr=-Phiout/r. use with vd=0 and k>1)'
+     $     '        2: Phiout=0,       3: dPhiout/dz=0,'
+      write(*,*)'     4: dPhiout/dr=-Phiout/r. use with vd=0 and k>1)'
       write(*,*)' --bcr(0) BC reinjection (0:Remote, 1: local drifting',
-     $ '    Maxwellian, Drifting Maxwellian with diabatic acceleration)'
+     $ ' Maxwellian with accel.)'
       write(*,*)' --subcyc use step subcycling near probe.'
-      write(*,*) ' -ver Use old Verlet integrator'
-
+      write(*,*)' -ver Use old Verlet integrator'
+      write(*,*)' -? Print this help'
       end
 
 c***********************************************************************
@@ -885,12 +902,19 @@ c*********************************************************************
 c The particle number total
       include 'piccom.f'
       include 'mpif.h'
+
       real ptot(0:nrsize,0:nthsize),vrtot(0:nrsize,0:nthsize)
       real vttot(0:nrsize,0:nthsize)
       real vr2tot(0:nrsize,0:nthsize),v2tot(0:nrsize,0:nthsize)
       real vtp2tot(0:nrsize,0:nthsize)
       real vztot(0:nrsize,0:nthsize)
       real pttot(0:nrsize,0:nthsize)
+
+c      include 'distcom.f'
+c      real fvtot(nvdist,3,nrdist,nthdist)
+c      call MPI_REDUCE(fvdist,fvtot,nvdist*3*nrdist*nthdist,
+c     $     MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+
       call MPI_REDUCE(psum,ptot,(nrsize+1)*(nthsize+1),
      $     MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
       call MPI_REDUCE(vrsum,vrtot,(nrsize+1)*(nthsize+1),
@@ -946,10 +970,14 @@ c***********************************************************************
      $        MPI_COMM_WORLD,ierr)
          call MPI_REDUCE(ninth,ninthstep(1,i),nthsize,MPI_INTEGER,
      $        MPI_SUM,0,MPI_COMM_WORLD,ierr)
-         call MPI_REDUCE(zmomprobe,zmom(i,partz,1),1,MPI_REAL,MPI_SUM,0,
-     $        MPI_COMM_WORLD,ierr)
-         call MPI_REDUCE(zmout,zmom(i,partz,2),1,MPI_REAL,MPI_SUM,0,
-     $        MPI_COMM_WORLD,ierr)
+c         call MPI_REDUCE(zmomprobe,zmom(i,partz,1),1,MPI_REAL,MPI_SUM,0,
+c     $        MPI_COMM_WORLD,ierr)
+c         call MPI_REDUCE(zmout,zmom(i,partz,2),1,MPI_REAL,MPI_SUM,0,
+c     $        MPI_COMM_WORLD,ierr)
+         do k=1,nrfrc
+            call MPI_REDUCE(zmparts(k),zmom(i,partz,k),1,MPI_REAL
+     $           ,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+         enddo
          call MPI_REDUCE(collmom,collmomtot(i),1,MPI_REAL,MPI_SUM,0,
      $        MPI_COMM_WORLD,ierr)
          call MPI_REDUCE(enerprobe,enertot(i),1,MPI_REAL,MPI_SUM,0,
@@ -989,8 +1017,11 @@ c This shuffle is necessary to accommodate the reduce.
          do j=1,nth
             ninthstep(j,i)=ninth(j)
          enddo
-         zmom(i,partz,1)=zmomprobe
-         zmom(i,partz,2)=zmout
+         do k=1,nrfrc
+            zmom(i,partz,k)=zmparts(k)
+         enddo
+c         zmom(i,partz,1)=zmomprobe
+c         zmom(i,partz,2)=zmout
          collmomtot(i)=collmom
          enertot(i)=enerprobe
 #endif
@@ -1004,17 +1035,60 @@ c         write(*,*)'zmomstep=',zmomstep(i),'  zoutstep=',zmoutstep(i)
 c         write(*,*)'ninner=',ninner,'nrein=',nrein
          end
 c***************************************************************
+      subroutine distreduce()
+c Final reduce for the distribution diagnostics.
+      include 'piccom.f'
+      include 'distcom.f'
+#ifdef MPI
+      include 'mpif.h'
+#endif
+c real fvrtdist(nvdist,5,0:nrdist,0:nthdist)
+      if(nfvdist.gt.0)then
+#ifdef MPI
+         if(myid.eq.0)then
+c MPI-2 required for this in_place reduce:
+            call MPI_REDUCE(MPI_IN_PLACE,fvrtdist,nvdist*5*(nrsize+1)
+     $           *(nthsize+1),MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+            call MPI_REDUCE(MPI_IN_PLACE,rhodist,(nrsize+1)
+     $           *(nthsize+1),MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+         else
+            call MPI_REDUCE(fvrtdist,NULL,nvdist*5*(nrsize+1)
+     $           *(nthsize+1),MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+            call MPI_REDUCE(rhodist,NULL,(nrsize+1)
+     $           *(nthsize+1),MPI_REAL,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+         endif
+#endif
+c         write(*,*)'Normalizing fvrtdist for ',nfvdist,'  steps'
+c         write(*,*)'Rhoinf=',rhoinf
+c Normalize by number of steps accumulated etc.
+         do it=1,nth
+            prefac=(nthused-1.)/(nfvdist*rhoinf)
+            if(it.eq.1.or.it.eq.nth)prefac=2.*prefac+1.e-5
+            do ir=0,nrsize
+               fac=prefac*volinv(ir)
+               rhodist(ir,it)=rhodist(ir,it)*fac
+               do is=1,5
+                  do iv=1,nvdist
+                     fvrtdist(iv,is,ir,it)=fvrtdist(iv,is,ir,it)*fac
+                  enddo
+               enddo
+            enddo
+         enddo
+      endif
+      end
+c***************************************************************
       subroutine aveupstep()
       include 'piccom.f'
 c Increment the averaging processes only here.
       if(nstepsave.lt.nsamax)nstepsave=nstepsave+1
-      do j=1,nvmax
-         nvdiag(j)=nvdiag(j)*(nstepsave-1.)/nstepsave
-      enddo
-      do j=1,nvmax
-         vtdiagin(j)=vtdiagin(j)*(nstepsave-1.)/nstepsave
-         vrdiagin(j)=vrdiagin(j)*(nstepsave-1.)/nstepsave
-      enddo
+c The problem here is when nstepsave is 1 this doesn't work.
+c So moved to advancing.
+c      write(*,*)'nstepsave=',nstepsave,nsamaxc
+c      do j=1,nvmax
+c         nvdiag(j)=nvdiag(j)*(nstepsave-1.)/nstepsave
+c         vtdiagin(j)=vtdiagin(j)*(nstepsave-1.)/nstepsave
+c         vrdiagin(j)=vrdiagin(j)*(nstepsave-1.)/nstepsave
+c      enddo
       end
 c*****************************************************************
       subroutine avefluxes(itotsteps,dt,fave,
@@ -1022,9 +1096,12 @@ c*****************************************************************
       include 'piccom.f'
       real phiout
 c     Average the flux to the probe from the last 3 quarters of the run.
+c     Changed to last half.
 c     Also average the z-momentum components for the last 3 quarters and
 c     place them in zmom(nstepmax,*,*). maxsteps is limited to be
 c     nstepmax-1.  The average is what is output.
+      real totalf(nrfrcmax)
+
       fave=0.
       zmomave=0.
       zmoutave=0.
@@ -1032,19 +1109,22 @@ c     nstepmax-1.  The average is what is output.
       fezave=0.
       qprobeave=0.
       epzave=0.
-      do j=1,4
-         zmom(nstepmax,j,1)=0.
-         zmom(nstepmax,j,2)=0.
+      do j=1,5
+         do kk=1,nrfrc
+            zmom(nstepmax,j,kk)=0.
+         enddo
       enddo
       collmomtot(nstepmax)=0.
       enertot(nstepmax)=0.
       if(itotsteps.ge.2)then
-         m2=3*itotsteps/4
+c         m2=3*itotsteps/4
+         m2=2*itotsteps/4
          do k=m2,itotsteps
             fave=fave+fluxprobe(k)
             do j=1,5
-               zmom(nstepmax,j,1)=zmom(nstepmax,j,1)+zmom(k,j,1)
-               zmom(nstepmax,j,2)=zmom(nstepmax,j,2)+zmom(k,j,2)
+               do kk=1,nrfrc
+                  zmom(nstepmax,j,kk)=zmom(nstepmax,j,kk)+zmom(k,j,kk)
+               enddo
             enddo
             collmomtot(nstepmax)=collmomtot(nstepmax)+collmomtot(k)
             enertot(nstepmax)=enertot(nstepmax)+enertot(k)
@@ -1058,14 +1138,14 @@ c     nstepmax-1.  The average is what is output.
          fave=fave/(itotsteps-m2+1)
 c     normalize to rhoinf and the probe area to give normalized flux density
          fave=fave/(4.*pi*r(1)**2)/rhoinf/dt
-         do j=1,5
-            zmom(nstepmax,j,1)=zmom(nstepmax,j,1)/(itotsteps-m2+1)
-            zmom(nstepmax,j,2)=zmom(nstepmax,j,2)/(itotsteps-m2+1)
+         do kk=1,nrfrc
+            do j=1,5
+               zmom(nstepmax,j,kk)=zmom(nstepmax,j,kk)/(itotsteps-m2+1)
+            enddo
+            zmom(nstepmax,partz,kk)=zmom(nstepmax,partz,kk)/rhoinf
+            zmom(nstepmax,collision,kk)=zmom(nstepmax,collision,kk)
+     $           /rhoinf
          enddo
-         zmom(nstepmax,partz,1)=zmom(nstepmax,partz,1)/rhoinf
-         zmom(nstepmax,partz,2)=zmom(nstepmax,partz,2)/rhoinf
-         zmom(nstepmax,collision,1)=zmom(nstepmax,collision,1)/rhoinf
-         zmom(nstepmax,collision,2)=zmom(nstepmax,collision,2)/rhoinf
          zmomave=zmomave/(itotsteps-m2+1)/(rhoinf)
          fezave=fezave/(itotsteps-m2+1)
          qprobeave=qprobeave/(itotsteps-m2+1)
@@ -1078,21 +1158,20 @@ c     normalize to rhoinf and the probe area to give normalized flux density
      $        enertot(nstepmax)/(itotsteps-m2+1)/rhoinf
 
          write(*,501)fave
- 501     format('Probe flux density=',f8.4)
+ 501     format('Probe flux density=',f10.4)
          write(*,502)collmomtot(nstepmax)
- 502     format('Momentum coll from infinity=',f8.4)
+ 502     format('Momentum coll from infinity=',f10.4)
          write(*,503)enertot(nstepmax)
- 503     format('Probe energy flux=',f8.4)
-         total1=zmom(nstepmax,fieldz,1)*debyelen**2 +zmom(nstepmax
-     $        ,epressz,1)+zmom(nstepmax,partz,1)+zmom(nstepmax,collision
-     $        ,1)
-         total2=zmom(nstepmax,fieldz,2)*debyelen**2 +zmom(nstepmax
-     $        ,epressz,2)+zmom(nstepmax,partz,2)+zmom(nstepmax,collision
-     $        ,2)
-         write(*,*)'Charge       E-field        Electrons',
-     $        '       Ions     Coll     Total'
-         write(*,505)(zmom(nstepmax,j,1),j=1,5),total1
-         write(*,505)(zmom(nstepmax,j,2),j=1,5),total2
+ 503     format('Probe energy flux=',f10.4)
+         write(*,*)'Radius Charge       E-field     Electrons',
+     $        '       Ions     Coll       Total'
+         do k=1,nrfrc
+            totalf(k)=zmom(nstepmax,fieldz,k)*debyelen**2 +zmom(nstepmax
+     $        ,epressz,k)+zmom(nstepmax,partz,k)+zmom(nstepmax,collision
+     $        ,k)
+            write(*,'(f6.2,$)')r(izmrad(k))
+            write(*,505)(zmom(nstepmax,j,k),j=1,5),totalf(k)
+         enddo
  505     format(6f12.5)
 
          phiout=0
@@ -1101,16 +1180,9 @@ c     normalize to rhoinf and the probe area to give normalized flux density
             phiout=phi(NRUSED,j)+phiout
          enddo
          phiout=phiout/NTHUSED
- 
-         write(*,*) 'rhoinf', rhoinf
+          write(*,*) 'rhoinf', rhoinf
          write(*,*) 'Outer potential',phiout
 
-
-c tests
-c         write(*,*)' Steps zmominner,outer'
-c         do k=1,itotsteps
-c            write(*,*)k,zmom(k,partz,1)/rhoinf,zmom(k,partz,2)/rhoinf
-c         enddo
          write(*,'(''Ion Forces: Inner, outer, uncertainty,'',2f10.4,
      $        ''+-'',f7.4)')
      $        zmomave,zmoutave,sqrt(zmoutvar/(itotsteps-m2+1))

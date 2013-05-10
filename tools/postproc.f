@@ -1,30 +1,29 @@
-C Postprocessing of a pair of output files.
-c Will still work without the Ti file in a pinch.
-c
+C Postprocessing
 c********************************************************************
 c Split out the file reading part from the rest. July 2004.
 c Removed infinity recalculation, and related code.
 c Made the angle average the full pi not just upstream.
 c********************************************************************
       character*100 string,filename
-      include 'piccompost.f'
-c      include 'cic/piccompost.f'
+      include 'piccom.f'
 
-      real rholocal(0:NRFULL,0:NTHFULL),diagtrap(0:NRFULL,0:NTHFULL)
-c      real thanglocal(0:NTHFULL)
+      real rholocal(0:nrsize,0:nthsize)
+c      real thanglocal(0:nthsize)
       common /forces/ charge1,ffield1,felec1,fion1,ftot1,
      $     charge2,ffield2,felec2,fion2,ftot2
 
       real phipic(1000),rhopic(1000),rhotrap(1000)
-      real rpic(1000),rpicleft(1000),phicos(1000)
+      real rpic(1000),rpicleft(1000),phicos(1000),phipicexp(1000)
+      real dencos(1000)
+      real phipicsqrt(1000)
       real phiyukawa(1000)
-      integer nti0
+      integer nti0,nbsm
       parameter (nti0=100)
       real rti0(nti0)
       real phiti0(nti0)
       character*100 charin
-      real fluxofangle(nth),cflux(nth)
-      integer jstepth
+      real fluxofangle(nthsize),cflux(nthsize)
+      integer jstepth,nrend
       logical lpcic,ltempc,lphip,lreaddiag,lgraph,larrows,lconline
       logical lvfwrt,lseptp,lunlabel,ledge,ldens,langle,lnlog
       data lpcic/.false./
@@ -41,8 +40,9 @@ c      real thanglocal(0:NTHFULL)
       data ldens/.false./
       data langle/.false./
       data lnlog/.false./
-      data jstepth/1/
+      data jstepth/1/nbsm/0/nrend/0/
 
+      expm1=exp(-1.)
 c Deal with arguments
       do 1 i=1,iargc()
          call getarg(i,string)
@@ -68,6 +68,8 @@ c Legacy usage for summarize:
          if(string(1:2) .eq. '-b') langle=.true.
          if(string(1:2) .eq. '-o') lnlog=.true.
          if(string(1:2) .eq. '-j') read(string(3:),*)jstepth
+         if(string(1:2) .eq. '-k') read(string(3:),*)nrend
+         if(string(1:2) .eq. '-m') read(string(3:),*)nbsm
          if(string(1:2) .eq. '-?') goto 51
          else
             filename=string
@@ -87,46 +89,54 @@ c Legacy usage for summarize:
 
 c Read the outputfile
       call readoutput(lreaddiag,lpcic,ledge,
-     $     filename,rholocal,diagtrap,nrhere,nthhere,nphere,
-     $     phipic,rhopic,rhotrap,rpic,rpicleft,phicos,
+     $     filename,rholocal,nrhere,nthhere,nphere,
+     $     phipic,rhopic,rhotrap,rpic,rpicleft,phicos,dencos,
      $     rhomax,rhomin,
      $     nrti,phiinf,nastep,nsteps,
-     $     dt,rmax,fave,debyelen,vprobe,
+     $     dt,rmax,fave,
      $     icolntype,colnwt,Eneutral,vneutral,Tneutral,
      $     ierr)
       if(ierr.eq.101) goto 101
 
+      write(*,*)'After reading nthhere=',nthhere
 
 c Set arrow scale
       v1=max(1.,vd)
+c      v1=vd
 c Start of Plotting:
 
+      if(nrend.eq.0 .or. nrend.gt.nrhere)nrend=nrhere
       call pfset(3)
       if(lgraph)then
 c Now we make the first plot a time trace.
          call yautoplot(fluxprobe,nsteps)
          call axlabels('step','Particles to probe')
          call pltend()
-
-c Old start of plotting.
          call multiframe(2,1,3)
-         call autoplot(rpic,rhopic,nrhere)
+         call autoinit(rpic,rhopic,nrend)
+         call axis()
          call axlabels('r','angle averaged density')
          call winset(.true.)
+         call smoothline(rpic,rhopic,nrend,nbsm)
+         call color(4)
+         call smoothline(rpic,dencos,nrend,nbsm)
+         call color(15)
          call vecw(rpic(1),1.,0)
-         call vecw(rpic(nrhere),1.,1)
+         call vecw(rpic(nrend),1.,1)
          call winset(.false.)
          call minmax(rho(1,1),nthhere*nrhere,rhmin,rhmax)
          if(ledge)rhmax=min(rhmax,1.5)
-         call pltinit(-rpic(nrhere),rpic(nrhere),0.,max(rhmax,1.1))
+         call pltinit(-rpic(nrend),rpic(nrend),0.,max(rhmax,1.1))
          call axis()
          call axis2()
          call axlabels('radial position','n/n!A!d;!d!@')
          do j=1,nthhere/2,jstepth
             call color(mod(j,15)+1)
             call winset(.true.)
-            call polyline(rpicleft,rho(1,nthhere-j+1),nrhere)
-            call polyline(rpic,rho(1,j),nrhere)
+c            call polyline(rpicleft,rho(1,nthhere-j+1),nrend)
+c            call polyline(rpic,rho(1,j),nrend)
+            call smoothline(rpicleft,rho(1,nthhere-j+1),nrend,nbsm)
+            call smoothline(rpic,rho(1,j),nrend,nbsm)
             call winset(.false.)
             write(charin,'(i3,f5.2)')j,tcc(j)
             call legendline(1.05,0.08*(j-1)/jstepth,
@@ -135,25 +145,84 @@ c Old start of plotting.
          call color(15)
          call legendline(1.05,0.08*(j-1)/jstepth,258,
      $        'angle:   j |cos!Aq!@|')
-         call vecw(-rpic(nrhere),1.,0)
-         call vecw(rpic(nrhere),1.,1)
+         call vecw(-rpic(nrend),1.,0)
+         call vecw(rpic(nrend),1.,1)
          call fwrite(vd,iwdth,2,charin)
          if(lvfwrt) call jdrwstr(0.05,0.72,
      $        'v!dd!d='//charin(1:iwdth)//char(0),1.)
          call pltend()
          call multiframe(0,0,0)
       endif
+c Ti=0 quasineutral case:
+      do j=1,nti0
+         phiti0(j)=-0.5*j/float(nti0)
+         rti0(j)=sqrt(exp(-0.5-phiti0(j))/sqrt(-2.*phiti0(j)))
+      enddo
+      rr=0.5*(rpic(2)+rpic(1))
+      er0=(rr)**2*(phipic(2)-phipic(1))/(rpic(2)
+     $     -rpic(1))
+      er0=er0*(1+1./rr)*0.5
+      er1=er0
+c      phiinf=phipic(nrhere)
+      do j=1,nrhere
+         phipic(j)=phipic(j)-phiinf
+c         phipicexp(j)=exp(min(-phipic(j)/Ti,10.))
+         phipicexp(j)=1.-phipic(j)/Ti
+         phipicsqrt(j)=sqrt(1.-4.*phipic(j)/(3.14159*Ti))
+         if(j.lt.nrhere .and. phipic(j+1)*rpic(j+1).gt.phipic(1)*expm1
+     $        .and.phipic(j)*rpic(j).le.phipic(1)*expm1)then
+c Print out the effective Yukawa potential decay length
+            write(*,*)debyelen,rpic(j)
+     $           ,'  radius where phi.r->exp(-1) at debyelen '
+c     $           ,phipic(j),rpic(j)*phipic(j)/phipic(1)
+         endif
+         if(j.lt.nrhere)then
+            rr=0.5*(rpic(j+1)+rpic(j))
+            er2=(rr)**2*(phipic(j+1)-phipic(j))
+     $           /(rpic(j+1)-rpic(j))
+            er2=er2*(1+1./rr)*0.5
+
+c            write(*,*)'er0,er1,er2',er0,er1,er2
+            if(er2.lt.er0*expm1
+     $           .and.er1.ge.er0*expm1)then
+c Print out the effective Yukawa field decay length
+               write(*,*)debyelen,rpic(j)
+     $              ,'  radius where E.r^2->exp(-1) at debyelen '
+c     $              ,er0,er1,er2
+            endif
+            er1=er2
+         endif
+      enddo
       if(lnlog)then
 c         call lautoplot(rpic,rhopic,nrhere,.true.,.true.)
          call pltinit(0.,1.,0.,1.)
-         call scalewn(1.,200.,1.,100.,.true.,.true.)
+         call scalewn(1.,rpic(nrhere),1.,100.,.true.,.true.)
          call polyline(rpic,rhopic,nrhere)
+         xg=0.55
+         yg=.9
+         call legendline(xg,yg,0,' <n>')
          call axis()
-         call axlabels('r','angle averaged density')
-         call color(11)
+         call axlabels('r','<n> (!A=J!@n dcos!Aq!@/2)')
+         call winset(.true.)
+         call color(4)
+         call dashset(1)
+         call polyline(rpic,phipicsqrt,nrhere)
+         yg=.85
+         call legendline(xg,yg,0,' !A)!@(1-4e!Af!@/!Ap!@T!di!d)')
+         call color(2)
+         call dashset(2)
+         call polyline(rpic,phipicexp,nrhere)
+         yg=.8
+c         call legendline(xg,yg,0,' exp(-e!Af!@/T!di!d)')
+         call legendline(xg,yg,0,' 1-e!Af!@/T!di!d')
+         call color(3)
+         call dashset(3)
 c         write(*,*)(rhotrap(k),k=1,nrhere)
+         yg=.75
+         call legendline(xg,yg,0,' n!dtrapped!d')
          call polyline(rpic,rhotrap,nrhere)
          call color(15)
+         call winset(.false.)
          call pltend()
          open(15,status='unknown',file='rhopic.dat')
          write(15,*)'dt,      vd,      Ti,      rmax,',
@@ -164,19 +233,7 @@ c         write(*,*)(rhotrap(k),k=1,nrhere)
          write(15,'(2f12.5)')(rpic(jj),rhopic(jj),jj=1,nrhere)
          close(15)
       endif
-c Ti=0 quasineutral case:
-      do j=1,nti0
-         phiti0(j)=-0.5*j/float(nti0)
-         rti0(j)=sqrt(exp(-0.5-phiti0(j))/sqrt(-2.*phiti0(j)))
-      enddo
-      do j=1,nrTi
-         phipic(j)=phipic(j)-phiinf
-      enddo
-      goto 102
- 101  write(*,*) 'Does not seem to be a Ti... file here.'
- 102  continue
 
-C End of stuff dependent on Ti file reading.
       open(13,status='unknown',file='phiout.dat')
       write(13,*)'dt,      vd,      Ti,      rmax,',
      $     '   fave, debyelen,    Vp [icoln,colnwt]'
@@ -186,16 +243,15 @@ C End of stuff dependent on Ti file reading.
       write(13,'(2f12.5)')(rpic(j),phipic(j),j=1,nrhere)
 
       if(lphip)then
-         call minmax2(phi(1,1),nr+1,nrhere,nthhere,pmin,pmax)
-c         write(*,*)'minmax',nr,nrhere,nthhere,pmin,pmax
+         call minmax2(phi(1,1),nrsize+1,nrhere,nthhere,pmin,pmax)
          cscale=0.02
          if(abs(phipic(1)) .lt. 5.)cscale=0.1
          ppmax=1.2
-         call pltinit(rpic(1),rpic(nrhere),pmin,ppmax)
-         call polyline(rpic,phipic,nrhere)
+         call pltinit(rpic(1),rpic(nrend),pmin,ppmax)
+         call polyline(rpic,phipic,nrend)
          call axis()
          call vecw(rpic(1),0.,0)
-         call vecw(rpic(nrhere),0.,1)
+         call vecw(rpic(nrend),0.,1)
          vt2=vd**2+3.*Ti
 c Linearized shielding length corrected for finite size.
          slambda=sqrt(debyelen**2*vt2/(3.+vt2) + 1.)
@@ -210,15 +266,18 @@ c     $        ,vt2,slambda,vprobe,phipic(1)
 c            write(*,*)kk,rpic(kk),phiyukawa(kk)
          enddo
          call dashset(1)
-         call polyline(rpic,phiyukawa,nrhere)
+         call polyline(rpic,phiyukawa,nrend)
          call dashset(0)
          call axlabels('r',
      $        '<!Af!@>!A=Jf!@ dcos!Aq!@/2')
-         call scalewn(rpic(1),rpic(nrhere),pmin*cscale,ppmax*cscale,
+         call scalewn(rpic(1),rpic(nrend),pmin*cscale,ppmax*cscale,
      $        .false.,.false.)
          call color(iblue())
          call winset(.true.)
-         call polyline(rpic,phicos,nrhere)
+         call polyline(rpic,phicos,nrend)
+         write(*,*)nrend,3,'  rpic,     phicos,    phipic,      dencos'
+         write(*,'(f12.5,3g14.5)')(rpic(kk),phicos(kk),phipic(kk)
+     $        ,dencos(kk),kk=1,nrend)
          call winset(.false.)
          call axptset(1.,0.)
          call ticrev()
@@ -232,15 +291,15 @@ c         call multiframe(0,0,0)
          call axptset(0.,0.)
          call minmax(phi(1,1),nthhere*nrhere,rhmin,rhmax)
          if(ledge)rhmin=max(rhmin,-.4)
-         call pltinit(-rpic(nrhere),rpic(nrhere),rhmin,max(rhmax,0.1))
+         call pltinit(-rpic(nrend),rpic(nrend),rhmin,max(rhmax,0.1))
          call axis()
          call axis2()
          call axlabels('radial position','!Af!@')
          do j=1,nthhere/2,jstepth
             call color(mod(j,15)+1)
             call winset(.true.)
-            call polyline(rpicleft,phi(1,nthhere-j+1),nrhere)
-            call polyline(rpic,phi(1,j),nrhere)
+            call polyline(rpicleft,phi(1,nthhere-j+1),nrend)
+            call polyline(rpic,phi(1,j),nrend)
             call winset(.false.)
             write(charin,'(i3,f5.2)')j,tcc(j)
             call legendline(-.48,0.08*(j-1)/jstepth,
@@ -249,48 +308,54 @@ c         call multiframe(0,0,0)
          call color(15)
          call legendline(-.48,0.08*(j-1)/jstepth,258,
      $        'angle:   j |cos!Aq!@|')
-         call vecw(-rpic(nrhere),1.,0)
-         call vecw(rpic(nrhere),1.,1)
+         call vecw(-rpic(nrend),1.,0)
+         call vecw(rpic(nrend),1.,1)
          call fwrite(vd,iwdth,2,charin)
          if(lvfwrt) call jdrwstr(.05,0.72,
      $        'v!dd!d='//charin(1:iwdth)//char(0),1.)
          call winset(.true.)
          call dashset(4)
-         call polyline(rpicleft,phipic,nrhere)
-         call polyline(rpic,phipic,nrhere)
+         call polyline(rpicleft,phipic,nrend)
+         call polyline(rpic,phipic,nrend)
          call winset(.false.)
          call legendline(-.48,-0.08,
      $           0,'Upstream angle/time Average')
          call dashset(0)
          call pltend()
+
+         write(*,*)'nthhere=',nthhere
+
 c Contouring
 c         call condisphi(ir,jstepth,0.,vprobe,
-c     $     nrhere,nthhere,v1,larrows,lconline)
+c     $     nrend,nthhere,v1,larrows,lconline)
          call condisphi(ir,jstepth,pmin,pmax,
-     $     nrhere,nthhere,v1,larrows,lconline,lpcic,ledge)
+     $     nrend,nthhere,v1,larrows,lconline,lpcic,ledge)
          call pltend()
       endif
 
+         write(*,*)'nthhere=',nthhere
 c Contouring:
       if(lseptp)then
          if(ltempc)then
             call condisplay2(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline)
+     $           nrend,nthhere,v1,larrows,lconline)
          endif
       else
          if(ldens)then
-            call conrho(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline,rholocal)
+c            call conrho(ir,jstepth,rhomax,rhomin,
+c     $           nrend,nthhere,v1,larrows,lconline,rholocal)
+            call conrho(ir,jstepth,rhomax,0.5,
+     $           nrend,nthhere,v1,larrows,lconline,rholocal)
          endif
          if(ltempc)then
             call contemp(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline,ledge)
+     $           nrend,nthhere,v1,larrows,lconline,ledge)
          endif
       endif
 
       if(lunlabel)then
          call condisunlabel(ir,jstepth,rhomax,rhomin,
-     $           nrhere,nthhere,v1,larrows,lconline)
+     $           nrend,nthhere,v1,larrows,lconline)
          call pltend()
       endif
 
@@ -360,18 +425,26 @@ c     fix up as double on boundary.
       endif
 
       call exit
+ 101  write(*,*) 'Does not seem to be a file here:',filename
+
  51   write(*,*)"Usage: postproc [-f -x ... ] filename"
-      write(*,'(a)')" -f plot angle-averaged phi and phi contours.",
+      write(*,*)'-x [-p] turn off default graphs (flux, density)'
+     $     ,' & print instead' ,.not.lgraph
+      write(*,*)'-f turn on phi graphs line and contour.',lphip
+      write(*,'(a)')
      $     " -n contour n.      -t contour T.     -l contour lines.",
-     $     " -c CIC output. -j<n> theta plot step.",
-     $     " -r print diagnostics on file reading.",
-     $     " -i recalculate rho-infinity, -v do not write v_f value",
-     $     " -a put velocity arrows on T plots. -s separate T plots",
-     $     " -u plot unlabelled full sphere.  -x do no line graphs.",
+     $     " -j<n> theta plot step.      -v do not write v_d value.",
+     $     " -k<n> draw curves only to nr-cell n.",
      $     " -e use density contours spaced closer to 1, for edge.",
-     $     " -b plot angle distributions.",
-     $     " -o plot log(n) versus log(r), angle averaged & print."
-      
+     $     " -a put velocity arrows on T plots. -s separate T plots",
+     $     " -m<n> smooth line traces by integer n-points",
+     $     " -o plot log(n) versus log(r), angle averaged & print.",
+     $     " -r print diagnostics on file reading.",
+     $     " -i recalculate rho-infinity,  -c CIC output. ",
+     $     " -u plot unlabelled full sphere. ",
+     $     " -b plot angle distributions."
+
+
       call exit
       end
 c***************************************************************************
@@ -382,24 +455,24 @@ c Contouring of the charge density, rho, on distorted mesh.
       real rhomax,v1
       logical larrows,lconline
 c Common data:
-      include 'piccompost.f'
-      real rholocal(0:NRFULL,0:NTHFULL)
-c      include 'cic/piccompost.f'
+      include 'piccom.f'
+      real rholocal(0:nrsize,0:nthsize)
 c      save
       character*20 cstring
       character*30 tstring
-      character cworka(nr*(NTHFULL+1+1))
+      character cworka(nrsize*(nthsize+1+1))
       integer ncont
       parameter (ncont=12)
       real zclv(ncont)
-      real xrho(NRFULL+1,0:NTHFULL+1),zrho(NRFULL+1,0:NTHFULL+1)
+      real xrho(nrsize+1,0:nthsize+1),zrho(nrsize+1,0:nthsize+1)
       save xrho,zrho
       real basesize
       parameter (basesize=.02)
 
-      if(nthhere.gt.NTHFULL)then
+      if(rhomin.gt.0)call setconlog(.true.)
+      if(nthhere.gt.nthsize.or.nthhere.le.0)then
          write(*,*)' Conrho error. Mesh required:',nrhere,nthhere,
-     $        ' Exceeds allocated:',NRFULL,NTHFULL
+     $        ' Inconsistent with allocated:',nrsize,nthsize
          stop
       endif
 c Correct the outside angle centers if necessary.
@@ -438,8 +511,9 @@ c      call multiframe(2,2,3)
       call pltinaspect(-rpmax,rpmax,0.,rpmax)
       call accisgradinit(-25000,00000,25000,130000,65000,130000)
       ntype=2+16+32
-      call contourl(rholocal(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+      call contourl(rholocal(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
+      call color(15)
       call gradlegend(zclv(1),zclv(abs(icl)),
      $     .1,1.25,.9,1.25,0.02,.true.)
 c Call a second time for contours, without the highest.
@@ -454,7 +528,8 @@ c     $              rhomax,fac10,first,delta
             enddo
             ntype=2
             icl=(ncont-1)
-            call contourl(rholocal(1,0),cworka,NRFULL+1,nrhere,
+            write(*,*)nrsize,nrhere,nthhere
+            call contourl(rholocal(1,0),cworka,nrsize+1,nrhere,
      $           nthhere+2,zclv,icl,zrho,xrho,ntype)
             write(*,'(a,30f5.2)')'Density Contours=',zclv
             call fwrite(delta,iwd,1,cstring)
@@ -465,17 +540,20 @@ c      endif
 c Fit closer than boxtitle
       call legendline(0.47,1.07,258,'n/n!A!d;!d!@'//tstring)
 c      call boxtitle('n/n!A!d;!d!@')
+      call color(15)
       call axis()
       call axlabels('z','r sin!Aq!@')
   
       
       if(larrows) then
+         write(*,*)ir,it,nthhere,nrhere
          call color(12)
          if(ir.le.0.or.ir.ge.100) ir=10
          do j=1,nthhere,it
             do i=1,nrhere,max(nrhere/ir,1)
                vri=vrsum(i,j)/(psum(i,j)+1.e-5)
                vti=vtsum(i,j)/(psum(i,j)+1.e-5)
+c               write(*,*)i,j,vri,vti
                size=basesize/v1*sqrt(vri**2+vti**2)
                angle=atan2(vti,vri)+acos(tcc(j))
                call charsize(size,0.3*size)
@@ -493,8 +571,9 @@ c      call boxtitle('n/n!A!d;!d!@')
          call color(15)
          call legendline(0.8,0.95,258,cstring(1:8)//char(0))
       endif
-      
+
       call pltend()
+      call setconlog(.false.)
       end
 
 c***************************************************************************
@@ -505,25 +584,24 @@ c Contouring of the temperature.
       real rhomax,v1
       logical larrows,lconline,ledge
 c Common data:
-      include 'piccompost.f'
-c      include 'cic/piccompost.f'
+      include 'piccom.f'
 c      save
 c      character*20 cstring
 c      character*30 tstring
-      character cworka(nr*(NTHFULL+1+1))
+      character cworka(nrsize*(nthsize+1+1))
       integer ncont
       parameter (ncont=12)
       real zclv(ncont),zclv2(ncont)
-      real xrho(NRFULL+1,0:NTHFULL+1),zrho(NRFULL+1,0:NTHFULL+1)
-      real Tr(NRFULL+1,0:NTHFULL+1),Ttp(NRFULL+1,0:NTHFULL+1)
-      real Trave(NRFULL+1),Ttpave(NRFULL+1)
+      real xrho(nrsize+1,0:nthsize+1),zrho(nrsize+1,0:nthsize+1)
+      real Tr(nrsize+1,0:nthsize+1),Ttp(nrsize+1,0:nthsize+1)
+      real Trave(nrsize+1),Ttpave(nrsize+1)
       save xrho,zrho
       real basesize
       parameter (basesize=.02)
 
-      if(nthhere.gt.NTHFULL)then
+      if(nthhere.gt.nthsize)then
          write(*,*)' Condisplay error. Mesh required:',nrhere,nthhere,
-     $        ' Exceeds allocated:',NRFULL,NTHFULL
+     $        ' Exceeds allocated:',nrsize,nthsize
          stop
       endif
 c Correct the outside angle centers if necessary.
@@ -603,16 +681,17 @@ c         if(ledge)write(*,*)'Tr-contours',(zclv2(ii),ii=1,icl2)
       icl=-2
       ntype=2+16
       if(.not.lconline)ntype=ntype+32
-      call contourl(Tr(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+      call contourl(Tr(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
       ntype=2
       zclv(1)=10
       icl=0
       if(lconline)
-     $     call contourl(Tr(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+     $     call contourl(Tr(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv1,icl,zrho,xrho,ntype)
       write(*,*)'Trmin,Trmax',Trmin,Trmax
       call ticrev()
+      call color(15)
       call gradlegend(Trmin,Tmax,
      $     1.1,0.1,1.1,0.9,0.03,.false.)
       call ticrev()
@@ -651,16 +730,17 @@ c Ttp plot
       icl=-2
       ntype=2+16
       if(.not.lconline)ntype=ntype+32
-      call contourl(Ttp(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+      call contourl(Ttp(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
       ntype=2
       zclv2(1)=10
       icl=0
       if(lconline)
-     $     call contourl(Ttp(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+     $     call contourl(Ttp(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv1,icl,zrho,xrho,ntype)
       write(*,*)'Tmin,Tmax',Tmin,Tmax
       call ticrev()
+      call color(15)
       call gradlegend(Trmin,Tmax,
      $     1.1,0.1,1.1,0.9,0.03,.false.)
       call ticrev()
@@ -712,24 +792,25 @@ c Contouring of the potential, on distorted mesh.
       real rhomax,v1
       logical larrows,lconline,lpcic,ledge
 c Common data:
-      include 'piccompost.f'
-c      include 'cic/piccompost.f'
+      include 'piccom.f'
 c      save
       character*20 cstring
-      character cworka(nr*(NTHFULL+1+1))
+      character cworka(nrsize*(nthsize+1+1))
       integer ncont
       parameter (ncont=12)
-      real zclv(2*ncont)
-      real xrho(NRFULL+1,0:NTHFULL+1),zrho(NRFULL+1,0:NTHFULL+1)
-      real x2rho(NRFULL+1,0:NTHFULL+1),z2rho(NRFULL+1,0:NTHFULL+1)
-c      real Tr(NRFULL+1,0:NTHFULL+1),Ttp(NRFULL+1,0:NTHFULL+1)
+      real zclv(2*ncont+1)
+      real xrho(nrsize+1,0:nthsize+1),zrho(nrsize+1,0:nthsize+1)
+      real x2rho(nrsize+1,0:nthsize+1),z2rho(nrsize+1,0:nthsize+1)
+c      real Tr(nrsize+1,0:nthsize+1),Ttp(nrsize+1,0:nthsize+1)
       save xrho,zrho
       real basesize
       parameter (basesize=.02)
 
-      if(nthhere.gt.NTHFULL)then
+      write(*,*)'nthhere=',nthhere
+
+      if(nthhere.gt.nthsize)then
          write(*,*)' Condisplay error. Mesh required:',nrhere,nthhere,
-     $        ' Exceeds allocated:',NRFULL,NTHFULL
+     $        ' Exceeds allocated:',nrsize,nthsize
          stop
       endif
 
@@ -788,48 +869,54 @@ c      call multiframe(2,2,3)
       call pltinaspect(-rpmax,rpmax,0.,rpmax)
       call accisgradinit(-25000,00000,35000,130000,65000,130000)
       ntype=2+16+32
-      call contourl(phi(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+      call contourl(phi(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
+      call color(15)
       call gradlegend(zclv(1),zclv(abs(icl)),
      $     .1,1.25,.9,1.25,0.02,.true.)
 
+         write(*,*)'nthhere=',nthhere
 c Call a second time for contours, without the highest.
          if(lconline)then
 c If this is not very bipolar
             if(abs(rhomax)-abs(rhomin).gt.0.2*abs(rhomax-rhomin))then
 c Rational logarithmic contours
+c               write(*,*)'ncont=',ncont
                do indx=1,ncont-2,3
                   base=10.**(-2+(indx-1)/3)
-                  zclv(ncont+indx)=-base
-                  zclv(ncont+indx+1)=-base*2.
-                  zclv(ncont+indx+2)=-base*5.
+                  zclv(ncont+indx+1)=-base
+                  zclv(ncont+indx+2)=-base*2.
+                  zclv(ncont+indx+3)=-base*5.
 c     New positive contours.
-                  zclv(ncont-indx)=base
-                  zclv(ncont-(indx+1))=base*2.
-                  zclv(ncont-(indx+2))=base*5.
+                  zclv(ncont+1-indx)=base
+                  zclv(ncont+1-(indx+1))=base*2.
+                  zclv(ncont+1-(indx+2))=base*5.
                enddo
-               zclv(ncont)=0.
+               zclv(ncont+1)=0.
             endif
             write(*,'(a,30f6.2)')'Contours=',zclv
             ntype=2
             icl=(ncont-1)
 c            write(*,'(2f8.4)')
 c     $           (zrho(nrhere,k),z2rho(nrhere,k),k=0,nthhere+1)
-c            call contourl(phi(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+c            call contourl(phi(1,0),cworka,nrsize+1,nrhere,nthhere+2,
 c     $           zclv(ncont),icl,zrho,xrho,ntype)
 c Fixed contour plot avoiding the hacked coordinates:
             call color(igreen())
-            call contourl(phi(1,1),cworka,NRFULL+1,nrhere,nthhere,
+         write(*,*)'One nthhere=',nthhere,nrsize,icl,ntype
+            call contourl(phi(1,1),cworka,nrsize+1,nrhere,nthhere,
      $           zclv(ncont),icl,z2rho(1,1),x2rho(1,1),ntype)
             call color(iskyblue())
-c            call contourl(phi(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
-c     $           zclv(1),icl,zrho,xrho,ntype)
-            call contourl(phi(1,1),cworka,NRFULL+1,nrhere,nthhere,
+         write(*,*)'Two nthhere=',nthhere
+            call contourl(phi(1,1),cworka,nrsize+1,nrhere,nthhere,
      $           zclv(1),icl,z2rho(1,1),x2rho(1,1),ntype)
             call color(15)
          endif
+
+         write(*,*)'nthhere=',nthhere
 c      endif
       call legendline(0.47,1.07,258,'!Af!@'//char(0))
+      call color(15)
       call axis()
       call axlabels('z','r sin!Aq!@')
       if(larrows) then
@@ -856,6 +943,8 @@ c      endif
          call color(15)
          call legendline(0.8,0.95,258,cstring(1:8)//char(0))
       endif
+
+         write(*,*)'last condisp nthhere=',nthhere
 c     call pltend()
       end
 
@@ -890,24 +979,23 @@ c This version temperature plots are separate.
       real rhomax,v1
       logical larrows,lconline
 c Common data:
-      include 'piccompost.f'
-c      include 'cic/piccompost.f'
+      include 'piccom.f'
 c      save
       character*20 cstring
       character*30 tstring
-      character cworka(nr*(NTHFULL+1+1))
+      character cworka(nrsize*(nthsize+1+1))
       integer ncont
       parameter (ncont=12)
       real zclv(ncont)
-      real xrho(NRFULL+1,0:NTHFULL+1),zrho(NRFULL+1,0:NTHFULL+1)
-      real Tr(NRFULL+1,0:NTHFULL+1),Ttp(NRFULL+1,0:NTHFULL+1)
+      real xrho(nrsize+1,0:nthsize+1),zrho(nrsize+1,0:nthsize+1)
+      real Tr(nrsize+1,0:nthsize+1),Ttp(nrsize+1,0:nthsize+1)
       save xrho,zrho
       real basesize
       parameter (basesize=.02)
 
-      if(nthhere.gt.NTHFULL)then
+      if(nthhere.gt.nthsize)then
          write(*,*)' Condisplay error. Mesh required:',nrhere,nthhere,
-     $        ' Exceeds allocated:',NRFULL,NTHFULL
+     $        ' Exceeds allocated:',nrsize,nthsize
          stop
       endif
 c Correct the outside angle centers if necessary.
@@ -944,7 +1032,7 @@ c      call multiframe(2,2,3)
       call pltinaspect(-rpmax,rpmax,0.,rpmax)
       call accisgradinit(-25000,00000,25000,130000,65000,130000)
       ntype=2+16+32
-      call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+      call contourl(rho(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
       call gradlegend(zclv(1),zclv(abs(icl)),
      $     .1,1.25,.9,1.25,0.02,.true.)
@@ -960,13 +1048,15 @@ c     $              rhomax,fac10,first,delta
             enddo
             ntype=2
             icl=(ncont-1)
-            call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+            call contourl(rho(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $           zclv,icl,zrho,xrho,ntype)
             write(*,*)'Density Contours=',zclv
-            call fwrite(delta,iwd,1,cstring)
+            call fwrite(delta,iwd,2,cstring)
             tstring=' contour spacing: '//cstring(1:10)
 c            call legendline(-.1,-.22,258,tstring)
          endif
+         write(*,*)'Getting near the end'
+
 c      endif
 c Fit closer than boxtitle
       call legendline(0.47,1.07,258,'n/n!A!d;!d!@'//tstring)
@@ -1035,13 +1125,13 @@ c
       icl=-2
       ntype=2+16
       if(.not.lconline)ntype=ntype+32
-      call contourl(Tr(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+      call contourl(Tr(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
       ntype=2
       zclv(1)=10
       icl=0
       if(lconline)
-     $     call contourl(Tr(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+     $     call contourl(Tr(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
       write(*,*)'Trmin,Trmax',Trmin,Trmax
       call gradlegend(Trmin,Tmax,
@@ -1086,13 +1176,13 @@ c Ttp plot
       icl=-2
       ntype=2+16
       if(.not.lconline)ntype=ntype+32
-      call contourl(Ttp(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+      call contourl(Ttp(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
       ntype=2
       zclv(1)=10
       icl=0
       if(lconline)
-     $     call contourl(Ttp(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+     $     call contourl(Ttp(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
       write(*,*)'Tmin,Tmax',Tmin,Tmax
       call gradlegend(Trmin,Tmax,
@@ -1143,27 +1233,26 @@ c Top and bottom.
       real rhomax,v1
       logical larrows,lconline
 c Common data:
-      include 'piccompost.f'
-c      include 'cic/piccompost.f'
+      include 'piccom.f'
 c      save
       character*20 cstring
       character*30 tstring
-      character cworka(nr*(NTHFULL+1+1))
+      character cworka(nrsize*(nthsize+1+1))
       integer ncont
       parameter (ncont=12)
       real zclv(ncont)
-      real xrho(NRFULL+1,0:NTHFULL+1),zrho(NRFULL+1,0:NTHFULL+1)
-c      real Tr(NRFULL+1,0:NTHFULL+1),Ttp(NRFULL+1,0:NTHFULL+1)
-      real xrhob(NRFULL+1,0:NTHFULL+1)
+      real xrho(nrsize+1,0:nthsize+1),zrho(nrsize+1,0:nthsize+1)
+c      real Tr(nrsize+1,0:nthsize+1),Ttp(nrsize+1,0:nthsize+1)
+      real xrhob(nrsize+1,0:nthsize+1)
       save xrho,zrho,xrhob
 
       external ACCIRCLE
       real basesize
       parameter (basesize=.02)
 
-      if(nthhere.gt.NTHFULL)then
+      if(nthhere.gt.nthsize)then
          write(*,*)' Condisplay error. Mesh required:',nrhere,nthhere,
-     $        ' Exceeds allocated:',NRFULL,NTHFULL
+     $        ' Exceeds allocated:',nrsize,nthsize
          stop
       endif
 c Correct the outside angle centers if necessary.
@@ -1202,9 +1291,9 @@ c top half
       call pltinaspect(-rpmax,rpmax,-rpmax,rpmax)
       call accisgradinit(-25000,00000,25000,130000,65000,130000)
       ntype=2+16+32
-      call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+      call contourl(rho(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
-      call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+      call contourl(rho(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrhob,ntype)
 c      call gradlegend(zclv(1),zclv(abs(icl)),
 c     $     .1,1.25,.9,1.25,0.02,.true.)
@@ -1220,7 +1309,8 @@ c     $              rhomax,fac10,first,delta
             enddo
             ntype=2
             icl=(ncont-1)
-            call contourl(rho(1,0),cworka,NRFULL+1,nrhere,nthhere+2,
+            write(*,*)nrhere,nthhere
+            call contourl(rho(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $           zclv,icl,zrho,xrho,ntype)
             write(*,*)'Density Contours=',zclv
             call fwrite(delta,iwd,1,cstring)
@@ -1271,24 +1361,25 @@ c     call pltend()
 c***************************************************************************
 c Data reading subroutine
       subroutine readoutput(lreaddiag,lpcic,ledge,
-     $     filename,rholocal,diagtrap,nrhere,nthhere,nphere,
-     $     phipic,rhopic,rhotrap,rpic,rpicleft,phicos,
+     $     filename,rholocal,nrhere,nthhere,nphere,
+     $     phipic,rhopic,rhotrap,rpic,rpicleft,phicos,dencos,
      $     rhomax,rhomin,
      $     nrti,phiinf,nastep,nsteps,
-     $     dt,rmax,fave,debyelen,vprobe,
+     $     dt,rmax,fave,
      $     icolntype,colnwt,Eneutral,vneutral,Tneutral,
      $     ierr)
       logical lreaddiag,lpcic,ledge
       character*100 string,filename
       real phipic(1000),rhopic(1000),rhotrap(1000)
-      real rpic(1000),rpicleft(1000),phicos(1000)
-      include 'piccompost.f'
-      real rholocal(0:NRFULL,0:NTHFULL),diagtrap(0:NRFULL,0:NTHFULL)
+      real rpic(1000),rpicleft(1000),phicos(1000),dencos(1000)
+      include 'piccom.f'
+      real rholocal(0:nrsize,0:nthsize)
       character*256 charin
       common /forces/ charge1,ffield1,felec1,fion1,ftot1,
      $     charge2,ffield2,felec2,fion2,ftot2
 
       ierr=0
+      nforcelines=2
 c Read the data file:
 c__________________________________________________________________
 
@@ -1314,7 +1405,8 @@ c      write(*,*)charin
       nrhere=nrTi
 c      write(*,*)'nrTi=',nrTi
       do i=1,nrTi
-         read(10,*,err=203)rpic(i),phipic(i)
+         read(10,*,err=203)rpic(i),phipic(i),diagrho(i)
+         diagrho(i)=diagrho(i)/rhoinf
       enddo
       read(10,*)charin
 c      write(*,*)charin(1:78)
@@ -1373,10 +1465,10 @@ c Read in  summed results.
  200  continue
       if(rhoinf.lt.1.)rhoinf=exp(phiinf)
       read(10,*)nrhere,nthhere,nphere
-      if(nrhere.gt.NRUSED .or. nthhere.gt.NTHUSED)then
+      if(nrhere.gt.nrsize .or. nthhere.gt.nthsize)then
          write(*,*)'Required dimensions: nr',nrhere,' nth',nthhere
          write(*,*)'are too large for the allocated values:'
-     $        ,NRUSED,NTHUSED
+     $        ,nrsize,nthsize
          stop
       endif
       read(10,*)string
@@ -1405,9 +1497,13 @@ c Read in  summed results.
       read(10,*)(volinv(k1),k1=1,nrhere)
       read(10,*)string
       read(10,*)(tcc(k2),k2=1,nthhere)      
+      read(10,*,err=410)nforcelines
       read(10,*,err=402,end=402)string
-      read(10,*)charge1,ffield1,felec1,fion1,fcol1,ftot1
+ 410  read(10,*)charge1,ffield1,felec1,fion1,fcol1,ftot1
       read(10,*)charge2,ffield2,felec2,fion2,fcol2,ftot2
+      do kk=1,nforcelines-2
+         read(10,*)charge2,ffield2,felec2,fion2,fcol2,ftot2
+      enddo
       read(10,*,err=402,end=402)string
       read(10,*,err=402,end=402)
      $     icolntype,colwt,Eneutral,vneutral,Tneutral
@@ -1424,9 +1520,9 @@ c      write(*,*)((diagtrap(k1,k2),k1=1,nrhere),k2=1
 c     $     ,nthhere)
 
  402  close(10)
-      write(*,*)'nrhere,nthhere,icolntype,colwt'
-      write(*,*)nrhere,nthhere,icolntype,colwt,pinfty,efprobe
-      write(*,*)'Final read string=',string(1:60)
+c      write(*,*)'nrhere,nthhere,icolntype,colwt'
+c      write(*,*)nrhere,nthhere,icolntype,colwt,pinfty,efprobe
+c      write(*,*)'Final read string=',string(1:60)
       if(lreaddiag)then
          write(*,*)'Finished reading'
          write(*,*)'vrsum(1)'
@@ -1501,7 +1597,7 @@ c fix angle ends of rho and phi
          rholocal(k1,0)=rholocal(k1,1)
          rholocal(k1,nthhere+1)=rholocal(k1,nthhere)
       enddo
-      ir=10.
+      ir=10
       if(ledge)then
          rhomax=min(rhomax,1.5)
          rhomin=.5
@@ -1510,7 +1606,7 @@ c fix angle ends of rho and phi
       endif
 
       if(lreaddiag)then
-         write(*,*)'rho   ','rholocal',
+         write(*,*)'rho   ','rholocal',' ratio',
      $     ' ;  rho is from psum, rholocal from Ti file'
          do i=1,nrhere
             write(*,*)rho(i,1),rholocal(i,1),rho(i,1)/rholocal(i,1)
@@ -1527,6 +1623,7 @@ c fix angle ends of rho and phi
          rhopic(i)=0.
          rhotrap(i)=0.
          phicos(i)=0.
+         dencos(i)=0.
 c         write(*,*)'th   tcc   phi'
          do j=jmin,jmax
             rhopic(i)=rhopic(i)+rholocal(i,j)
@@ -1534,8 +1631,11 @@ c         write(*,*)'th   tcc   phi'
 c            if(diagtrap(i,j).eq.0)write(*,*)i,j
 c     rhopic(i)=rhopic(i)+rho(i,j)
 c \int cos(\theta) \phi(\theta) d\cos(\theta)
+c In postproc, th is used as the weighting of the cells, essentially 
+c the delta of cos theta that corresponds to each cell.
             phicos(i)=phicos(i)+th(j)*tcc(j)*phi(i,j)
-c            write(*,'(4f10.4)')th(j),tcc(j),phi(i,j),phicos(i)
+            dencos(i)=dencos(i)+th(j)*tcc(j)*rholocal(i,j)
+c            write(*,'(5f10.4)')th(j),tcc(j),phi(i,j),phicos(i),dencos(i)
          enddo
          rhopic(i)=rhopic(i)/float(jmax-jmin+1)
          rhotrap(i)=rhotrap(i)/float(jmax-jmin+1)+0.01
@@ -1559,4 +1659,4 @@ c__________________________________________________________________
       call exit
  101  ierr=101
       end
-
+c************************************************************************

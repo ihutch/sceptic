@@ -26,16 +26,24 @@ c Optionally draw hiding, normalized.
          call vecn(nx,ny,ud)
       endif
       end
+c*******************************************************************
+c Versions for c calls
+      subroutine getwx2nx(wx,xn)
+      xn=wx2nx(wx)
+      end
+      subroutine getwy2ny(wy,yn)
+      yn=wy2ny(wy)
+      end
 C********************************************************************
       function wx2nx(wx)
       real wx2nx,wx
       include 'plotcom.h'
       real xd
       if(lxlog)then
-         if(wx.lt.0.01*wxmin .or. wx.gt.100.*wxmax) then
+         if(wx.lt.0.001*wxmin .or. wx.gt.1000.*wxmax) then
             write(*,*)'ACCIS WARNING world log x value outside range:'
      $           ,wx,' plotting outside box.'
-            xd=.1/w2nx
+            xd=.01/w2nx
          else
             xd=log10(wx)-log10(wxmin)
          endif
@@ -50,11 +58,29 @@ C********************************************************************
       real wy2ny,wy
       include 'plotcom.h'
       real yd
+      integer errcount
+      data errcount/0/
       if(lylog)then
-         if(wy.lt.0.01*wymin .or. wy.gt.100.*wymax) then
-            write(*,*)'ACCIS WARNING world log y value outside range:'
-     $           ,wy,' plotting outside box.'
-            yd=.1/w2ny
+         if(wy.lt.0.01*wymin)then
+            if(errcount.lt.5)then
+               write(*,*)'ACCIS WARNING world log y value',wy
+     $           ,' far below box.'
+            elseif(errcount.eq.5)then
+               write(*,*)'Further log value warnings suppressed'
+            endif
+            errcount=errcount+1
+            yd=-.01/w2ny
+c            write(*,*)naymin,w2ny,naymin+yd*w2ny
+         elseif(wy.gt.1000.*wymax) then
+            if(errcount.lt.5)then
+            write(*,*)'ACCIS WARNING world log y value',wy
+     $           ,' far outside box.'
+            elseif(errcount.eq.5)then
+               write(*,*)'Further log value warnings suppressed'
+            endif
+            errcount=errcount+1
+c            yd=.01/w2ny
+            yd=log10(1000.*wymax)
          else
             yd=log10(wy)-log10(wymin)
          endif
@@ -99,32 +125,39 @@ c If ifl.eq.1 set the transform: x,y,z: looked at, xt,yt,zt: eye.
 c Projection is on to the plane through x,y,z perp to r-rt.
 c Thus scaling must be done first.
 c If ifl.eq.2 axonometric transform. xt=dx/dy,zt=dz/dy
+c If ifl.eq.3 return the coordinates relative to center,
+c          rotated to the axes in which the center to eye vector is z.
 c If ifl.eq.-1 return the eye position dx,dy,dz in xt,yt,zt.
       real dx,dy,dz,rz,d,t11,t12,t13,t21,t22,t23,t31,t32,t33,dmz
+      real x0,y0,z0
       save
       data t11,t12,t13,t21,t22,t23,t31,t32,t33
      $	 / .894427, .447214,.000000,-.182574, .365148, .912871
      $  , -.408248, .816497,-.408248/
 c the next data may not be consistent with the matrix.
       data d,dx,dy,dz/10.,4.,-10.,2./
+      data x0,y0,z0/0.,0.,0./
       if(ifl.eq.0)then
 c Perspective, in coordinates where z-axis is the center to eye vector, is
 c xt=x/(d+z) yt=y/(d+z), with d=|center-eye|. Hence we need to
 c transform to these coordinates and then do this perspective scaling.
-	 zt=t31*x+t32*y+t33*z
+	 zt=t31*(x-x0)+t32*(y-y0)+t33*(z-z0)
 	 dmz=1.+zt/d
 c Prevent the perspective from amplifying too much or becoming negative.
 	 if(dmz.le.0.0001)then
 c	    write(*,*)' TRN32 error: point at eye'
 	    return
 	 endif
-	 xt=(t11*x+t12*y+t13*z)/dmz
-	 yt=(t21*x+t22*y+t23*z)/dmz
+	 xt=(t11*(x-x0)+t12*(y-y0)+t13*(z-z0))/dmz
+	 yt=(t21*(x-x0)+t22*(y-y0)+t23*(z-z0))/dmz
       elseif(ifl.eq.1)then
 c Set up perspective transform.
 	 dx=xt-x
 	 dy=yt-y
 	 dz=zt-z
+         x0=x
+         y0=y
+         z0=z
 	 d=dx*dx+dy*dy
 	 rz=sqrt(d)
 	 d=sqrt(d+dz*dz)
@@ -153,19 +186,19 @@ c Axonometric setup. x=x+dxdy*y, y=z+dzdy*y, z=y, d=infinity.
 	 t32=1.
 	 t33=0.
 	 d=1.e30
+      elseif(ifl.eq.3)then
+	 xt=(t11*(x-x0)+t12*(y-y0)+t13*(z-z0))
+	 yt=(t21*(x-x0)+t22*(y-y0)+t23*(z-z0))
+	 zt=t31*(x-x0)+t32*(y-y0)+t33*(z-z0)
       elseif(ifl.eq.-1)then
 c Return current.
-         xt=dx
-         yt=dy
-         zt=dz
+         xt=dx+x0
+         yt=dy+y0
+         zt=dz+z0
+         x=x0
+         y=x0
+         z=z0
       endif
-      end
-C********************************************************************
-      block data tn2shi
-      include 'world3.h'
-      data scbx3,scby3,scbz3/0.25,0.25,0.20/
-      data xcbc2,ycbc2/0.5,0.40/
-      data ihiding/0/
       end
 C********************************************************************
       subroutine tn2s(px,py,sx,sy)
@@ -176,6 +209,8 @@ c transformed vector coordinates gave drwstr errors.
       include 'plotcom.h'
       include 'world3.h'
       real x2,y2,z2
+      external tn2shidata
+
       if(ihiding.lt.0)then
 c calls within 1,2, or 3-planes, at position fixedn.
 	 if(ihiding.eq.-1)then
@@ -201,8 +236,10 @@ c	 sx=x2*scrxpix
 c	 sy=scrypix-y2*n2sy
       endif
 c standard call.
-	 sx=(px*scrxpix)
-	 sy=(scrypix-py*n2sy)
+      sx=(px*scrxpix)
+      sy=(scrypix-py*n2sy)
+c         write(*,*)'scrxpix,scrypix',scrxpix,scrypix
+c         write(*,*)'sx,sy,n2sy,px,py',sx,sy,n2sy,px,py
       end
 C********************************************************************
 c  Draw a vector in normalized coordinates.

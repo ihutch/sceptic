@@ -5,7 +5,8 @@ c      include 'piccom.f'
       character*200 charin
       character*50 filename,string
       integer nr
-      real phipic(1000),rhopic(1000)
+      real phipic(1000)
+c      real rhopic(1000)
       real rpic(1000)
       
       integer nti0
@@ -31,13 +32,14 @@ c     $     ,.982,.985,.988,.990,.991,.993,.993,.995/
      $     ,-.019,-.015,-.012,-.010,-.009,-.008,-.007,-.005/
       integer nlfm
       parameter (nlfm=17)
-      real lfmz(nlfm),lfmr(nlfm),lfmphi01(nlfm),lfmn01(nlfm)
+      real lfmz(nlfm),lfmr(nlfm),lfmphi01(nlfm)
       data lfmz/0,0.5,1,1.5,2,4,6,8,10,12,14,16,18,20,22,24,26/
 c Laframboise data for Rp/lambda=10 figs 13/14. 
 c Probe potential -25 Te. Ti=Te
-      data lfmn01/0.362069,0.350575,0.345977,0.343678,0.33908,0
-     $     .345977,0.406897,0.511494,0.632184,0.712644,0.771264,0.817241
-     $     ,0.848276,0.866667,0.886207,0.902299,0.913793/
+c      real lfmn01(nlfm)
+c      data lfmn01/0.362069,0.350575,0.345977,0.343678,0.33908,0
+c     $     .345977,0.406897,0.511494,0.632184,0.712644,0.771264,0.817241
+c     $     ,0.848276,0.866667,0.886207,0.902299,0.913793/
       data lfmphi01/24.98848,21.64901,18.655,15.89129,13.58821,6.909258
      $     ,2.982497,1.140028,0.575772,0.356978,0,0,0,0,0,0,0/
       integer nalpert
@@ -211,12 +213,12 @@ c     Laframboise data here
       call yautoplot(fluxprobe,nsteps)
       call axlabels('step','Particles to probe')
       call pltend()
-      return
+      call exit()
  101  continue
       write(*,*)'Error opening ',filename
-      return
+      call exit()
  202  write(*,*)"nr error"
-      return
+      call exit()
  51   write(*,*)'Usage parrot [-f -z] filename'
       end
 c***************************************************************************

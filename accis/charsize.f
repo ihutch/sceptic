@@ -78,6 +78,16 @@ c character ch to define the end of line, omitting last iomit characters.
       if(iend.lt.iln) goto 1
       end
 c********************************************************************
+      subroutine nlwrt(iunit)
+c Start a new line on the unity iunit.
+      integer sblen,iunit,la
+      character*80 sbuf
+      common /wbuf/sblen,sbuf
+      if(sblen.le.0) write(*,*)'sblen error:',sblen,la,sbuf,iunit
+      write(iunit,*)sbuf(1:sblen-1)
+      sblen=1
+      end
+c********************************************************************
       integer function istlen(str,ilmax)
 c Return the active length of string str, length ilmax, ignoring 
 c blanks on the end.

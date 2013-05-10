@@ -15,6 +15,7 @@ c diagnostics
       real vydist(nxfvi:nxfva),vzdist(nxfvi:nxfva)
       common /vinjdiag/vydist,vzdist
 
+c      ldiaginj=.true.
 c A really small number
       eps=1.e-20
 c___________________________________________________________________
@@ -32,7 +33,9 @@ c     $     y1,qthfv(nthfvsize),ipth,fpth,costheta
 
 c___________________________________________________________________
 c Pick a random vx: pxfv
- 2    y2=ran0(idum)*((1.-fpth)*qxfv(nxfva,ipth)+fpth*qxfv(nxfva,ipth+1))
+      n2count=0
+ 2    if(n2count.gt.5)goto 1
+      y2=ran0(idum)*((1.-fpth)*qxfv(nxfva,ipth)+fpth*qxfv(nxfva,ipth+1))
       call f2invtfunc(qxfv(nxfvi,ipth),qxfv(nxfvi,ipth+1)
      $     ,nxfva-nxfvi+1,y2,pxfv,(1.-fpth),fpth)
 c      write(*,*) pxfv
@@ -60,6 +63,7 @@ c         vztr=-1.e30
       if(costheta.gt.0.)then
          if(vztr.gt.vzfv(nzfva))then
 c            write(*,*)'Impossible vztr',vztr,costheta,vx,' trying again'
+            n2count=n2count+1
             goto 2
          elseif(vztr.lt.vzfv(nzfvi))then
             vztr=vzfv(nzfvi)+1.e-4
@@ -67,6 +71,7 @@ c            write(*,*)'Impossible vztr',vztr,costheta,vx,' trying again'
       else
          if(vztr.lt.vzfv(nzfvi))then
 c            write(*,*)'Impossible vztr',vztr,costheta,vx,' trying again'
+            n2count=n2count+1
             goto 2
          elseif(vztr.gt.vzfv(nzfva))then
             vztr=vzfv(nzfva)-1.e-4
@@ -155,7 +160,8 @@ c              MAY BE WORKING.
 c Solve to get exact crossing z-index ztrp, relative to initial index 1.
       call f1invtfunc(vzfv,nzfva-nzfvi+1,vztr,ztrp)
 c If it does not solve which should never happen, then tell us 
-      if(ztrp.eq.0.)then
+c      if(ztrp.eq.0.)then
+      if(.not.ztrp.gt.0.)then
          write(*,*)'Failure of f1invtfunc for vztr=',vztr
          stop
       endif
@@ -222,7 +228,7 @@ c     $      costheta*vz+sintheta*vx
      $        qz(izfv),qz(izfv+1)
 c Don't try to plot here. Just try again.
          goto 2
-         ldiaginj=.true.
+c         ldiaginj=.true.
       endif
 c End of solving for the reinjection th,vx,vz.
 c___________________________________________________________________
@@ -686,6 +692,8 @@ c Return the normalized distribution function v_n f(v) for constant
 c cx collision frequency at a value of normalized velocity u=v/v_n,
 c when the normalized drift velocity is ud= (a/\nu_c) /v_n,
 c with v_n = sqrt(2T_n/m). a is acceleration, nu_c collision freq.
+c If the neutrals are drifting, then u and ud should be the drift velocity
+c relative to vneutral.
       if(ud.lt.0.) then
          v=-u
          vd=-ud
@@ -729,7 +737,7 @@ c (ERFCC is in randf.f) this is exp*erfc
 c*******************************************************************
 
 c********************************************************************
-c Given a monotonic (increasing?) 
+c Given a monotonic
 c function Q(x) on a 1-D grid x=1..nq, solve Q(x)=y for x.
 c That is, invert Q to give x=Q^-1(y).
       subroutine f1invtfunc(Q,nq,y,x)
@@ -752,9 +760,14 @@ c Value is outside the range.
  200  if(iqr-iql.eq.1)goto 210
       iqx=(iqr+iql)/2
       Qx=Q(iqx)
-c      write(*,*)y,Ql,Qx,Qr,iql,iqr
-c Formerly .lt. which is an error.
-      if((Qx-y)*(Qr-y).le.0.) then
+      d=(Qx-y)*(Qr-Ql)
+      if(d.lt.0.) then
+         Ql=Qx
+         iql=iqx
+      elseif(d.gt.0)then
+         Qr=Qx
+         iqr=iqx
+      elseif(Qr.ne.y)then
          Ql=Qx
          iql=iqx
       else
@@ -763,7 +776,6 @@ c Formerly .lt. which is an error.
       endif
       goto 200
  210  continue
-c Now iql and iqr, Ql and Qr bracket Q
       if(Qr-Ql.ne.0.)then
          x=(y-Ql)/(Qr-Ql)+iql
       else
@@ -834,4 +846,45 @@ c Return the value of f(z) interpolated by index zi
       endif
       fz=zi-i
       finterp=f(i)*(1.-fz)+f(i+1)*fz
+      end
+c**********************************************************************
+      subroutine fvinittest()
+      implicit none
+      integer i,j
+      include 'fvcom.f'
+      real fv
+      integer ieye3d
+      external fv,ieye3d
+
+      real ftest(nxfvi:nxfva,nzfvi:nzfva)
+c Test the function evaluation
+      do i=nxfvi,nxfva
+         do j=nzfvi,nzfva
+            ftest(i,j)=fv(vxfv(i),vzfv(j))
+c            write(*,'(a,3f10.5)')'f-value at vx,vy',
+c     $           ftest(i,j),vxfv(i),vzfv(j)
+         enddo
+      enddo
+
+      write(*,*)'In fvinittest' 
+c Plot the function.
+c      if(lfloat) then
+ 100     call pltinit(0.,1.,0.,1.)
+         j=1 + 256*10 + 256*256*7
+         call hidweb(vxfv(nxfvi),vzfv(nzfvi),ftest,
+     $        nxfva-nxfvi+1,nxfva-nxfvi+1,nzfva-nzfvi+1,j)
+         call boxtitle('f(vx,vz)')
+         call ax3labels('vx','vz','f(vx,vz)')
+         call axident3()
+         if(ieye3d().ne.0) goto 100
+c plot ztrfv
+         call pltinit(vxfv(nxfvi),vxfv(nxfva),float(nzfvi),float(nzfva))
+         call axis()
+         call axlabels('vxfv','ztrfv')
+         do i=1,nthfvsize
+            call polyline(vxfv,ztrfv(nxfvi,i),nxfva-nxfvi+1)
+            call polymark(vxfv,ztrfv(nxfvi,i),nxfva-nxfvi+1,mod(i,16))
+         enddo
+         call pltend()
+c      endif
       end

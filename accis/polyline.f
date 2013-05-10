@@ -66,24 +66,10 @@ c	       call optvecn(nx,ny,cud)
     3 continue
       end
 C********************************************************************
-      block data dashdata
-
-      logical ldash
-      real dashlen,dashdist
-      integer MASKNO,dashmask,jmask
-      parameter (MASKNO=4)
-      dimension dashmask(MASKNO),dashlen(MASKNO)
-      common/dashline/ldash,dashlen,dashdist,dashmask,jmask
-      data dashmask/1,0,1,0/
-      data ldash/.false./
-      data dashlen/0.03,0.01,0.01,0.01/
-      data dashdist/1.e-5/
-      data jmask/1/
-      end
-C********************************************************************
       subroutine dashset(i)
 c Set some line styles. 0 solid (dashing off).
       integer i
+      external dashdata
 
       logical ldash
       real dashlen,dashdist
@@ -115,15 +101,15 @@ c Long/Short.
 	 dashlen(4)=.01
       elseif(i.eq.4)then
 c 'Dots'.
-	 dashlen(1)=.001
+	 dashlen(1)=.002
 	 dashlen(2)=.01
-	 dashlen(3)=.001
+	 dashlen(3)=.002
 	 dashlen(4)=.01
       elseif(i.eq.5)then
 c 'Medium/dot'.
 	 dashlen(1)=.02
 	 dashlen(2)=.01
-	 dashlen(3)=.001
+	 dashlen(3)=.002
 	 dashlen(4)=.01
       elseif(i.eq.6)then
 c 'Long Dashes short breaks'.
@@ -131,6 +117,30 @@ c 'Long Dashes short breaks'.
 	 dashlen(2)=.01
 	 dashlen(3)=.03
 	 dashlen(4)=.01
+      elseif(i.eq.7)then
+c 'Medium Dashes short breaks'.
+	 dashlen(1)=.02
+	 dashlen(2)=.005
+	 dashlen(3)=.02
+	 dashlen(4)=.005
+      elseif(i.eq.8)then
+c 'Short Dashes shorter breaks'.
+	 dashlen(1)=.01
+	 dashlen(2)=.005
+	 dashlen(3)=.01
+	 dashlen(4)=.005
+      elseif(i.eq.9)then
+c 'Dot short'.
+	 dashlen(1)=.002
+	 dashlen(2)=.005
+	 dashlen(3)=.01
+	 dashlen(4)=.01
+      elseif(i.eq.10)then
+c 'Long/Short breaks'.
+	 dashlen(1)=.02
+	 dashlen(2)=.005
+	 dashlen(3)=.02
+	 dashlen(4)=.02
       endif
       dashdist=1.e-6
       jmask=1
@@ -343,5 +353,284 @@ c acgen data:
       enddo
       end
 
+C********************************************************************
+      subroutine poly3line(x,y,z,npts)
+c Dashed line version.
+      real x(npts),y(npts),z(npts)
+      integer npts
+      integer i
+      include 'plotcom.h'
+      include 'world3.h'
+c Dashed line code
+      real nx,ny,nz
+      real vlen,dx,dy,dz,cx,cy,cz,plen,flen,dlen
+      real wx2nx, wy2ny
+      integer cud
 
+c dashlen is the arc length in normalized units of the the ith line
+c segment. dashdist is the starting fractional part of the ith arc.
+c Segments alternate pen down, pen up.
+      logical ldash
+      real dashlen,dashdist
+      integer MASKNO,dashmask,jmask
+      parameter (MASKNO=4)
+      dimension dashmask(MASKNO),dashlen(MASKNO)
+      common/dashline/ldash,dashlen,dashdist,dashmask,jmask
 
+      if(npts.le.0) return
+      call vec3w(x(1),y(1),z(1),0)
+      do 3 i=2,npts
+	 if(.not.ldash) then
+	    call vec3w(x(i),y(i),z(i),1)
+c            call wxyz2nxyz(x(i),y(i),z(i),nx,ny,nz)
+c            call trn32(nx,ny,nz,x2,y2,z2,0)
+c            call optvecn(x2+xcbc2,y2+ycbc2,1)
+	 else
+c We shall bypass vecw and go straight to normal.
+            call wxyz2nxyz(x(i),y(i),z(i),nx,ny,nz)
+            call trn32(nx,ny,nz,x2,y2,z2,0)
+c Lengths of total vector:
+	    cx=x2+xcbc2
+	    cy=y2+ycbc2
+	    dx=cx- crsrx
+	    dy=cy- crsry
+	    vlen=sqrt(dx*dx+dy*dy)
+c Partial length remaining:
+	    plen=vlen
+	    if(vlen.eq.0)return
+c Distance to end of segment
+    1       dlen=(dashlen(jmask)-dashdist)
+	    if(plen.gt.dlen)then
+c Vector longer than this segment. Draw segment and iterate.
+	       dashdist=0
+	       plen=plen-dlen
+	       flen=dlen/vlen
+	       nx= crsrx+dx*flen
+	       ny= crsry+dy*flen
+	       cud=dashmask(jmask)
+	       call optvecn(nx,ny,cud)
+c	       call vecn(nx,ny,cud)
+	       jmask=mod(jmask,MASKNO)+1
+	       goto 1
+	    else
+c Vector ends before segment. Draw to end of vector and quit.
+	       dashdist=plen+dashdist
+	       nx=cx
+	       ny=cy
+	       cud=dashmask(jmask)
+	       call optvecn(nx,ny,cud)
+c	       call vecn(nx,ny,cud)
+	    endif
+	 endif
+    3 continue
+      end
+C********************************************************************
+      subroutine poly3mark(x,y,z,nx,nmark)
+      integer nx,nmark,i
+      character*4 mark
+      real x(*),y(*),z(*),xp,yp,zp
+      include 'plotcom.h'
+      include 'world3.h'
+      ipf=pfPS
+c      if(nmark.eq.3)then
+c         mark='!A3'//char(0)
+c  That does not quite align well. Better not to mix thinkgs up.
+      if(nmark.lt.10)then
+         pfPS=0
+	 mark=char(nmark+176)//char(0)
+      elseif(nmark.eq.10)then
+	 mark='+'//char(0)
+      elseif(nmark.eq.11)then
+	 mark='!AX'//char(0)
+      elseif(nmark.eq.12)then
+	 mark='!A*'//char(0)
+      elseif(nmark.eq.13)then
+	 mark='!A-'//char(0)
+      elseif(nmark.eq.15)then
+	 mark='!A'//char(48)//char(0)
+      else
+	 mark=char(nmark)//char(0)
+      endif
+      do 1 i=1,nx
+         call wxyz2nxyz(x(i),y(i),z(i),xp,yp,zp)
+         call trn32(xp,yp,zp,x2,y2,z2,0)
+         cx=x2+xcbc2
+         cy=y2+ycbc2
+      if(nmark.eq.14)then
+         call actrid(cx,cy)
+      else
+	 call jdrwstr(cx,cy,mark,0.)
+      endif
+    1 continue
+      pfPS=ipf
+      end
+c************************************************************************
+      subroutine polybox(xb,y,npts)
+c Plot the outline of a histogram of boxes whose (touching) boundaries are
+c at xb(0:npts) and whose heights are y(npts).
+      integer npts
+      real y(npts),xb(0:npts)
+      real xp(4),yp(4)
+
+      yp(3)=0.
+      do i=1,npts
+         xp(1)=xb(i-1)
+         yp(1)=yp(3)
+         xp(2)=xp(1)
+         yp(2)=y(i)
+         xp(3)=xb(i)
+         yp(3)=y(i)
+         if(i.lt.npts)then
+            call polyline(xp,yp,3)
+         else
+            xp(4)=xp(3)
+            yp(4)=0.
+            call polyline(xp,yp,4)
+         endif
+      enddo
+
+      end
+C********************************************************************
+c The following are strided versions which probably should become the
+c code base, with polyline and polymark being just wrappers.
+C********************************************************************
+      subroutine stpolyline(x,y,npts,nstx,nsty)
+c Strided polyline. nstx/y are the increments of the x and y data.
+c Dashed line version.
+      real x(npts),y(npts)
+      integer npts
+      integer i
+      include 'plotcom.h'
+c Dashed line code
+      real nx,ny
+      real vlen,dx,dy,cx,cy,plen,flen,dlen
+      real wx2nx, wy2ny
+      integer cud
+
+c dashlen is the arc length in normalized units of the the ith line
+c segment. dashdist is the starting fractional part of the ith arc.
+c Segments alternate pen down, pen up.
+      logical ldash
+      real dashlen,dashdist
+      integer MASKNO,dashmask,jmask
+      parameter (MASKNO=4)
+      dimension dashmask(MASKNO),dashlen(MASKNO)
+      common/dashline/ldash,dashlen,dashdist,dashmask,jmask
+
+      if(npts.le.0) return
+      call vecw(x(1),y(1),0)
+      do 3 i=2,npts
+	 if(.not.ldash) then
+	    call vecw(x(1+nstx*(i-1)),y(1+nsty*(i-1)),1)
+	 else
+c We shall bypass vecw and go straight to normal.
+	    nx=wx2nx(x(1+nstx*(i-1)))
+	    ny=wy2ny(y(1+nsty*(i-1)))
+c Lengths of total vector:
+	    cx=nx
+	    cy=ny
+	    dx=nx- crsrx
+	    dy=ny- crsry
+	    vlen=sqrt(DX*DX+DY*DY)
+c Partial length remaining:
+	    plen=vlen
+	    if(vlen.eq.0)return
+c Distance to end of segment
+    1       dlen=(dashlen(jmask)-dashdist)
+	    if(plen.gt.dlen)then
+c Vector longer than this segment. Draw segment and iterate.
+	       dashdist=0
+	       plen=plen-dlen
+	       flen=dlen/vlen
+	       nx= crsrx+dx*flen
+	       ny= crsry+dy*flen
+	       cud=dashmask(jmask)
+c	       call optvecn(nx,ny,cud)
+	       call vecn(nx,ny,cud)
+	       jmask=mod(jmask,MASKNO)+1
+	       goto 1
+	    else
+c Vector ends before segment. Draw to end of vector and quit.
+	       dashdist=plen+dashdist
+	       nx=cx
+	       ny=cy
+	       cud=dashmask(jmask)
+c	       call optvecn(nx,ny,cud)
+	       call vecn(nx,ny,cud)
+	    endif
+	 endif
+    3 continue
+      end
+C********************************************************************
+C********************************************************************
+      subroutine stpolymark(x,y,nx,nstx,nsty,nmark)
+c Strided polyline. nstx/y are the increments of the x and y data.
+      integer nx,nmark,i,nstx,nsty
+      character*4 mark
+      real x(*),y(*),xp,yp,wx2nx,wy2ny
+      include 'plotcom.h'
+      ipf=pfPS
+c      if(nmark.eq.3)then
+c         mark='!A3'//char(0)
+c  That does not quite align well. Better not to mix thinkgs up.
+      if(nmark.lt.10)then
+         pfPS=0
+	 mark=char(nmark+176)//char(0)
+      elseif(nmark.eq.10)then
+	 mark='+'//char(0)
+      elseif(nmark.eq.11)then
+	 mark='!AX'//char(0)
+      elseif(nmark.eq.12)then
+	 mark='!A*'//char(0)
+      elseif(nmark.eq.13)then
+	 mark='!A-'//char(0)
+      elseif(nmark.eq.15)then
+	 mark='!A'//char(48)//char(0)
+      else
+	 mark=char(nmark)//char(0)
+      endif
+      do 1 i=1,nx
+	 xp=wx2nx(x(1+nstx*(i-1)))
+	 yp=wy2ny(y(1+nsty*(i-1)))
+      if(nmark.eq.14)then
+         call actrid(xp,yp)
+      else
+	 call jdrwstr(xp,yp,mark,0.)
+      endif
+    1 continue
+      pfPS=ipf
+      end
+C********************************************************************
+      subroutine smoothline(x,y,np,nb)
+c Draw a smoothed polyline using nb to determine the range of smoothing.
+c If nb is positive, boxcar average over the points before and after to
+c a total extent nb.
+c If nb is negative then triangular average instead.
+c If nb is zero, then no smoothing is done.
+c np is the number of points in the trace, which must be less than the
+c locally allocated array length nl.
+      integer np,nb
+      real x(np),y(np)
+
+      integer nl
+      parameter (nl=10000)
+      real yave(nl)
+
+      if(np.gt.nl)then
+         write(*,*)'Trace to smooth too long. Not smoothed. Split up.'
+c Here we ought to put code to do repetitive smoothing and plotting
+c to complete the entire trace. However, it's a bit tricky because the
+c internal joins of partial traces ought to use fully smoothed parts
+c of the traces, not the reduced smoothing that is the default at the
+c boundaries.
+         call polyline(x,y,np)
+      else
+         if(nb.lt.0)then
+            call triangave(np,-nb,y,yave)
+         else
+            call boxcarave(np,nb,y,yave)
+         endif
+         call polyline(x,yave,np)
+      endif
+
+      end

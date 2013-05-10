@@ -1,10 +1,15 @@
 
 c***********************************************************************
-      subroutine chargetomesh()
+      subroutine chargetomesh(istep)
+c Assign charge to mesh etc. for step number istep.
+      integer istep
+
 c Common data:
       include 'piccom.f'
+c      include 'distcom.f'
 
-      logical istrapped,istrapped2
+c      logical istrapped
+      logical istrapped2
 c      ninner=0
       
       do j=0,nth+1
@@ -35,7 +40,7 @@ c Use fast ptomesh, half-quantities not needed.
      $              rf,irl,i,rp
             else
                call chargeassign(i,irl,rf,ithl,thf,
-     $              ipl,pf,st,ct,sp,cp,rp)
+     $              ipl,pf,st,ct,sp,cp,rp,istep)
 c This extra trapped particle test/call on its own drives time from 
 c 4.5s to 5.7s. I.e. increases costs 25%. It is completely the 
 c istrapped function that costs.
@@ -43,12 +48,10 @@ c                  if(istrapped(i))then
 c By comparison this call is about 4.8s. I.e. the call is 1/4 of the cost
 c of istrapped, and is a ~6% extra cost.
 c               if(.false..and.
-               if(
-     $              istrapped2(i,irl,rf,ithl,thf,ipl,pf,st,ct,sp,cp,rp
-     $              ,zetap,ih,hf))then
-                  call chargetrapped(i,irl,rf,ithl,thf,
-     $                 ipl,pf,st,ct,sp,cp,rp)
-               endif
+               if(istrapped2(i,irl,rf,ithl,thf,ipl,pf,st,ct,sp,cp,rp
+     $              ,zetap,ih,hf))call chargetrapped(i,irl,rf,ithl,thf,
+     $              ipl,pf,st,ct,sp,cp,rp)
+
             endif
          endif
       enddo
@@ -56,64 +59,127 @@ c               if(.false..and.
       end
 c***********************************************************************
 c Accumulate particle charge into rho mesh and other diagnostics.
-      subroutine chargeassign(i,irl,rf,ithl,thf,ipl,pf,st,ct,sp,cp,rp)
+c Its ptomesh parameters are passed as follows
+c The left hand mesh point and the fractional mesh distance of the
+c position of particle i, in irl,rf,itl,tf,ipl,pf 
+c [Actually ipl and pf are unused and unset in 2-D.]
+c The sines and cosines of theta and phi in st,ct,sp,cp
+c The radius in rp. 
+      subroutine chargeassign(i,irl,rf,ithl,thf,ipl,pf,st,ct,sp,cp,rp
+     $     ,istep)
 c      implicit none
       integer i
 c Common data:
       include 'piccom.f'
+      include 'distcom.f'
 c Assign as if square for now. Area weighting might be better.
+      rt1=(1.-rf)*(1.-thf)
+      rt2=rf*(1.-thf)
+      rt3=(1.-rf)*thf
+      rt4=rf*thf
 c Charge summation.
-      psum(irl,ithl)=psum(irl,ithl) + (1.-rf)*(1.-thf)
-      psum(irl+1,ithl)=psum(irl+1,ithl) + rf*(1.-thf)
-      psum(irl,ithl+1)=psum(irl,ithl+1) + (1.-rf)*thf
-      psum(irl+1,ithl+1)=psum(irl+1,ithl+1) + rf*thf
+      psum(irl,ithl)=psum(irl,ithl) + rt1
+      psum(irl+1,ithl)=psum(irl+1,ithl) + rt2
+      psum(irl,ithl+1)=psum(irl,ithl+1) + rt3
+      psum(irl+1,ithl+1)=psum(irl+1,ithl+1) + rt4
 
       vz=xp(6,i)
-      vzsum(irl,ithl)=vzsum(irl,ithl) + (1.-rf)*(1.-thf)*vz
-      vzsum(irl+1,ithl)=vzsum(irl+1,ithl) + rf*(1.-thf)*vz
-      vzsum(irl,ithl+1)=vzsum(irl,ithl+1) + (1.-rf)*thf*vz
-      vzsum(irl+1,ithl+1)=vzsum(irl+1,ithl+1) + rf*thf*vz
+      vzsum(irl,ithl)=vzsum(irl,ithl) + rt1*vz
+      vzsum(irl+1,ithl)=vzsum(irl+1,ithl) + rt2*vz
+      vzsum(irl,ithl+1)=vzsum(irl,ithl+1) + rt3*vz
+      vzsum(irl+1,ithl+1)=vzsum(irl+1,ithl+1) + rt4*vz
 
+      if(diags.or.irl.le.2.or.istep.gt.maxsteps-nfvdist+1)then
+c Cylindrical Radial velocity
+         vxy=xp(4,i)*cp+xp(5,i)*sp
+c Spherical and cylindrical azimuthal velocity:
+         vp=-xp(4,i)*sp+xp(5,i)*cp
+c Longitudinal velocity
+c            vz=xp(6,i)
+c Spherical Radial velocity
+         vr=vz*ct+vxy*st
+c Spherical Tangential velocity without azimuthal component.
+c I.e. v_theta.
+         vt=-vz*st+vxy*ct
       if(diags .or. irl.le.2) then
 c These extra accumulations increase time by about 10%.
-      vxy=xp(4,i)*cp + xp(5,i)*sp
-      vr=vxy*st + xp(6,i)*ct
-      vrsum(irl,ithl)=vrsum(irl,ithl) + (1.-rf)*(1.-thf)*vr
-      vrsum(irl+1,ithl)=vrsum(irl+1,ithl) + rf*(1.-thf)*vr
-      vrsum(irl,ithl+1)=vrsum(irl,ithl+1) + (1.-rf)*thf*vr
-      vrsum(irl+1,ithl+1)=vrsum(irl+1,ithl+1) + rf*thf*vr
+c         vxy=xp(4,i)*cp + xp(5,i)*sp
+c         vr=vxy*st + xp(6,i)*ct
+         vrsum(irl,ithl)=vrsum(irl,ithl) + rt1*vr
+         vrsum(irl+1,ithl)=vrsum(irl+1,ithl) + rt2*vr
+         vrsum(irl,ithl+1)=vrsum(irl,ithl+1) + rt3*vr
+         vrsum(irl+1,ithl+1)=vrsum(irl+1,ithl+1) + rt4*vr
 
-      vt= vxy*ct - xp(6,i)*st
-      vtsum(irl,ithl)=vtsum(irl,ithl) + (1.-rf)*(1.-thf)*vt
-      vtsum(irl+1,ithl)=vtsum(irl+1,ithl) + rf*(1.-thf)*vt
-      vtsum(irl,ithl+1)=vtsum(irl,ithl+1) + (1.-rf)*thf*vt
-      vtsum(irl+1,ithl+1)=vtsum(irl+1,ithl+1) + rf*thf*vt
+c         vt= vxy*ct - xp(6,i)*st
+         vtsum(irl,ithl)=vtsum(irl,ithl) + rt1*vt
+         vtsum(irl+1,ithl)=vtsum(irl+1,ithl) + rt2*vt
+         vtsum(irl,ithl+1)=vtsum(irl,ithl+1) + rt3*vt
+         vtsum(irl+1,ithl+1)=vtsum(irl+1,ithl+1) + rt4*vt
 
-      vp=-xp(4,i)*sp  + xp(5,i)*cp
-      vpsum(irl,ithl)=vpsum(irl,ithl) + (1.-rf)*(1.-thf)*vp
-      vpsum(irl+1,ithl)=vpsum(irl+1,ithl) + rf*(1.-thf)*vp
-      vpsum(irl,ithl+1)=vpsum(irl,ithl+1) + (1.-rf)*thf*vp
-      vpsum(irl+1,ithl+1)=vpsum(irl+1,ithl+1) + rf*thf*vp
+c         vp=-xp(4,i)*sp  + xp(5,i)*cp
+         vpsum(irl,ithl)=vpsum(irl,ithl) + rt1*vp
+         vpsum(irl+1,ithl)=vpsum(irl+1,ithl) + rt2*vp
+         vpsum(irl,ithl+1)=vpsum(irl,ithl+1) + rt3*vp
+         vpsum(irl+1,ithl+1)=vpsum(irl+1,ithl+1) + rt4*vp
 
-      vr2=vr*vr
-      vr2sum(irl,ithl)=vr2sum(irl,ithl) + (1.-rf)*(1.-thf)*vr2
-      vr2sum(irl+1,ithl)=vr2sum(irl+1,ithl) + rf*(1.-thf)*vr2
-      vr2sum(irl,ithl+1)=vr2sum(irl,ithl+1) + (1.-rf)*thf*vr2
-      vr2sum(irl+1,ithl+1)=vr2sum(irl+1,ithl+1) + rf*thf*vr2
+         vr2=vr*vr
+         vr2sum(irl,ithl)=vr2sum(irl,ithl) + rt1*vr2
+         vr2sum(irl+1,ithl)=vr2sum(irl+1,ithl) + rt2*vr2
+         vr2sum(irl,ithl+1)=vr2sum(irl,ithl+1) + rt3*vr2
+         vr2sum(irl+1,ithl+1)=vr2sum(irl+1,ithl+1) + rt4*vr2
 
-      v2=(xp(4,i)*xp(4,i) +xp(5,i)*xp(5,i) +xp(6,i)*xp(6,i))
-      v2sum(irl,ithl)=v2sum(irl,ithl) + (1.-rf)*(1.-thf)*v2
-      v2sum(irl+1,ithl)=v2sum(irl+1,ithl) + rf*(1.-thf)*v2
-      v2sum(irl,ithl+1)=v2sum(irl,ithl+1) + (1.-rf)*thf*v2
-      v2sum(irl+1,ithl+1)=v2sum(irl+1,ithl+1) + rf*thf*v2
+         v2=(xp(4,i)*xp(4,i) +xp(5,i)*xp(5,i) +xp(6,i)*xp(6,i))
+         v2sum(irl,ithl)=v2sum(irl,ithl) + rt1*v2
+         v2sum(irl+1,ithl)=v2sum(irl+1,ithl) + rt2*v2
+         v2sum(irl,ithl+1)=v2sum(irl,ithl+1) + rt3*v2
+         v2sum(irl+1,ithl+1)=v2sum(irl+1,ithl+1) + rt4*v2
 
-      vtp2=v2-vr2
-      vtp2sum(irl,ithl)=vtp2sum(irl,ithl) + (1.-rf)*(1.-thf)*vtp2
-      vtp2sum(irl+1,ithl)=vtp2sum(irl+1,ithl) + rf*(1.-thf)*vtp2
-      vtp2sum(irl,ithl+1)=vtp2sum(irl,ithl+1) + (1.-rf)*thf*vtp2
-      vtp2sum(irl+1,ithl+1)=vtp2sum(irl+1,ithl+1) + rf*thf*vtp2
-     
+         vtp2=v2-vr2
+         vtp2sum(irl,ithl)=vtp2sum(irl,ithl) + rt1*vtp2
+         vtp2sum(irl+1,ithl)=vtp2sum(irl+1,ithl) + rt2*vtp2
+         vtp2sum(irl,ithl+1)=vtp2sum(irl,ithl+1) + rt3*vtp2
+         vtp2sum(irl+1,ithl+1)=vtp2sum(irl+1,ithl+1) + rt4*vtp2
+         
       endif
+      if(istep.gt.maxsteps-nfvdist+1)then
+c Accumulate particle i contribution to fvdist.
+c Cylindrical radial, azimuthal, and longitudinal bins.
+         ivxy=min(1+max(0,nint(nvmax*(vxy/vrange+.499))),nvmax)
+         ivp=min(1+max(0,nint(nvmax*(vp/vrange + .499))),nvmax)
+         ivz=min(1+max(0,nint(nvmax*(vz/vrange+.499))),nvmax)
+c Spherical Radial and angular direction velocity bins: 
+         ivr=min(1+max(0,nint(nvmax*(vr/vrange + .499))),nvmax)
+         ivt=min(1+max(0,nint(nvmax*(vt/vrange + .499))),nvmax)
+
+c Update accumulators.
+         fvrtdist(ivxy,1,irl,ithl)=    fvrtdist(ivxy,1,irl,ithl)+rt1  
+         fvrtdist(ivxy,1,irl+1,ithl)=  fvrtdist(ivxy,1,irl+1,ithl)+rt2
+         fvrtdist(ivxy,1,irl,ithl+1)=  fvrtdist(ivxy,1,irl,ithl+1)+rt3
+         fvrtdist(ivxy,1,irl+1,ithl+1)=fvrtdist(ivxy,1,irl+1,ithl+1)+rt4
+         fvrtdist(ivp,2,irl,ithl)=    fvrtdist(ivp,2,irl,ithl)+rt1  
+         fvrtdist(ivp,2,irl+1,ithl)=  fvrtdist(ivp,2,irl+1,ithl)+rt2
+         fvrtdist(ivp,2,irl,ithl+1)=  fvrtdist(ivp,2,irl,ithl+1)+rt3
+         fvrtdist(ivp,2,irl+1,ithl+1)=fvrtdist(ivp,2,irl+1,ithl+1)+rt4
+         fvrtdist(ivz,3,irl,ithl)=    fvrtdist(ivz,3,irl,ithl)+rt1  
+         fvrtdist(ivz,3,irl+1,ithl)=  fvrtdist(ivz,3,irl+1,ithl)+rt2
+         fvrtdist(ivz,3,irl,ithl+1)=  fvrtdist(ivz,3,irl,ithl+1)+rt3
+         fvrtdist(ivz,3,irl+1,ithl+1)=fvrtdist(ivz,3,irl+1,ithl+1)+rt4
+         fvrtdist(ivr,4,irl,ithl)=    fvrtdist(ivr,4,irl,ithl)+rt1  
+         fvrtdist(ivr,4,irl+1,ithl)=  fvrtdist(ivr,4,irl+1,ithl)+rt2
+         fvrtdist(ivr,4,irl,ithl+1)=  fvrtdist(ivr,4,irl,ithl+1)+rt3
+         fvrtdist(ivr,4,irl+1,ithl+1)=fvrtdist(ivr,4,irl+1,ithl+1)+rt4
+         fvrtdist(ivt,5,irl,ithl)=    fvrtdist(ivt,5,irl,ithl)+rt1  
+         fvrtdist(ivt,5,irl+1,ithl)=  fvrtdist(ivt,5,irl+1,ithl)+rt2
+         fvrtdist(ivt,5,irl,ithl+1)=  fvrtdist(ivt,5,irl,ithl+1)+rt3
+         fvrtdist(ivt,5,irl+1,ithl+1)=fvrtdist(ivt,5,irl+1,ithl+1)+rt4
+         rhodist(irl,ithl)=    rhodist(irl,ithl)+rt1
+         rhodist(irl+1,ithl)=  rhodist(irl+1,ithl)+rt2
+         rhodist(irl,ithl+1)=  rhodist(irl,ithl+1)+rt3
+         rhodist(irl+1,ithl+1)=rhodist(irl+1,ithl+1)+rt4
+      endif
+      endif
+
+
       end
 c***********************************************************************
 c Accumulate trapped particle charge into mesh.
@@ -396,7 +462,7 @@ c Return the charge qp, esforce fz, and electron pressure force epz.
       
       real ercoef(nthsize),etcoef(nthsize),ertcoef(nthsize)
       real qpcoef(nthsize)
-      real vy,frac,partsum
+      real frac,partsum
 
       logical lnotinit
       data lnotinit/.true./
@@ -445,6 +511,7 @@ c We do this at a specified radius node.
       if(k.gt.nrused)then
          write(*,*)'esforce radial node number too large. Reset.'
          k=nrused
+         ir=nrused
       endif
       delr=(r(2)-r(1))
       j=0
@@ -527,5 +594,6 @@ c if ir.eq.nrused, the cell is already half the size
       else
          collf=0.
       endif
-
+c      write(*,*)'ir,vz,partsum,vd,collf',ir,vz,partsum,vd,collf
       end
+c*****************************************************************

@@ -1,4 +1,4 @@
-      subroutine hidweb(x,y,z,iLx,nx,ny,level)
+      subroutine hidweb(x,y,z,iLx,nx,ny,ilevel)
 c Draw a 3-d web of z(x,y), dim(iLx\nx,ny), viewed from (xe,ye,ze) scaled.
 c Second byte of level gives web color. Third gives axis color.
 c Lowest byte: 
@@ -7,7 +7,7 @@ c   abs(level)=2 scale to fit region, 2-d x,y, don't hide, just wiremesh.
 c   abs(level)=0 perform no scale-setting and use last perspective...
 c   level.lt.0 draw no axes.
 c Eye obtained from file eye.dat, or default if none exists.
-      integer iLx, nx,ny,level
+      integer iLx, nx,ny,ilevel,level
       real x(*),y(*),z(iLx,ny)
       integer icorner,colw,cola
       real x2,y2,z2
@@ -16,6 +16,7 @@ c Eye obtained from file eye.dat, or default if none exists.
       data ihd/99/
       save
 
+      level=ilevel
       cola=level/256
       level=level-cola*256
 c level is lowest 8 bits.
@@ -23,7 +24,8 @@ c level is lowest 8 bits.
 c color of web is next 8 bits
       cola=cola/256 -(cola/65536)*256
 c color of axes is next 8 bits.
-      if(abs(level).ne.2)then
+c      write(*,*)'level=',level
+      if(abs(level).ne.0)then
          call geteye(x2,y2,z2)
       endif
       if(colw.ne.0) call color(colw)
@@ -179,13 +181,6 @@ c                   reverse the y-order.
     2	 continue
     1 continue
       end
-
-c***************************************************************************
-c Explicit block data for F2C.
-      block data hdc
-      include 'hidcom.h'
-      data ytop(1)/0./
-      end
 c***************************************************************************
 c Draw a vector in normalized coordinates, hiding as appropriate.
       subroutine hidvecn(x2,y2,ud)
@@ -195,6 +190,7 @@ c      integer ngrid
 c      parameter (ngrid=1025)
 c      real ytop(ngrid),ybot(ngrid)
 c      common/hideln/ytop,ybot,...
+      external hdcdata
       include 'hidcom.h'
       real dx,dydx,x,y
       integer signd,ix,ix1,ix2,nstate,istate
@@ -215,17 +211,19 @@ c      common/hideln/ytop,ybot,...
 	 yo=y1
 c Grid points just inside the x1 - x2 range, not outside frame.
 	 if(x2.ge.x1)then
-	    ix1=max(int(x1*(ngrid-1)),1) +1
+	    ix1=max(int(x1*(ngrid-1)),0) +1
 	    ix2=min(int(x2*(ngrid-1)),ngrid)
 	    signd=1
 	 else
 	    signd=-1
 	    ix1=min(int(x1*(ngrid-1)),ngrid)
-	    ix2=max(int(x2*(ngrid-1)),1)+1
+	    ix2=max(int(x2*(ngrid-1)),0)+1
 	 endif
 	 dx=1./(ngrid-1)
 	 dydx=(y2-y1)/(x2-x1)
-	 do 10 ix=ix1,ix2,signd
+         icount=0
+	 do ix=ix1,ix2,signd
+            icount=icount+1
 c  Do over Grid-position:
 	    x=dx*ix
 	    y=y1+(x-x1)*dydx
@@ -238,36 +236,66 @@ c  Do over Grid-position:
 	       nstate=2
 	       ybot(ix)=y
 	    endif
-c If previous call was not a moveto.
-	    if(lmidl)then
-	       if(nstate.eq.0)then
+c If previous call was not a moveto if(lmidl)then
+c Finishing and starting segments.
+            if(nstate.eq.0.and.lmidl)then
 c Not drawing. If previously was, then finish segment.
-		  if(istate.ne.0) call vecn(xo,yo,1)
-	       elseif(nstate.eq.1)then
+               if(istate.ne.0)then
+                  call vecn(xo,yo,1)
+                  if(yo.gt.ytop(ix))then
+                     call vecn(x,ytop(ix),1)
+c                        call trihere(xo,yo,.005)
+                  endif
+                  if(yo.lt.ybot(ix))then
+                     call vecn(x,ybot(ix),1)
+c                        call trihere(xo,yo,-.005)
+                  endif
+c                     write(*,*)'Finish seg',ix,ix1,signd,x,y
+c     $                    ,dx,dydx,xo,yo
+               endif
+            elseif(nstate.eq.1.and.lmidl)then
 c Drawing above. If previously was not, draw start.
-		  if(istate.eq.0) then
-		     call vecn(dx*(ix-signd),ytop(ix-signd),0)
-		     call vecn(x,y,1)
-		  endif
-	       elseif(nstate.eq.2)then
+               if(istate.eq.0) then
+                  xp=dx*(ix-signd)
+                  yp=ytop(ix-signd)
+c                  if(ytop(ix-signd).eq.0.)
+c     $                 write(*,*)ix1,ix2,ix,signd,x1,x2,x,xp
+                  call vecn(xp,yp,0)
+                  call vecn(x,y,1)
+               endif
+            elseif(nstate.eq.2.and.lmidl)then
 c Drawing below. If previously was not, draw start.
-		  if(istate.eq.0) then
-		     call vecn(dx*(ix-signd),ybot(ix-signd),0)
-		     call vecn(x,y,1)
-		  endif
-	       endif
-	    else
-	       lmidl=.true.
-	    endif
+               if(istate.eq.0) then
+                  xp=dx*(ix-signd)
+                  yp=ybot(ix-signd)
+                  call vecn(xp,yp,0)
+                  call vecn(x,y,1)
+               endif
+            endif
 	    istate=nstate
 	    xo=x
 	    yo=y
-   10	 continue
-      endif
+c Set lmidl true only if we have been through this loop at least once. 
+c Otherwise, starting beyond already draw xtop/bot can give spurious 
+c start lines after the first vector. 
+            lmidl=.true.
+         enddo
 c End of vector. Finish it.
+         xp=x2
+         yp=y2
+         call vecn(xp,yp,istate)
+c         if(icount.eq.0)call trihere(xp,yp,.005)
+      else
+c         write(*,*)'hid xpoints coincide'
+      endif
       x1=x2
       y1=y2
-      call vecn(x1,y1,istate)
+      end
+c***************************************************************************
+      subroutine trihere(xp,yp,d)
+      call vecn(xp+d,yp,1)
+      call vecn(xp+d,yp+d,1)
+      call vecn(xp,yp,1)
       end
 c***************************************************************************
       subroutine hidinit(top,bot)
@@ -280,70 +308,90 @@ c***************************************************************************
     1 continue
       end
 c*****************************************************************************
-      subroutine surf3d(x,y,z,iLx,nx,ny,level,work)
+      subroutine surf3d(x,y,z,iLx,nx,ny,isw,work)
 c Draw a 3-d surface of z(x,y), dim(iLx\nx,ny), viewed from (xe,ye,ze) scaled.
 c This version designed for non-monotonic x,y, does sophisticated web order.
 c work(0:iLx+1,0:ny+1) is a work array that is trashed.
-c Second byte of level gives web color. Third gives axis color.
-c Lowest byte: 
-c   abs(level)=0 or 1 scale to fit the region, 1-d x,y.
-c   abs(level)=4 scale to fit region 2-d x,y.
-c   abs(level)=2 perform no scaling and use last perspective.
-c   level.lt.0 draw no axes.
+c Switch: isw.lt.0 draw no axes.
+c Second byte of isw gives web color. Third byte gives axis color.
+c Lowest nibble levd (absolute value): 
+c   =0 perform no scaling and use last perspective 2-D x,y
+c   =1 scale to fit the region, 1-d x,y
+c   =2 scale to fit the region, 2-d x,y
+c   =4 perform no scaling, 1-d x,y.
+c Second nibble (16+): isw for the surfdr3 call. bit0=1 => smooth tri.
 c Eye obtained from file eye.dat, or default if none exists.
-      integer iLx, nx,ny,level
+      integer iLx, nx,ny,isw
       real x(iLx,*),y(iLx,*),z(iLx,ny),work(0:iLx+1,0:ny+1)
       integer icorner,colw,cola
       real x2,y2,z2
       real zmin,zmax
       save
 
-      cola=level/256
-      level=level-cola*256
-c level is lowest 8 bits.
-      colw=cola-(cola/256)*256
+      cola=isw/256
+      levd=abs(isw-(isw/16)*16)
+c levd is lowest 4 bits.
+      colw=abs(cola-(cola/256)*256)
 c color of web is next 8 bits
-      cola=cola/256 -(cola/65536)*256
+      cola=abs(cola/256 -(cola/65536)*256)
 c color of axes is next 8 bits.
-      if(abs(level).ne.2)then
-         call geteye(x2,y2,z2)
+      isw=isw/16 - (isw/256)*16
+c isw is second nibble (bits 4-7).
+      if(colw.gt.15)then
+         call color(colw)
+      else
+         if(colw.gt.0) call color(colw)
       endif
-      if(colw.ne.0) call color(colw)
 c Set the top and bottom horizons.
       call hidinit(0.,1.)
-c     Set to hiding 3-D calls.
-      call hdprset(0,0.)
+      if(levd.eq.0)then
+         call surfdr3(x,y,z,iLx,nx,ny,work,isw,dummy)
+      elseif(levd.eq.4)then
+         call surf1dr3(x,y,z,iLx,nx,ny,work,isw,dummy)
+      else
+         call geteye(x2,y2,z2)
+c     Set to non-hiding 3-D calls.
+         call hdprset(0,0.)
 c     Set the perspective transform.
-      call trn32(0.,0.,0.,x2,y2,z2,1)
+         call trn32(0.,0.,0.,x2,y2,z2,1)
 c     Set the scaling.
-      call minmax2(z,iLx,nx,ny,zmin,zmax)
-      itics=5
-      call fitrange(zmin,zmax,itics,ipow,fac10,delta,first,xlast)
-      zmin=first
-      zmax=xlast
-      call minmax2(x,iLx,nx,ny,xmin,xmax)
-      call minmax2(y,iLx,nx,ny,ymin,ymax)
-c     write(*,*)'xmin,xmax',xmin,xmax
-c     write(*,*)'ymin,ymax',ymin,ymax
-      call scale3(xmin,xmax,ymin,ymax,zmin,zmax)
-c Draw the surface.
-      call surfdr3(x,y,z,iLx,nx,ny,work)
+            call minmax2(z,iLx,nx,ny,zmin,zmax)
+            itics=5
+            call fitrange(zmin,zmax,itics,ipow,fac10,delta,first,xlast)
+            zmin=first
+            zmax=xlast
+         if(levd.eq.2)then
+            call minmax2(x,iLx,nx,ny,xmin,xmax)
+            call minmax2(y,iLx,nx,ny,ymin,ymax)
+            call scale3(xmin,xmax,ymin,ymax,zmin,zmax)
+            call surfdr3(x,y,z,iLx,nx,ny,work,isw,dummy)
+         elseif(levd.eq.1)then
+            call minmax(x,nx,xmin,xmax)
+            call minmax(y,ny,ymin,ymax)            
+            call scale3(xmin,xmax,ymin,ymax,zmin,zmax)
+c            write(*,*)'Calling surf1dr3'
+            call surf1dr3(x,y,z,iLx,nx,ny,work,isw,dummy)
+         endif
+      endif
       if(cola.ne.0) call color(cola)
-      if(level.ge.0)then
+      if(isw.ge.0)then
 c Draw cube.
          icorner=igetcorner()
 	 icube=sign(1.,z2)*icorner
 c         write(*,*)icorner,x2,y2,z2
-	 call cubed(icube)
+c This had a problem with extra vertical line. Ought to be fixed.
+c	 call cubed(icube)
 c Draw axes.
-         call ax3labels(icorner,'x-axis','y-axis','z-axis')
-c	 call axproj(icorner)
+         call ax3labels('x-axis','y-axis','')
+	 call axproj(icorner)
       endif
       end
 c********************************************************************
 c Return the nearest corner to eye in standard convention.
       function igetcorner()
-      call geteye(x2,y2,z2)
+c This was wrong. geteye reads the eyefile.
+c      call geteye(x2,y2,z2)
+      call trn32(xdum,ydum,zdum,x2,y2,z2,-1)
       if(y2.le.0.)then 
          if(x2.le.0.)then
             icorner=1
@@ -374,21 +422,33 @@ c Attempt was made to create a webdrw that drew in the order of closest
 c to furthest. However, hiding does not in the end work correctly for 
 c that. So the surf3d was done instead.
 c********************************************************************
-      subroutine surfdr3(x,y,z,iLx,nx,ny,work)
+      subroutine surfdr3(x,y,z,iLx,nx,ny,work,isw,d)
 c Draw a 3-d surface of z(x,y), dim(iLx\nx,ny), using current scaling.
 c Version using filled quadrilaterals.
+c isw bit 0 set => triangular fills, else chunks. If in addition,
+c isw bit 1 set => directional shading, optional argument d(5)
+c    d(1-3) gives direction d(4-5) gives distance limits.
       integer nx,ny,iLx
       real x(iLx,ny),y(iLx,ny),z(iLx,ny),work(0:iLx+1,0:ny+1)
+      integer isw
+      real d(5)
+
       integer id1,id2,ud,kx,ky,icorner
       real d1start,d1end,d1step,z1,x2,y2,z2
       real dout,ddone
       parameter (dout=2.e32,ddone=1.e32)
       real xp(5),yp(5),zp(5)
       integer icx(0:4), icy(0:4), ic
+      logical lchunk,ldir
       data icx/0,1,1,0,0/
       data icy/0,0,1,1,0/
       save
 c
+c      write(*,*)'isw',isw
+      lchunk=.true.
+      if(isw-isw/2 .ne.0)lchunk=.false.
+      ldir=.false.
+      if(isw/2-isw/4 .ne.0)ldir=.true.
       incolor=igetcolor()
 c Get eye position x0,y0,z0 are unused here.
       call trn32(x0,y0,z0,x2,y2,z2,-1)
@@ -396,8 +456,8 @@ c      write(*,*)'Eye=',x2,y2,z2
 c Set up the work array.
       zmin=ddone
       zmax=-ddone
-      do j=1,ny
-         do i=1,nx
+      do j=1,ny-1
+         do i=1,nx-1
             if(z(i,j).gt.zmax)zmax=z(i,j)
             if(z(i,j).lt.zmin)zmin=z(i,j)
             work(i,j)=0.
@@ -410,6 +470,11 @@ c Set up the work array.
             enddo
          enddo
       enddo
+      if(ldir)then
+         zmin=d(4)
+         zmax=d(5)
+         if(.not.abs(zmax-zmin).gt.0)stop 'ERROR: surf3d d-limits'
+      endif
 
       do k=1,(nx-1)*(ny-1)
 c Search for the face not yet treated, furthest from eye
@@ -431,19 +496,137 @@ c     $        x(imin,jmin),y(imin,jmin)
             zp(1+ic)=z(imin+icx(ic),jmin+icy(ic))
          enddo
 c Calculate height of centroid.
-         zcol=0.
-         do ic=0,3
-            zcol=zcol+z(imin+icx(ic),jmin+icy(ic))
-         enddo
-         zcol=zcol/4.
-c         icolor=(15*(zcol-zmin))/(zmax-zmin)
-c         call color(icolor)
-         icolor=(240*(zcol-zmin))/(zmax-zmin)
-         call gradcolor(icolor)
-         call poly3line(xp,yp,zp,5)
-         call pathfill()
+         if(lchunk)then
+            zcol=0.
+            do ic=0,3
+               zcol=zcol+z(imin+icx(ic),jmin+icy(ic))
+            enddo
+            zcol=zcol/4.
+            icolor=(240*(zcol-zmin))/(zmax-zmin)
+            call gradcolor(icolor)
+            call poly3line(xp,yp,zp,5)
+            call pathfill()
+         else
+            if(ldir)then
+               call gradquad(xp,yp,zp,d,zmin,zmax,0,239,3)
+            else
+               call gradquad(xp,yp,zp,zp,zmin,zmax,0,239,1)
+            endif
+         endif
+c Here there's a problem for the very last quadrilateral. 
+c All the previous ones in postscript inherit the 0 setlinewidth
+c that is called from the gradquad immediately afterwards. But the 
+c last one does not have it, so it has a thicker line. One option
+c would be to do a stroke before 0 setlinewidth, but that makes all the 
+c lines thick (as usual). 
+c I'm not sure if that's what I want. Trying it; seems better.
          call color(incolor)
-         call poly3line(xp,yp,zp,5)
+         if(incolor.ne.0)call poly3line(xp,yp,zp,5)
+c Set face as done
+         work(imin,jmin)=ddone
+      enddo
+      
+      end
+c********************************************************************
+      subroutine surf1dr3(x,y,z,iLx,nx,ny,work,isw,d)
+c Draw a 3-d surface of z(x,y), dim(iLx\nx,ny), using current scaling.
+c This version is on a regular mesh x(nx),y(ny),
+c given with 1-d vectors rather than 2D arrays.
+c isw bit 0 set => triangular fills, else chunks. If in addition,
+c isw bit 1 set => directional shading, optional argument d(5)
+c    d(1-3) gives direction d(4-5) gives distance limits.
+      integer nx,ny,iLx
+      real x(nx),y(ny),z(iLx,ny),work(0:iLx+1,0:ny+1)
+      integer isw
+      real d(5)
+
+      integer id1,id2,ud,kx,ky,icorner
+      real d1start,d1end,d1step,z1,x2,y2,z2
+      real dout,ddone
+      parameter (dout=2.e32,ddone=1.e32)
+      real xp(5),yp(5),zp(5)
+      integer icx(0:4), icy(0:4), ic
+      logical lchunk,ldir
+      data icx/0,1,1,0,0/
+      data icy/0,0,1,1,0/
+      save
+c
+c      write(*,*)'isw',isw
+      lchunk=.true.
+      if(isw-isw/2 .ne.0)lchunk=.false.
+      ldir=.false.
+      if(isw/2-isw/4 .ne.0)ldir=.true.
+      incolor=igetcolor()
+c Get eye position x0,y0,z0 are unused here.
+      call trn32(x0,y0,z0,x2,y2,z2,-1)
+c      write(*,*)'Eye=',x2,y2,z2
+c Set up the work array.
+      zmin=ddone
+      zmax=-ddone
+      do j=1,ny-1
+         do i=1,nx-1
+            if(z(i,j).gt.zmax)zmax=z(i,j)
+            if(z(i,j).lt.zmin)zmin=z(i,j)
+            work(i,j)=0.
+            do ic=0,3
+               work(i,j)=work(i,j)
+     $              +x(i+icx(ic))*x2
+     $              +y(j+icy(ic))*y2
+     $              +z(i+icx(ic),j+icy(ic))*z2
+
+            enddo
+         enddo
+      enddo
+      if(ldir)then
+         zmin=d(4)
+         zmax=d(5)
+         if(.not.abs(zmax-zmin).gt.0)stop 'ERROR: surf3d d-limits'
+      endif
+
+      do k=1,(nx-1)*(ny-1)
+c Search for the face not yet treated, furthest from eye
+         dmin=1.e35
+         do j=1,ny-1
+            do i=1,nx-1
+               if(work(i,j).lt.dmin)then
+                  imin=i
+                  jmin=j
+                  dmin=work(i,j)
+               endif
+            enddo
+         enddo
+         do ic=0,4
+            xp(1+ic)=x(imin+icx(ic))
+            yp(1+ic)=y(jmin+icy(ic))
+            zp(1+ic)=z(imin+icx(ic),jmin+icy(ic))
+         enddo
+c Calculate height of centroid.
+         if(lchunk)then
+            zcol=0.
+            do ic=0,3
+               zcol=zcol+z(imin+icx(ic),jmin+icy(ic))
+            enddo
+            zcol=zcol/4.
+            icolor=(240*(zcol-zmin))/(zmax-zmin)
+            call gradcolor(icolor)
+            call poly3line(xp,yp,zp,5)
+            call pathfill()
+         else
+            if(ldir)then
+               call gradquad(xp,yp,zp,d,zmin,zmax,0,239,3)
+            else
+               call gradquad(xp,yp,zp,zp,zmin,zmax,0,239,1)
+            endif
+         endif
+c Here there's a problem for the very last quadrilateral. 
+c All the previous ones in postscript inherit the 0 setlinewidth
+c that is called from the gradquad immediately afterwards. But the 
+c last one does not have it, so it has a thicker line. One option
+c would be to do a stroke before 0 setlinewidth, but that makes all the 
+c lines thick (as usual). 
+c I'm not sure if that's what I want. Trying it; seems better.
+         call color(incolor)
+         if(incolor.ne.0)call poly3line(xp,yp,zp,5)
 c Set face as done
          work(imin,jmin)=ddone
       enddo

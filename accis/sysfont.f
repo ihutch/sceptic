@@ -26,7 +26,8 @@ c Translate the font so that its reference point is same as Hershey.
       call abufstring(' matrix translate makefont ',iunit)
 c scale the font to approximately correct size
       crh=htstnd*1000*ipscale
-      crw=1.1*wdstnd*1000*ipscale
+c      crw=1.1*wdstnd*1000*ipscale
+      crw=1.*wdstnd*1000*ipscale
       call fbufwrt(crw,4,iunit)
       call abufstring(' ',iunit)
       call fbufwrt(crh,4,iunit)
@@ -109,7 +110,8 @@ c Translate the font so that its reference point is same as Hershey.
       call abufstring(' 0. -.3 matrix translate makefont ',iunit)
 c scale the font to approximately correct size
       crh=chrshght*1000*ipscale
-      crw=1.1*chrswdth*1000*ipscale
+c      crw=1.1*chrswdth*1000*ipscale
+      crw=1.*chrswdth*1000*ipscale
       call fbufwrt(crw,4,iunit)
       call abufstring(' ',iunit)
       call fbufwrt(crh,4,iunit)

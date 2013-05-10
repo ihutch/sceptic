@@ -113,7 +113,7 @@ c     BC
 c     lflag, decide if we call bbdy for the first time or not
       logical lflag
       
-      include 'piccomsor.f'
+      include 'sorcom.f'
 
 c     Whether the topology dimension is periodic or not
       logical lperiod(ndims)
@@ -267,7 +267,7 @@ c converged, but the total spread depends on multiple blocks.
       include 'mpif.h'
       logical lconverged
       real delta,deltaR,sor_eps
-      integer sor_comm,id
+      integer sor_comm
       
 c Here we need to allreduce the data, selecting the maximum values,
 c doing it in place.

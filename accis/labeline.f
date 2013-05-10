@@ -2,6 +2,9 @@ C********************************************************************
       subroutine labeline(x,y,npts,label,nlabel)
 c Draw a polyline with imbedded label of nlabel characters.
 c 9 Aug 92.
+c If nlabel eq -99, then set the interval between labels to the value of 
+c x in normalized units, and the ipen (up down) to the value of y. 
+c If x=0. set it to default, 0.3. If ipen.ne.0 then draw line.
       real x(npts),y(npts)
       integer npts,nlabel
       character*(*) label
@@ -16,28 +19,39 @@ c
       parameter (ncmax=40)
       real clen(ncmax)
       real linlen,curdist
-      parameter (linlen=.3)
 c clen is the arc length in normalized units of the the ith line
 c segment. curdist is the starting fractional part of the ith arc.
       real wstr
-      integer j,lstr
+      integer j,lstr,iline
       data curdist/0./
+      data linlen/0.3/iline/1/
+      save linlen,iline
 
 c      write(*,*)npts,label,nlabel
 c Speed version with no label.
       if(nlabel.eq.0)then
          call polyline(x,y,npts)
 	 return
+      elseif(nlabel.eq.-99)then
+         if(x(1).eq.0.) then
+            linlen=0.3
+            iline=1
+         else
+            linlen=x(1)
+            if(y(1).eq.0)then
+               iline=0
+            else
+               iline=1
+            endif
+            return
+         endif
       endif
 c Standard version. NLabel non-zero.
 c store current character direction.
       cc=chrscos
       cs=chrssin
-c setup label
-c      curdist=0.
       lstr=1
       nlab1=min(nlabel,ncmax-1)+1
-c      call optvecn(wx2nx(x(1)),wy2ny(y(1)),0)
       call vecn(wx2nx(x(1)),wy2ny(y(1)),0)
       do 4 i=1,nlab1-1
 c Fix July 99 for G77. Has to be terminated else wstr can't work.
@@ -88,8 +102,7 @@ c Store zero length characters. May be controls.
 	       flen=dlen/vlen
 	       nx= crsrx+dx*flen
 	       ny= crsry+dy*flen
-c               call optvecn(nx,ny,1)
-               call vecn(nx,ny,1)
+               call vecn(nx,ny,iline)
 	    endif
 	    j=j+1
 	    if(j.gt.nlab1)j=1
@@ -100,8 +113,7 @@ c of vector and quit. Else do nothing.
 	    curdist=plen+curdist
 	    nx=nxs
 	    ny=nys
-c            call optvecn(nx,ny,1)
-            call vecn(nx,ny,1)
+            call vecn(nx,ny,iline)
 	 endif
     3 continue
       chrscos=cc

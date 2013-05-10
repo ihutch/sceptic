@@ -1,3 +1,4 @@
+###################################################################
 #___________________________________________________________________________
 #
 #     This code is copyright (c)
@@ -35,10 +36,8 @@ ifeq ("$(XLIB)","")
 endif
 #Default Accis lib
 ifeq ("$(ACCISLIB)","")
-	ACCISLIB=./../accis
+	ACCISLIB=-L./../accis -L/usr/lib/mesa -laccisX -lXt -lX11 -lGL -lGLU
 endif
-
-libraries =  -L$(XLIB) -L$(ACCISLIB) -laccisX -lXt -lX11
 
 # To silence warnings when compiling with g77 uncomment the next statement:
 ifeq ("$(G77)","g77")
@@ -47,53 +46,43 @@ endif
 
 COMPILE-SWITCHES = -Wall -O2
 
+LIBRARIES=-L../ -lsceptic $(ACCISLIB)
+
 #pattern rule, compile using the external definitions of commons, no backslash.
-%.o : %.f piccompost.f makefile;
+%.o : %.f piccom.f makefile  ../libsceptic.a;
 	$(G77) -c $(COMPILE-SWITCHES) $*.f
 
-%.o : %.F piccom.f makefile;
+%.o : %.F piccom.f makefile ../libsceptic.a;
 	$(G77) -c $(COMPILE-SWITCHES) $*.F
 
-% : %.f
-	$(G77)  -o $* $(COMPILE-SWITCHES) $*.f  $(libraries)
+% : %.f ../libsceptic.a
+	$(G77)  -o $* $(COMPILE-SWITCHES) $*.f  $(LIBRARIES)
 
-% : %.F
-	$(G77)  -o $* $(COMPILE-SWITCHES) $*.F  $(libraries)
-
-postproc : postproc.f piccompost.f ../accis/libaccisX.a coulflux.f makefile
-	$(G77) $(COMPILE-SWITCHES) -g  -o postproc postproc.f coulflux.f $(libraries)
+% : %.F ../libsceptic.a
+	$(G77)  -o $* $(COMPILE-SWITCHES) $*.F  $(LIBRARIES)
 
 all : ../accis/libaccisX.a postprocB postproc parrot fluxVp newsumplot fcol 
+
+postproc : postproc.f piccom.f ../accis/libaccisX.a coulflux.f makefile
+	$(G77) $(COMPILE-SWITCHES) -g  -o postproc postproc.f coulflux.f $(LIBRARIES)
+
+postprocnew : postprocnew.f piccom.f ../accis/libaccisX.a coulflux.f makefile
+	$(G77) $(COMPILE-SWITCHES) -g  -o postprocnew postprocnew.f coulflux.f $(LIBRARIES)
 
 ../accis/libaccisX.a : ../accis/*.f
 	make -C ../accis
 
-# The real Makefile
-MAKEFILE=makefile
-
-makefile : Makefile MFPconfigure
-	@echo Configuring the Makefile for this platform.
-	rm -f ./accis/makefile
-	rm -f *.o
-	rm -f *./accis/*.o
-	make -C ./../accis
-	./MFPconfigure
-	@echo Now running make again using the new Makefile
-	make -f $(MAKEFILE)
-
-
-
-parrot : parrot.f piccompost.f ../accis/libaccisX.a makefile
-	$(G77) $(COMPILE-SWITCHES) -o parrot -fno-backslash parrot.f -laccisX $(libraries)
+parrot : parrot.f piccom.f ../accis/libaccisX.a makefile
+	$(G77) $(COMPILE-SWITCHES) -o parrot parrot.f -laccisX $(LIBRARIES)
 
 fluxVp : fluxVp.f ../accis/libaccisX.a coulflux.f makefile
-	$(G77) $(COMPILE-SWITCHES) -g -o fluxVp fluxVp.f coulflux.f $(libraries)
+	$(G77) $(COMPILE-SWITCHES) -g -o fluxVp fluxVp.f coulflux.f $(LIBRARIES)
 
-postprocB : postprocB.f piccompost.f ../accis/libaccisX.a coulflux.f 
-	$(G77) $(COMPILE-SWITCHES) -g  -o postprocB postprocB.f  $(libraries)
+postprocB : postprocB.f piccom.f ../accis/libaccisX.a coulflux.f 
+	$(G77) $(COMPILE-SWITCHES) -g  -o postprocB postprocB.f  $(LIBRARIES)
 
 fcol : fcol.f kennedyallen.o makefile
-	$(G77)  -o fcol $(COMPILE-SWITCHES) fcol.f  kennedyallen.o $(libraries)
+	$(G77)  -o fcol $(COMPILE-SWITCHES) fcol.f  kennedyallen.o $(LIBRARIES)
 
 clean :
 

@@ -1,10 +1,14 @@
+      subroutine accisinit()
+      call pltinit(0.,1.,0.,1.)
+      end
 C********************************************************************
 c Initialize the plot
       subroutine pltinit(wxi,wxa,wyi,wya)
       real wxi,wxa,wyi,wya
       include 'plotcom.h'
       character*12 str1
-c      external initiald
+c Ensure loading of block data program.
+      external initiald
 
 c	write(*,*)' Entering pltinit with nframe,pfsw',nframe,pfsw
       if(nframe.eq.0)then
@@ -45,6 +49,7 @@ c     Initialize buffer and open file on unit 12.
 	 call mregion
       endif
 
+c      write(*,*)'Calling scalewn.'
       call scalewn(wxi,wxa,wyi,wya,.false.,.false.)
       if(nrows.ne.0)then
 c	Multiple Frames Code.
@@ -53,26 +58,9 @@ c	Multiple Frames Code.
 	 if(nframe.eq.nrows*ncolumns)nframe=0
       endif
       call truncf(0.,0.,0.,0.)
+c      write(*,*)'Leaving pltinit.'
       return
       end
-C********************************************************************
-      blockdata initiald
-c Generic parts of initializations.
-      include 'plotcom.h'
-      data nframe,nrows,ncolumns/0,0,0/
-      data naxmin,naxmax,naymin,naymax,naxpt,naypt
-     $  / 0.31,0.91,0.1,0.7,0.31,0.1/
-      data xticlen,yticlen,xticoff,yticoff,nxlabw,nxlabp,nylabw,nylabp
-     $	/ 0.015,0.015,-0.03,-0.02,4,1,4,1 /
-      data ticnum/6/
-c Now this is initialized by truncf call in pltinit.
-c      data  trcxmi,trcxma,trcymi,trcyma,ltlog
-c     $	 / 0.,0.,1.,1.,.false. /
-      data updown/99/
-      data pfsw,pfilno/0,0/
-      data pfPS/0/
-      end
-
 C********************************************************************
       subroutine pltend()
 c Wait for return, then switch to text mode
@@ -91,9 +79,17 @@ c Instead this new approach truncates outside window.
       if(nrows.ne.0) then
 	 call ticset(0.,0.,0.,0.,0,0,0,0)
 	 nframe=0
-	 ticnum=6
       endif
       return
+      end
+c*********************************************************************
+      subroutine prtend()
+c Version of pltend that does not call txtmode or wait. Just flushes
+c the print buffers etc.
+      include 'plotcom.h'
+      call vecn(crsrx,crxry,0)
+      if(pfsw.ne.0)call flushb(12)
+      updown=99
       end
 c*********************************************************************
       subroutine color(li)
@@ -139,7 +135,9 @@ c Set multiple frame parameters.
 	call mregion
  	call axregion(0.31,0.91,0.1,0.7)
 	nrows=0
+        ticnum=6
       endif
+      ticnum=7-min(3,2*max(nrows-1,ncolumns-1))
       end
 c*********************************************************************
       subroutine mregion
@@ -157,7 +155,7 @@ c Try crunching up the y-labels for better clearance
 c was     call ticset(.015*csl,0.15*csl,-.03*csl,-.02*csl,0,0,0,0)
 c also made the xsp 0.22 instead of 0.2
       call ticset(.015*csl,0.15*csl,-.03*csl,-.017*csl,0,0,0,0)
-      ticnum=7-min(3,2*max(nrows-1,ncolumns-1))
+c      ticnum=7-min(3,2*max(nrows-1,ncolumns-1))
       call axregion(0.1+(nframe/nrows)*(0.88/ncolumns),
      $	  0.1+(nframe/nrows +(1.-0.22*xsp))*(0.88/ncolumns),
      $	  ytop*(0.1+0.9*(nrows-nframe+(nframe/nrows)*nrows-1)/nrows),

@@ -21,17 +21,21 @@ c Injection from a shifted maxwellian at infinity
       end
 c***********************************************************************
       subroutine injinit(icolntype,bcr)
-
       integer bcr
-
       if(bcr.ne.0) then
 c Injection from a maxwellian at boundary?
          call maxinjinit(bcr)
       elseif(icolntype.eq.1.or.icolntype.eq.5) then
 c Injection from fv distribution at the boundary.
          call fvinjinit(icolntype)
+c         call fvinittest()
       elseif(icolntype.eq.2.or.icolntype.eq.6)then
 c Injection from a general gyrotropic distribution at infinity
+c Required to initialize the fv distributions anyway, else doesn't work
+c correctly at first.
+c         call fvinjinit(icolntype)
+c         call fvinittest()
+c Seems to be uneutral. Fixed ogeninjinit. Fixed.
          call ogeninjinit(icolntype)
       else
 c Injection from a shifted maxwellian at infinity
@@ -381,6 +385,7 @@ c**********************************************************************
          r=c/(2.*s)
          alcos=-(sqrt(1.+c-s**2)-(s-r)*r)/(1+r**2)
       endif
+      if(.not.abs(alcos).le.1.e20)write(*,*)'alcos error',s,c,alcos
       end
 c**********************************************************************
       real function alsin(s,c)
@@ -392,6 +397,7 @@ c**********************************************************************
          r=c/(2.*s)
          alsin=(sqrt(1.+c-s**2)*r+(s-r))/(1+r**2)
       endif
+      if(.not.abs(alsin).le.1.e20)write(*,*)'alsin error',s,c,alsin
       end
 c**********************************************************************
 c**********************************************************************
@@ -417,6 +423,7 @@ c This choice ensures iqsteps is large enough to accommodate a profile
 c read in for processing with orbitint, but might not be the best choice for
 c regular use.
 c      parameter (iqsteps=nrsize+1)
+      parameter (eup=1.e-12)
       parameter (iqsteps=100+1)
       real phibye(iqsteps),phiei(iqsteps)
       real qp(iqsteps),pp(iqsteps)
@@ -495,10 +502,10 @@ c     not be called.
 c End of initialization section.
 c Do the integration for the orbit.
       ierr=0
-      b2i=1./b2
-      p2i2=2./p2
+      b2i=1./(b2+eup)
+      p2i2=2./(p2+eup)
       sa=b2i - qp(1)**2 - p2i2*(averein*phibye(1)-adeficit*phiei(1))
-      d1=(1./sqrt(sa))
+      d1=1./(sqrt(sa)+eup)
 c Inverse square case.
 c      d1=1./sqrt(b2i)
       alpha=0.
@@ -509,7 +516,7 @@ c Trapezoidal rule.
 c Inverse square case.
 c         sa=b2i - qp(i)**2 - p2i2*extpot(qp(i))
          if(sa .le. 0.) goto 2
-         d1=(1./sqrt(sa))
+         d1=1./(sqrt(sa)+eup)
          alpha=alpha+(qp(i)-qp(i-1))*(d1+d2)*.5
       enddo
 c      write(*,*)'alpha=',alpha

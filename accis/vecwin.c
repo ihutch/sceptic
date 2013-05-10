@@ -1,14 +1,15 @@
+/* Windows Driver for accis graphics routines.
+Now up to date except for the file-only code  Mar 05*/
+int accis_driver_(){return 2;}
+
 #include <windows.h>
 #include <stdio.h>
 
 #define accis_path_max 4000
-/*  typedef struct {  */
-/*    int x; */
-/*    int y; */
-/*  } XPoint; */
-/*  XPoint accis_path[accis_path_max]; */
-  POINT accis_path[accis_path_max];
+POINT accis_path[accis_path_max];
 int accis_pathlen=0;
+/* Until svga is called, the default is that there is no display */
+int accis_nodisplay=1;
 
 #define accis_maxPixels 16
 COLORREF accis_pixels[accis_maxPixels]=
@@ -102,6 +103,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 	  Makes the program hang. The Default is also bad so act the same.*/
 /*       DestroyWindow(hwnd); */
 /*       break; */
+   case WM_CHAR: /* Recognize keyboard events as proceeding */
    case WM_DESTROY:
    case WM_LBUTTONDOWN: /* Click in window to exit from this message loop. */
      DeleteDC(hdcMemory);
@@ -146,7 +148,7 @@ void AccisRenewBitmap(HWND hwnd){
      /*This does not seem to be necessary once we invalidate */
 /*         WndProc(hwnd,WM_PAINT,wParam,lParam);  */
 }
-
+/**********************************************************************/
 /* svga does the job of WinMain setting up the window etc.*/
 
 int svga_(int *scrxpix, int *scrypix, int *vmode, int *ncolor)
@@ -167,6 +169,7 @@ int svga_(int *scrxpix, int *scrypix, int *vmode, int *ncolor)
   /*nCmdShow tells how to open window */
   int nCmdShow=SW_SHOWNORMAL;
 
+  accis_nodisplay=0;
   g_hInst=GetModuleHandle(NULL);
 /*    printf("Entered svga\n"); */
   if(second == 0){
@@ -206,7 +209,7 @@ int svga_(int *scrxpix, int *scrypix, int *vmode, int *ncolor)
 	return 0;
       }
     
-/*      printf("About to show window\n"); */
+    /*      printf("About to show window\n"); */
     ShowWindow(hwnd, nCmdShow);
 /*      printf("About to update window\n"); */
     UpdateWindow(hwnd);
@@ -298,50 +301,7 @@ int vecfill_()
   Polygon(hdcMemory,accis_path,accis_pathlen+1);
   return 0;
 }
-/* ********************************************************************* 
-int main()
-{
-  long thecolor=0;
-  int scrxpix, scrypix, vmode, ncolor;
-  long x,y,pen;
-  int i,j;
-  svga_(&scrxpix,&scrypix, &vmode, &ncolor);
-  printf("Values returned from svga:\n %d %d %d %d\n", scrxpix, scrypix, vmode, ncolor); 
-  x=0;y=100;
-  for (i=1;i<16;i++){
-    y=y+5;
-    thecolor=i;
-    scolor_(&thecolor);
-    for (j=1;j<6;j++){
-      pen=0;
-      x=0;
-      vec_(&x,&y,&pen);
-      x=100;pen=1;
-      vec_(&x,&y,&pen);
-      y++;
-    }
-  }
-  txtmode_();
-  return 0;
-}
-*/
-/* Notes.
-   It is something to do with beginpaint, endpaint being omitted. Looks
-   as if one can't do that. Seems as if you have to do beginpaint anew
-   every time otherwise it paints in the wrong place.
-
-   11 Jul 2001
-   The problem with missing parts of the plot occurs if we do a click in
-   window for a continuation when the window is partly hidden. This must
-   be a timing problem. There must be some kind of thread that is not 
-   completing before the bitblt happens.
-
-   This now seems to be fixed by putting all blts into the WM_PAINT and
-   making sure it gets called by the invalidaterect.
-
-   It seems that we need to study Display Device Contexts and figure out how
-   to use a Privaate Device Context that retains its graphic objects.
- */
+/* ********************************************************************* */
 
 /* Rotation code*/
 float xeye,yeye,zeye;
@@ -361,24 +321,30 @@ void accis_butdown(lMsg)
   butdown_(&xeye0,&yeye0,&zeye0);
   xeye=xeye0; yeye=yeye0; zeye=zeye0;
   }
-
+/**********************************************************************/
 int cmpmessage(UINT message)
 {
    GetMessage(&Msg, hwnd, 0, 0);
    if(Msg.message == message){   return 1;   }else{  return 0;   }
 }
-
+/**********************************************************************/
 int eye3d_(value)
      int *value;
 {
   float xmoved,ymoved;
-    while(!cmpmessage(WM_LBUTTONDOWN )){
-      TranslateMessage(&Msg);
-      DispatchMessage(&Msg);
-      }
+  if(accis_nodisplay){ *value=0; return 0; }
+  
+  GetMessage(&Msg,hwnd,0,0);
+  while( (Msg.message != WM_LBUTTONDOWN) && (Msg.message != WM_KEYDOWN)){
+    /*  while(!cmpmessage(WM_LBUTTONDOWN)){*/
+    TranslateMessage(&Msg);
+    DispatchMessage(&Msg);
+    GetMessage(&Msg,hwnd,0,0);
+  }
 /*      printf("Got first button press...");  */
-  accis_butdown(Msg);
-  while(!cmpmessage(WM_LBUTTONUP)){
+  if(Msg.message == WM_LBUTTONDOWN){
+    accis_butdown(Msg);
+    while(!cmpmessage(WM_LBUTTONUP)){
       /* If we started moving without setting eye nonzero, set it first*/
       if(xeye0==0. && yeye0==0. && zeye0==0.) accis_butdown(Msg); 
       xmoved=LOWORD(Msg.lParam)-accis_x0;
@@ -390,11 +356,147 @@ int eye3d_(value)
 	PostMessage(hwnd,WM_LBUTTONDOWN,0,0);
 	break; */
       }
-  }
+    }
 /*      printf("Exited eye3d loop\n");  */
-  butup_(&xeye,&yeye,&zeye);
-  *value=0;
-  if(  !( xeye==xeye0 && yeye==yeye0 && zeye==zeye0) ) *value=1;
-  return 0;
+    butup_(&xeye,&yeye,&zeye);
+    *value=0;
+    if(  !( xeye==xeye0 && yeye==yeye0 && zeye==zeye0) ) *value=1;
+    return 0;
+  }else{/* KeyPress event.*/
+    printf("Msg.wParam=keycode=%d\n",Msg.wParam);
+    return Msg.wParam;
+  }
 }
 /* 10 May 2003 got rotation working.*/
+/*******************************************************************/
+
+/* 256 color gradient globals */
+/* Use only 240 colors so that 16 are left for the 16 colors and you can
+   make gifs out of the resultant without a problem.*/
+#define a_gradPixno 240
+
+COLORREF a_gradPix[a_gradPixno];
+
+unsigned a_gradcurrent;
+unsigned a_grad_inited=0;
+unsigned a_gradred[a_gradPixno];
+unsigned a_gradgreen[a_gradPixno];
+unsigned a_gradblue[a_gradPixno];
+
+/* ******************************************************************** */
+/* Routines for using 240 color gradients in preference to 16 fixed colors.*/
+/************** Setup The Gradient **********************/
+int accisgradinit_(r1,g1,b1,r2,g2,b2)
+     long *r1,*g1,*b1,*r2,*g2,*b2;
+     /* On entry RGB are specified in the range 0 to 65535 */
+     /* But we divide each by 256 to get down to a 256 color scale,
+	which seems to be the easiest windows default. */
+{
+  int i,j;
+  for (i=0;i<a_gradPixno;i++){
+    j=(i* *r2+(a_gradPixno-1-i)* *r1)/(a_gradPixno-1.) ;
+    if(j<0)j=0; else if(j>65535)j=65535;
+    a_gradred[i]=j;
+    j=(i* *g2+(a_gradPixno-1-i)* *g1)/(a_gradPixno-1.) ;
+    if(j<0)j=0; else if(j>65535)j=65535;
+    a_gradgreen[i]=j;
+    j=(i* *b2+(a_gradPixno-1-i)* *b1)/(a_gradPixno-1.) ;
+    if(j<0)j=0; else if(j>65535)j=65535;
+    a_gradblue[i]=j;
+    a_gradPix[i]=
+      a_gradred[i]/256+256*(a_gradgreen[i]/256 +256*(a_gradblue[i]/256));
+    /*fprintf(stderr,"Gradinit: a_gradPix(%d)= %d\n",i,a_gradPix[i]);*/
+  }
+  a_grad_inited=2;
+  return 0;
+}
+/************** Setup Default Gradient Grey-scale **********************/
+int accisgraddef_()
+{
+  unsigned long i,j;
+     /* RGB are specified in the range 0 to 65535 */
+  for (i=0;i<a_gradPixno;i++){
+    j=(i* 65535)/(a_gradPixno-1.) ;
+    /*        a_gradPix[i]=white*i/(a_gradPixno-1.); */
+    a_gradred[i]=j;
+    a_gradgreen[i]=j;
+    a_gradblue[i]=j;
+    a_gradPix[i]=
+      a_gradred[i]/256+256*(a_gradgreen[i]/256 +256*(a_gradblue[i]/256));
+    /*    printf("red,green,blue: %d, %d, %d\n",
+	   a_gradred[i],a_gradgreen[i],a_gradblue[i]);
+	   printf("a_gradPix[%d]=%6x\n",i,a_gradPix[i]);  */
+  }
+  a_grad_inited=1;
+  return 0;
+}
+
+/**********************************************************************/
+int acgradcolor_(long *li)
+{
+  if(!a_grad_inited)accisgraddef_();
+  if((*li < a_gradPixno) && (*li >= 0)){
+    DeleteObject(accis_pen);
+    accis_pen=CreatePen(PS_SOLID,0,a_gradPix[(int)(*li)]);
+    DeleteObject(accis_brush);
+    accis_brush=CreateSolidBrush(a_gradPix[(int)(*li)]);
+    SelectObject(hdcWindow,accis_pen);
+    SelectObject(hdcMemory,accis_pen);
+    SelectObject(hdcWindow,accis_brush);
+    SelectObject(hdcMemory,accis_brush);
+    a_gradcurrent=*li;
+    return a_gradPix[(int)(*li)];
+  }else{
+    a_gradcurrent=a_gradPixno;
+    return 0;
+  }
+}
+/**********************************************************************/
+int getrgbcolor_(long *i, long *ired, long *igreen, long *iblue)
+{ 
+  int ic;
+  /*  ic=a_gradcurrent;
+   *i=(long) ic; This would probably be more rational but ...*/
+  ic=*i;
+  if(ic >= a_gradPixno) ic=a_gradPixno-1;
+  if(ic < 0) ic=0;
+  *ired=a_gradred[ic];
+  *igreen=a_gradgreen[ic];
+  *iblue=a_gradblue[ic];
+  return 0;
+}
+/**********************************************************************/
+/* Subroutine for dummy svga call when using no display */ 
+int svganodisplay_(int *scrxpix, int *scrypix, int *vmode, int *ncolor)
+{
+  /*Now nodisplay=1 until svga is called. Still, this setting allows us to
+    call this routine after already having plotted something. */
+  accis_nodisplay=1;
+  *scrxpix=640;
+  *scrypix=480;
+  *ncolor=15;
+  *vmode=0;
+  return 0;
+}
+/***********************************************************************/
+int accisflush_()
+{
+  return 0;
+}
+/*************************************************************************/
+/* G77 fortran callable usleep */
+void usleep_(usecs)
+     long *usecs;
+{
+  Sleep(  (unsigned long) *usecs/1000);
+}
+/************************************************************************/
+/* Switch to drawing to the back buffer only */
+void glback_()
+{
+}
+/************************************************************************/
+/* Bring back buffer to front and return to writing there.*/
+void glfront_()
+{
+}

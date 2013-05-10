@@ -263,9 +263,11 @@ c     $     'Flux density (nondimensional)')
 
       call pltend()
 c      write(*,*)(cost(i),flux(i),i=1,nthhere)
-      return
+c      return
+      call exit()
  105  write(*,*)'Error opening file:',filename
-      return
+c      return
+      call exit()
       end
 c*************************************************************
       subroutine freeflight(vmax,Ti,isw)

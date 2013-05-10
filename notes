@@ -441,3 +441,301 @@ values as before for rho.
 
 Done all that and seem to have it working together with an updated
 postproc that puts the line on to the -o logarithmic plots.
+
+12 Oct 11
+Forked git repository from the cvs checkout that Christian did.
+https://github.com/ihutch/sceptic Cloned to local. 
+
+4 Jan 13 
+Trying to use for collisional cases. Some improvement of code to avoid
+accis bugs/issues, and to give more info about collisional momentum.
+
+There's an occasional segfault in ogenreinject. Seems to be caused by
+invtfunc getting a bad result. The traceback version runs a lot slower.
+It is caused by a NAN in the value of xp(3).
+Seems to have been caused by an error in preventing overflow when
+dividing by u**2 to get chium2. Actually no, it was in alphaint,
+a divide by zero when b2 was zero. There were several places where
+divide by zeros were possibly occurring. I think I've got them all.
+
+5 Jan 13
+Killed the segfaults. Implemented proper distribution initialization 
+for constant nu. Fiddled with bug in velocity distribution diagnostics
+for small number of time steps. 
+
+Had to add scaling by rhoinf into the force output. 
+
+7 Jan 13
+Found that ierad, which is set by the -er switch is literally only the 
+place where the q, E-force, electron pressure force, and collision force
+are calculated. The particle force is only ever calculated at the 
+probe and the outer boundary. That means it is difficult to explore the
+balance of forces over different radii, in situations where the outer
+and inner force totals do not agree. (E.g. now with collisions.) 
+
+The particle momentum force is calculated in advancing.f 
+
+Converted the particle momentum data into an array. zmomprobe and zmout
+are equivalences into the array (the first two elements). The idea is
+that we can then use higher elements in the array to collect particle
+data at other radii, and we can convert the various reduces and writes
+to be array-oriented, at leisure.
+
+Introduced the array for storing force data. Modified the code to refer
+to it. Seems to be working and outputing correctly except I haven't 
+yet implemented the padvnc tracking of ion momentum force and collision
+force.
+
+Finished implementation of multiple measurement spheres for the force.
+They all output in the .frc file, which I reorganized somewhat so that
+(an updated) plottraces can understand and plot it.
+
+There's an error. The particle force for the various intermediate
+radii does not show a trend compatible with the trend in E-force. As a
+result those radii don't agree with the others even though (for
+collisionless cases) the inner and outer do agree. It appears that we
+have an error in evaluation of the partforce zmparts on those intermediate
+radii, but I can't see why. Seems to be a bug in the intrinsic sign function.
+c This longer version was found to give correct results when
+                  if(rp.gt.r(izmrad(kk)))then
+                     zmparts(kk)=zmparts(kk)+xp(6,i)
+                  else
+                     zmparts(kk)=zmparts(kk)-xp(6,i)
+                  endif
+c This version gave incorrect!
+c                  zmparts(kk)=zmparts(kk) +sign(xp(6,i),(rp
+c     $                 -r(izmrad(kk))))
+Yes that's a misuse of sign function. My mistake.
+
+With this corrected we can see very well the issues with force
+measured at different radii, with collisions -kt2 -k0.1. For -l10 -x10
+the results are quite uniform. But with -x20 there is substantial fall
+off at larger radii. Presumably this is something to do with
+decreasing statistics and increasing sensitivity.
+
+At least we have something to show from a difficult day caused by the
+sign mistake. We can now document clearly force measurement
+convergence. It is not obviously a time convergence problem. However,
+doubling the particle count and also running an mpiexec -n 2 does not
+seem to substantially assist the convergence. Ion force still falls
+off at larger radii, pretty much as badly, and is not made up by other
+effects. This bigger calculation works to larger radius if the duration
+is increased (-s200 -d.1) so actually it is somewhat a time problem. 
+This is a -t1 case. Increasing to -s500 gives good convergence out to
+r=16, but the zmout value is 30% low. Extending to -s1000, the zmout
+is still low. Closer look at the outer boundary shows for -s500
+r=16.12 66.60, r=18.06 64.05, r=19.22 61.57, r=20 48.34. The whole of the
+inner region has 66.something. The inner 3/4 is consistent. There are 
+inconsistencies in the outer 20% of radius.
+
+Case with -t.01 (with or without -vn0.) gives 183-186 force at -s500
+consistent out to 16, but falling to 173 at r=20.
+Putting -p-2. we get 75-77, good to r=19.
+With -kt1 instead of -kt2 we get 72-73 good to r=19.
+
+There's an mpi error at the end of some runs. But not short ones so it is
+hard to debug.
+
+-x25 cases give 73-74. If run till -s1000, 70 at r=23. 
+Seems that -x25 is probably big enough for -l10. Precision is not great
+on these two-processor runs. 
+
+An -x40 case gives:
+ Radius Charge       E-field     Electrons       Ions     Coll       Total
+ 1.00   -28.42466     0.58270     0.00000    13.54982     0.00000    71.81970
+40.00    -3.47500     0.00177   -58.29151  -349.34293   446.99393    39.53650
+ 1.79   -27.94823     0.41459    -0.11792    27.70329     2.60318    71.64748
+ 8.48   -20.30312     0.04624    -9.08029    57.13847    19.84727    72.52962
+12.42   -15.97495     0.01746   -15.30077    60.09633    27.40690    73.94816
+20.30   -11.06252     0.00626   -23.06114    35.16167    53.51323    66.24004
+28.18   -10.35268     0.00402   -29.36114   -35.07125   123.68878    59.65871
+36.06   -11.02847     0.00311   -45.64482  -171.01625   283.00934    66.65968
+Which is that the force in the inner regions is the same.
+
+-k.001 gives force of 60. which _rises_ slightly towards the outside.
+
+15 Jan 13
+mpi crash at end occurs for this setting which runs quickly:
+
+mpiexec -n 2 sceptic -nr30 -nt5 -ni1000 -x20. -v1. -l10. -d.1 -c5 -t.01 -vn0. -p-2. -s1000 -er3 -er10 -er20 -er25 -er28 -kt2 -k.01 -f -g
+b
+It goes away if the number of measurement radii is reduced. Or if the number of
+steps is reduced below ~400. But not by commenting out 
+c            call MPI_REDUCE(zmparts(k),zmom(i,partz,k),1,MPI_REAL
+c     $           ,MPI_SUM,0,MPI_COMM_WORLD,ierr)
+or even the partreduce call in its entirety. Or even sumreduce everywhere.
+
+It turns out that the MPI problem arises by the statement:
+         call output(dt,damplen,i-1,fave,icolntype,colnwt)
+which writes the output file.
+
+The problem seems to come from call outforce.
+
+FOUND the problem. Exceeding array bounds in
+      real zmn(nstepmax,5,2) now should be: 
+      real zmn(nstepmax,5,nrfrcmax)
+
+Fixed the mpi corruption.
+
+18 Jan 2013
+
+Fixed error in initiation of distribution omitted vneutral.
+Fixed some bugs in fvinjecttest.f. It seems to be giving reasonable
+injections consistent with vd and vneutral.
+Fixed esforce radial Reset.
+However, long runs with vneutral=vd show evidence of reverting to 
+the drift distribution, in the time it takes for the particles to 
+be reinjected. Therefore reinjection is actually not being correctly
+calculated in sceptic, even though it is in fvreinjecttest.
+
+Found that it was necessary to use fvinjinit before ogeninjinit
+otherwise something was not right. But I'm not sure why.
+It is because fvinjinit sets uneutral. Adding that to ogeninjinit
+fixes the problem. 
+
+19 Jan 2013
+Removed bad match messages. Too annoying.
+Fixed pdiag, was unable to manage directory path in filename.
+
+22 Jan 2013
+Work around the Impossible vztr bug. Really f1invtfunc probably 
+ought to be fixed instead.
+
+2 Feb 2013
+Worked on interpth bug causing segfault. Put in some checks and also
+some preventions of divide by zero. May be fixed but very hard to 
+test because only very rare error.
+
+4 Feb 2013
+Replaced accis with the more modern version from coptic distribution.
+Changed the makefile to the new approach used in coptic.
+Remove Makefile, MFSconfigure. Adjust tools makefile.
+
+Problem with plotting once it will compile. This is a problem with 
+the vecglx driver. It doesn't work in the way that sceptic wants it to.
+For now, this can be fixed by forcing the vecx driver in the makefile.
+
+Added
+  glEndList(); /* Close the drawing list started in svga.*/
+  glCallList(1);
+to accisrefresh. 
+This prevents the hang. But it does not seem actually to display the
+output till the program stops. Perhaps this is because the gl threads
+don't get any time till then. Need EXPOSE_ACTION. That fixes it.
+
+Tweaks to the tools/makefile to make work reliably.
+Finally got the ability to compile on loki (using g77 etc).
+Try with the pathscale compiler. I get back to the old error that
+dtin appears to be a nan after the first step. Found the problem
+in the setting of bdtnow. Somehow the result of the max function
+is different in pathscale than in gnu. 
+
+2 May 13
+
+Thoughts about more comprehensive distribution diagnostics. 
+Current distribution diagnostics in advancing are totally ad hoc.
+Actually the sensible place to put them would really be in 
+chargetomesh. We don't need to do what advancing does in specifically
+calculating the theta position. The theta and r mesh positions are 
+calculated fresh in ptomesh. At that stage the most natural thing
+would be to update a distribution diagnostic appropriately. 
+A distribution diagnostic that was vx, vy, vz would avoid having
+to take square-roots and would therefore presumably be cheaper even
+if done for the entire particle population. However, with 60 velocity
+bins, which is what is currently used, there would be 180 times the 
+mesh size, if we collected data over the entire mesh. Since
+nrsize=200, nthsize=201, we would then be dealing with a diagnostic 
+that would be 180x200x201 = 8M reals, 32M bytes. It's not that big
+but there might be a communication bottleneck. Currently there are
+16 x 200x201 variables. So it would be an increase of about 10 times
+in storage, 8 variables are reduced, so 20 times in communication.
+
+If a concatenation of cells by 4 in r and theta were adopted, 
+we'd reduce the number by 16, so it would be unimportant extra work
+at that size. One way to approach this whole question is to have
+a specified size of distribution diagnostic data and scale the 
+cell concatenation to fit into it. There would also be a necessity for
+time averaging.
+
+Discovered a memory leak or gradual expansion in the GL graphics. 
+This is prevented by turning off the graphics. 
+However a more permanent fix is to make VECX=vecx the default,
+because the X graphics driver does not have that problem. One
+suspects that the issue is with the GL command tracking somehow.
+
+Including 
+      integer nrdist,ntdist,nvdist
+      parameter (nrdist=200,ntdist=200,nvdist=60)
+      real fvdist(nvdist,3,nrdist,ntdist)
+
+Makes virtual 141MB versus 113M without. Difference is 28MB, as estimated.
+The storage cost is not the issue. It's the communications.
+Cutting nobsmax to 50 from 100 reduces to 100M. 
+Then cutting nstepmax to 5001 from 10001 reduces to 89M.
+Sort of indicates that there's about 30M associated with nstepmax.
+Cutting nrsize in half hardly reduces the virtual. Surprising.
+
+Over a 1GB network, 30MB is nominally 1/30 s, which is short compared
+with a timestep. However, the reduce is going to be quite a few of these
+communications, so it might not be totally negligible. There's quite
+a risk that the large factor of increase in communication will hurt.
+
+Included the above with a REDUCE on t400 gives time 13.728 versus 11.3
+sec for a 20 step test. Thus there's a 20% penalty for communicating
+the whole thing. The penalty per step is about 0.1s. Not completely 
+negligible, but not too bad. Of course this is not a network
+communication. 
+
+At the moment the averaging steps appears to be set by
+      nsamax=min(39,maxsteps/10)+1
+normally to 40. Therefore the averaging is not over all that many steps.
+We might want to do a separate averaging process for the distribution. 
+
+How much benefit do we really get from using all the steps? Maybe not
+the number of steps averaged over, because there's some dependency,
+but perhaps a substantial fraction of it. 
+
+Did a test with the reduce of fvdist with dimensions as above on loki
+#PBS -l nodes=8:ppn=8
+50 steps nr=50 nt=30 ni=500000 and compare without the reduce.
+
+Times taken 28s without 50s with reduce. Thus, on loki, the communications
+for the full array are significant but not a dominant effect, even for 
+this rather quick case: 
+time mpiexec /home/hutch/src/sceptic/scepticmpi.orig -nr50 -nt30 -ni500000 -x$X -v$V -l$LAMBDA -d.1 -c40 -t.01 -vn0. -p-2 --sp -s50 -e5,1 -er3 -er5 -er10 -er20 -er40 -er80 -kt1 -k$NU --subcyc --bcphi4 -f -g
+
+In absolute terms, the communication is costing about 0.5s per step for 64
+processes that's not negligible.
+
+Realized that we don't need to reduce until the end, so communication becomes
+irrelevant. We can afford the whole array.
+
+4 May 13
+
+Implementation of more comprehensive distribution diagnostics.
+Rationalization of piccom, getting rid of piccompost.
+
+vdist is not really working yet. The density is not correct and nothing
+else is debugged.
+
+9 May 13
+
+vdist is working.
+
+Distribution-saving version of sceptic seems to go slower with two-process
+than with one process: 
+
+     	  One process	Two processes
+100x100
+Non-saving   9.69	9.93 s
+Saving	    12.85	18.81 s.
+20x20
+Non-saving   8.13	8.82
+Saving	     9.74	10.66
+
+200x200	     
+Non-saving  18.67	15.1
+Saving	    30.37	39.3
+
+Strange. I suppose it might be a cache problem. Certainly there will be
+a lot of random accesses to the memory. I'll bet that's it.

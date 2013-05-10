@@ -12,8 +12,6 @@ c     If rshield is not an integer, problem with the MPI routines
 c     sor_comm is the subset of MPI_COMM_WORLD communicator used for
 c     the bloc sor
       integer sor_comm
-c Correct the type of temporary variable (IHH). Better use initial letter.
-      integer c
 
 c Chebychev acceleration. Wild guess at the Jacoby convergence radius.
 

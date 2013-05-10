@@ -6,7 +6,7 @@ c Position and velocity of reinjection.
 c Potential of reinjection
 c      real phi
 c Number of launches needed to get this reinjection
-      integer ilaunch
+c      integer ilaunch
 c Diagnostic storage etc. Here we are assuming a 3-D problem which is
 c required by this reinjection scheme. 2-D position on reinjection
 c surface.      
@@ -15,7 +15,7 @@ c surface.
       include 'reincom.f'
       logical lfirst
       data lfirst/.true./
-      save lfirst
+      save lfirst, dcth,dpsi,vrange,dvf
 c----------------------------
 c Initializations:
       if(lfirst)then
