@@ -206,4 +206,3 @@ c     Positions and velocities of injected particles (6-d phase-space)
       real mcrxpinjd(ndim,npartmax)
 c     Mcr common block
       common /mcr/mcrninjd,mcrxpinjd
-
