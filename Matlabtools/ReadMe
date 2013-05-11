@@ -1,0 +1,5 @@
+These matlab tools do not keep pace with the changes to the 
+SCEPTIC code therefore they are unlikely to work to process
+output from current versions of SCEPTIC. However, they are 
+retained here as skeletons of what might be made to work on the
+output if adjustments were made to bring them up to date.

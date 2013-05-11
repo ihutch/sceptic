@@ -147,9 +147,11 @@ $(ACCISLIB) : ./accis/*.f
 orbitint : orbitint.f coulflux.o $(OBJECTS) $(ACCISLIB) makefile
 	$(G77) $(COMPILE-SWITCHES) -o orbitint orbitint.f $(OBJECTS) coulflux.o $(LIBRARIES)
 
-tools : makefile compiler sceptic
+tools : makefile compiler libsceptic.a
 	make -C tools clean
 	make -C tools
+
+tools/postproc : makefile compiler libsceptic.a
 
 coulflux.o : tools/coulflux.f
 	$(G77) -c $(COMPILE-SWITCHES) tools/coulflux.f

@@ -1,6 +1,6 @@
       include 'piccom.f'
       include 'distcom.f'
-      character*(35) filename,string
+      character*(100) filename,string
 
       logical lgraph,lphip,ldens,ltempc,lconline,larrows
       logical laspect

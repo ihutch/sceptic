@@ -292,6 +292,7 @@ c**********************************************************************
       if(nvd.ne.nvdist.or.nst.ne.5.or.
      $     nrused.gt.nrsize.or.nthused.gt.nthsize)then 
          write(*,*)'incorrect size parameters:',nvd,nst,nrused,nthused
+         stop
       else
          if((isw-(isw/2)*2).eq.1)then
             write(*,*)'reading fvrtdist, parameters:',nvd,nst,nrused

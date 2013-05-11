@@ -61,7 +61,7 @@ LIBRARIES=-L../ -lsceptic $(ACCISLIB)
 % : %.F ../libsceptic.a
 	$(G77)  -o $* $(COMPILE-SWITCHES) $*.F  $(LIBRARIES)
 
-all : ../accis/libaccisX.a postprocB postproc parrot fluxVp newsumplot fcol 
+all : ../accis/libaccisX.a postprocB postproc parrot fluxVp newsumplot fcol vdist pdiag
 
 postproc : postproc.f piccom.f ../accis/libaccisX.a coulflux.f makefile
 	$(G77) $(COMPILE-SWITCHES) -g  -o postproc postproc.f coulflux.f $(LIBRARIES)
@@ -87,6 +87,6 @@ fcol : fcol.f kennedyallen.o makefile
 clean :
 
 	rm -f *.o
-	rm -f postproc postprocB parrot fluxVp newsumplot fcol phioutplot rhopicplot pdiag
+	rm -f postproc postprocB parrot fluxVp newsumplot fcol phioutplot rhopicplot pdiag vdist
 	rm -f *.dat *.frc
 	rm -f *.ps *.txt
