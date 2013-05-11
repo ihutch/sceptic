@@ -207,7 +207,7 @@ clean :
 
 cleanall :
 	make clean
-	rm -f sceptic scepticmpi fvinjecttest fvinittest
+	rm -f sceptic scepticmpi sceptichdf scepticmpihdf fvinjecttest fvinittest
 	rm -f *.dat *.dst
 	rm -f *.frc
 	rm -f compiler
@@ -217,6 +217,28 @@ ftnchek :
 
 help :
 	@echo 'To set compiler manually do: echo "<compilercommand>" >compiler'
+
+#######################################################################
+# Allow optional hdf-enabled version if have libraries
+
+# To figure out what to use for the hdf includes and libraries
+# run the h5fc script with -show (usr/local/hdf5/bin/h5fc)
+HDFINCLUDE = -I/usr/local/hdf5/include
+HDFLIBRARIES = -L/usr/local/hdf5/lib -lhdf5hl_fortran -lhdf5_hl -lhdf5_fortran -lhdf5 -lz -lm -Wl,-rpath -Wl,/usr/local/hdf5/lib
+
+#Defaults compiler (mpif90 compiler)
+ifeq ("$(G90)","")
+	G90=mpif90
+endif
+
+outputhdf.o : outputhdf.f piccom.f colncom.f
+	$(G90) -c -Wall -O2 -I. $(HDFINCLUDE) outputhdf.f
+
+sceptichdf : sceptic.F  $(COMMONS) $(ACCISLIB) $(OBJECTS) outputhdf.o makefile
+	$(G77) $(COMPILE-SWITCHES) -DHDF outputhdf.o $(HDFINCLUDE) $(HDFLIBRARIES) ${NGW} -o sceptichdf sceptic.F $(LIBRARIES)
+
+scepticmpihdf : sceptic.F  $(COMMONS) $(ACCISLIB) $(OBJECTS) $(MPIOBJECTS) outputhdf.o makefile
+	$(G77) $(MPICOMPILE-SWITCHES) -DHDF outputhdf.o $(HDFINCLUDE) $(HDFLIBRARIES) ${NGW} -o scepticmpihdf sceptic.F $(LIBRARIES)
 
 #######################################################################
 #pattern rules need to be at end not to override specific rules
