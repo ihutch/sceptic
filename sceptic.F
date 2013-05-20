@@ -1062,7 +1062,7 @@ c         write(*,*)'Rhoinf=',rhoinf
 c Normalize by number of steps accumulated etc.
          do it=1,nth
             prefac=(nthused-1.)/(nfvdist*rhoinf)
-            if(it.eq.1.or.it.eq.nth)prefac=2.*prefac+1.e-5
+            if(it.eq.1.or.it.eq.nth)prefac=2.*prefac
             do ir=0,nrsize
                fac=prefac*volinv(ir)
                rhodist(ir,it)=rhodist(ir,it)*fac
