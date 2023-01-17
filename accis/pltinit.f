@@ -1,3 +1,7 @@
+c In mingw the block data do not seem to be included by the expedient
+c of doing an external. Instead they seem to need specific inclusion.
+      include 'initiald.f'
+
       subroutine accisinit()
       call pltinit(0.,1.,0.,1.)
       end
@@ -10,7 +14,7 @@ c Initialize the plot
 c Ensure loading of block data program.
       external initiald
 
-c	write(*,*)' Entering pltinit with nframe,pfsw',nframe,pfsw
+c       write(*,*)' Entering pltinit with nframe,pfsw',nframe,pfsw
       if(nframe.eq.0)then
 c      First frame only.
 c Update the plot-file state only here to avoid file-writing corruption.
@@ -24,38 +28,48 @@ c  Initialize the screen.
 c         write(*,*)'svga ncolor',ncolor,vmode,scrxpix,scrypix
 c Normal to screen-y scaling factor: just scrxpix for square pixels,
 c GKS scheme uses scrypix=0, n2sy,yoverx already set so omits this.
-	 if(scrypix .gt. 1)then
+         if(scrypix .gt. 1)then
 c Attempt to avoid g95 incompatibility.
-	    n2sy=float(int(scrxpix))
-	    yoverx=float(int(scrypix))/n2sy
-	 endif
-	 if(pfsw .ne. 0) then
+            n2sy=float(int(scrxpix))
+            yoverx=float(int(scrypix))/n2sy
+         endif
+         if(pfsw .ne. 0) then
 c     Initialize buffer and open file on unit 12.
-	    pfilno=pfilno+1
-	    write(str1(5:8),'(i4.4)')pfilno
-	    str1(1:4)='plot'
-	    if(abs(pfsw).eq.1)then
-	       str1(9:11)='.hp'
-	    else
-	       str1(9:11)='.ps'
-	    endif
+            pfilno=pfilno+1
+            if(pfilno.lt.10000)then
+               write(str1(5:8),'(i4.4)')pfilno
+               str1(1:4)='plot'
+            else ! For large number of plots drop the 't'.
+               write(str1(4:8),'(i5.5)')pfilno
+               str1(1:3)='plo'
+            endif
+            if(abs(pfsw).eq.1)then
+               str1(9:11)='.hp'
+               call inib(12,str1(1:11))
+            elseif(abs(pfsw).eq.2 .or.abs(pfsw).eq.3)then
+               str1(9:11)='.ps'
+               call inib(12,str1(1:11))
+            elseif(abs(pfsw).eq.4.or.abs(pfsw).eq.5)then
+c pgfgraphic driver
+               str1(9:12)='.pgf'
+               call inib(13,str1(1:12))
+            endif
             psini=2
-	    call inib(12,str1(1:11))
             if(pfPS.eq.1)call PSfontinit()
-	 endif
+         endif
       endif
 
       if(nrows.ne.0.and.ncolumns.ne.0)then
-	 call mregion
+         call mregion
       endif
 
 c      write(*,*)'Calling scalewn.'
       call scalewn(wxi,wxa,wyi,wya,.false.,.false.)
       if(nrows.ne.0)then
-c	Multiple Frames Code.
-	 call vecn(crsrx,crsry,0)
-	 nframe=nframe+1
-	 if(nframe.eq.nrows*ncolumns)nframe=0
+c       Multiple Frames Code.
+         call vecn(crsrx,crsry,0)
+         nframe=nframe+1
+         if(nframe.eq.nrows*ncolumns)nframe=0
       endif
       call truncf(0.,0.,0.,0.)
 c      write(*,*)'Leaving pltinit.'
@@ -65,60 +79,76 @@ C********************************************************************
       subroutine pltend()
 c Wait for return, then switch to text mode
       include 'plotcom.h'
-c	write (*,*)' PLtend, updown=',updown
-c This is to ensure that we really complete the previous draw. 
-      call vecn(crsrx,crsry,0)
-c This gives ps errors:      ltlog=.false.
-c Instead this new approach truncates outside window.
+      if(vmode.eq.111)then
+         write(*,*)'Abnormal accis pltend called prior to pltinit.'
+         return
+      endif
+      call prtend(' ')  ! Normal case. 
+c      call prtend('(''ps2pngcrop '',a,'' 200; rm plot*.ps'')')
+      if(pfsw.ge.0)call txtmode
       call truncf(0.,0.,0.,0.)
-      if(pfsw .ne. 0)then
-	 call flushb(12)
-      endif
-      if(pfsw.ge.0) call txtmode
-      updown=99
       if(nrows.ne.0) then
-	 call ticset(0.,0.,0.,0.,0,0,0,0)
-	 nframe=0
+         call ticset(0.,0.,0.,0.,0,0,0,0)
+         nframe=0
       endif
-      return
       end
 c*********************************************************************
-      subroutine prtend()
+      subroutine prtend(cmdformat)
 c Version of pltend that does not call txtmode or wait. Just flushes
 c the print buffers etc.
+      character*(*) cmdformat
       include 'plotcom.h'
-      call vecn(crsrx,crxry,0)
-      if(pfsw.ne.0)call flushb(12)
+      call vecn(crsrx,crsry,2)
+      if(abs(pfsw).eq.4.or.abs(pfsw).eq.5) then
+         call flushb(13)
+      elseif(abs(pfsw).ne.0)then
+         call flushb(12)
+c Convert ps to png:
+c         write(*,*)'len=',len(cmdformat)
+         if(lentrim(cmdformat).gt.2) call pstoother(cmdformat)
+      endif
       updown=99
+      pfsw=pfnextsw
+      end
+c*********************************************************************
+      subroutine pltsvg
+c Alternative to pltend that converts an epsplot to svg
+      character*150 string
+      include 'plotcom.h'
+      string='(''FILE='',a8,'';epstopdf ${FILE}.ps; if pdf2svg '//
+     $     '${FILE}.pdf ${FILE}.svg; then rm ${FILE}.ps ${FILE}.pdf'//
+     $     ';fi;'')'
+      if(abs(pfsw).eq.3)then
+         call prtend(string)
+      else
+         write(*,*)'Warning: pltsvg works only on eps output files'
+      endif
+      if(pfsw.ge.0)call txtmode
+      call truncf(0.,0.,0.,0.)
+      if(nrows.ne.0) then
+         call ticset(0.,0.,0.,0.,0,0,0,0)
+         nframe=0
+      endif
       end
 c*********************************************************************
       subroutine color(li)
 c Set line color. li=15 resets. Plotting translates to dashed etc.
       integer li
       include 'plotcom.h'
-      integer wid
-      character*6 spchr
       ncolor=li
 c      write(*,*)' color: updown=',updown
-      if(pfsw.ne.0) then
-	 updown=99
-	 if(abs(pfsw).eq.2.or.abs(pfsw).eq.3) call abufwrt(' ST',3,12)
-	 if(li.lt.15 )then
-	    spchr(1:3)=' SP'
-c	    call abufwrt(' SP',3,12)
-	    if(abs(pfsw).eq.2 .or. abs(pfsw).eq.3) then
-	       call iwrite(mod(li,16),wid,spchr(4:6))
-	    else
-	       call iwrite(mod(li,8)+1,wid,spchr(4:6))
-c	       call ibufwrt(mod(li,8)+1,12)
-	    endif
-	    call abufwrt(spchr(1:3+wid)//' ',4+wid,12)
-	 else
-	    call abufwrt(' SP15 ',6,12)
-	 endif
+      if(ncolor.le.15)then
+         call npcolor(li)
+         if(pfsw.ge.0) call scolor(li)
+      else
+         call gradcolor(li-15)
       endif
-      if(pfsw.ge.0) call scolor(li)
-      return
+      end
+C********************************************************************
+      subroutine cyccolor(li,ncyc)
+c Set color li cyclically with cycle from 1 to 0<ncyc<16.
+      integer li,ncyc
+      call color(mod(li,min(max(ncyc,1),15))+1)
       end
 C********************************************************************
       subroutine multiframe(irows,icolumns,itype)
@@ -130,37 +160,37 @@ c Set multiple frame parameters.
       ncolumns=icolumns
       multype=itype
       if(nrows.eq.0) then
-	nrows=1
-	ncolumns=1
-	call mregion
- 	call axregion(0.31,0.91,0.1,0.7)
-	nrows=0
+        nrows=1
+        ncolumns=1
+        call mregion
+        call axregion(0.31,0.91,0.1,0.7)
+        nrows=0
         ticnum=6
       endif
       ticnum=7-min(3,2*max(nrows-1,ncolumns-1))
       end
 c*********************************************************************
       subroutine mregion
-c	Multiple Frames Code.
+c       Multiple Frames Code.
       real csl,xsp,ysp,ytop
       include 'plotcom.h'
       csl=1./sqrt(sqrt(float(nrows*ncolumns)))
-C	Gaps for x and y are denoted by bit 0 and 1 of multype.
+C       Gaps for x and y are denoted by bit 0 and 1 of multype.
       ysp=multype/2
       xsp=multype-ysp*2
       ytop=yoverx*0.95
 c Adjust the labeling
-      call charsize(0.015*csl,0.015*csl)
+      call charsize(chrsdef*csl,chrsdef*csl)
 c Try crunching up the y-labels for better clearance
 c was     call ticset(.015*csl,0.15*csl,-.03*csl,-.02*csl,0,0,0,0)
 c also made the xsp 0.22 instead of 0.2
       call ticset(.015*csl,0.15*csl,-.03*csl,-.017*csl,0,0,0,0)
 c      ticnum=7-min(3,2*max(nrows-1,ncolumns-1))
       call axregion(0.1+(nframe/nrows)*(0.88/ncolumns),
-     $	  0.1+(nframe/nrows +(1.-0.22*xsp))*(0.88/ncolumns),
-     $	  ytop*(0.1+0.9*(nrows-nframe+(nframe/nrows)*nrows-1)/nrows),
-     $	  ytop*(0.1+0.9*(nrows-nframe+(nframe/nrows)*nrows-0.2*ysp)
-     $	  /nrows)     )
+     $    0.1+(nframe/nrows +(1.-0.22*xsp))*(0.88/ncolumns),
+     $    ytop*(0.1+0.9*(nrows-nframe+(nframe/nrows)*nrows-1)/nrows),
+     $    ytop*(0.1+0.9*(nrows-nframe+(nframe/nrows)*nrows-0.2*ysp)
+     $    /nrows)     )
       end
 c****************************************************************************
       subroutine setframe(i)
@@ -216,26 +246,38 @@ c Shift to center it.
 c********************************************************************
       function igetcolor()
       include 'plotcom.h'
-      integer getcolor
+      integer igetcolor
       igetcolor=ncolor
       end
 c**************************************************************************
 c Return the argc and argv of the call as integer and single string.
 c This can then be used subsequently in C routines.
+c Although long command lines can exceed the length allowed and hence
+c be truncated, that does not matter since the C routines only parse
+c the command line for X11 options etc. So long as these are near 
+c the beginning, all will be found, and if not, who cares?
 c For the intel fortran compiler. Add dummy progname at start.
       subroutine cmdlineargs(argc,argv)
       integer argc
       character*(*) argv
-      character*(512) arg,cmtemp
+      parameter (icharlen=512)
+      character*(icharlen) arg,cmtemp
+!      write(*,*)len(argv)   ! Ensure the character length is being passed.
       cmtemp='progname'
       argc=iargc()+1
       do i=1,argc-1
          call getarg(i,arg)
-         argv=cmtemp(1:istrnonspace(cmtemp)+1)//arg
-         cmtemp=argv
+         j=istrnonspace(cmtemp)
+         k=lentrim(arg)
+         if(j+k.lt.icharlen)then
+            argv=cmtemp(1:j+1)//arg
+            cmtemp=argv
+         else
+            goto 1
+         endif
       enddo
 c Terminate for return to C.
-      call termchar(argv)
+ 1    call termchar(argv)
 c      write(*,*)"ifcargs got:",argv," argc=",argc
       end
 
@@ -249,3 +291,9 @@ c Return the length of the string to the last non-space character.
  2    istrnonspace=i
       end
 
+c**************************************************************************
+      subroutine setiwarn(i)
+      include 'plotcom.h'
+      integer i
+      iwarn=i
+      end

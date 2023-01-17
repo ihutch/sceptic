@@ -51,14 +51,14 @@ c Return the number of catenated characters.
       end
 c******************************************************************
 c Obtain the length of a string omitting trailing blanks.
-      function lentrim(string)
-      character*(*) string
-      do i=len(string),1,-1
-         if(string(i:i).ne.' ') goto 101
-      enddo
-      i=0
- 101  lentrim=i
-      end
+!      function lentrim(string)
+!      character*(*) string
+!      do i=len(string),1,-1
+!         if(string(i:i).ne.' ') goto 101
+!      enddo
+!      i=0
+! 101  lentrim=i
+!      end
 c******************************************************************
 c Construct an exp-formatted value with ip significant figures.
       subroutine eformati(value,string,ip)

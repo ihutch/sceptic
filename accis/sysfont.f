@@ -58,6 +58,7 @@ c Zero width or height resets to default.
       integer ipoint
       parameter (ipoint=2)
       parameter (iunit=12)
+c      data htstnd/.015/wdstnd/.015/
       data htstnd/.015/wdstnd/.015/
       save htstnd,wdstnd
       if(ht.eq.0.)ht=.015
@@ -128,10 +129,10 @@ c Defeat writing to the PS file. For text when using hard fonts.
       real nx,ny
       integer ud
       include 'plotcom.h'
-      pfin=pfsw
+      ipfin=pfsw
       pfsw=0
       call vecn(nx,ny,ud)
-      pfsw=pfin
+      pfsw=ipfin
       end
 c***********************************************************************
       subroutine abufstring(string,iunit)
@@ -144,15 +145,6 @@ c add the full length of string to output buffer
       else
          write(*,*) 'Incorrect ilen', ilen,'  in abufstring'
       endif
-      end
-c***********************************************************************
-      subroutine crbufwrt(iunit)
-c Do an end of line on the output string buffer.
-      integer sblen,iunit
-      character*80 sbuf
-      common /wbuf/sblen,sbuf
-      write(iunit,*)sbuf(1:sblen-1)
-      sblen=1
       end
 c***********************************************************************
       subroutine PSchardrw(char)

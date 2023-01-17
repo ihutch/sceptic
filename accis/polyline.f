@@ -1,8 +1,8 @@
 C********************************************************************
       subroutine polyline(x,y,npts)
 c Dashed line version.
-      real x(npts),y(npts)
       integer npts
+      real x(npts),y(npts)
       integer i
       include 'plotcom.h'
 c Dashed line code
@@ -20,50 +20,69 @@ c Segments alternate pen down, pen up.
       parameter (MASKNO=4)
       dimension dashmask(MASKNO),dashlen(MASKNO)
       common/dashline/ldash,dashlen,dashdist,dashmask,jmask
+      integer ptrunc
+      external ptrunc
 
       if(npts.le.0) return
       call vecw(x(1),y(1),0)
-      do 3 i=2,npts
-	 if(.not.ldash) then
-	    call vecw(x(i),y(i),1)
-	 else
+      do i=2,npts
+         if(.not.ldash) then
+            call vecw(x(i),y(i),1)
+         else
 c We shall bypass vecw and go straight to normal.
-	    nx=wx2nx(x(i))
-	    ny=wy2ny(y(i))
+            nx=wx2nx(x(i))
+            ny=wy2ny(y(i))
+c Do not actually move the cursor when ptrunc is called.
+            cx=crsrx 
+            cy=crsry
+            iptrunc=ptrunc(cx,cy,nx,ny)
+            if(iptrunc.eq.99)then
+c This vector is fully outside the truncation box. Skip the plot
+c but move the cursor to the next point.
+               crsrx=nx
+               crsry=ny
+               goto 3
+            endif
 c Lengths of total vector:
-	    cx=nx
-	    cy=ny
-	    dx=nx- crsrx
-	    dy=ny- crsry
-	    vlen=sqrt(DX*DX+DY*DY)
+            cx=nx
+            cy=ny
+            dx=nx- crsrx
+            dy=ny- crsry
+            vlen=sqrt(dx*dx+dy*dy)
 c Partial length remaining:
-	    plen=vlen
-	    if(vlen.eq.0)return
+            plen=vlen
+!            if(vlen.eq.0)return ! Because we divide by it maybe?
 c Distance to end of segment
     1       dlen=(dashlen(jmask)-dashdist)
-	    if(plen.gt.dlen)then
+            if(plen.gt.dlen)then
 c Vector longer than this segment. Draw segment and iterate.
-	       dashdist=0
-	       plen=plen-dlen
-	       flen=dlen/vlen
-	       nx= crsrx+dx*flen
-	       ny= crsry+dy*flen
-	       cud=dashmask(jmask)
-c	       call optvecn(nx,ny,cud)
-	       call vecn(nx,ny,cud)
-	       jmask=mod(jmask,MASKNO)+1
-	       goto 1
-	    else
+               dashdist=0
+               plen=plen-dlen
+               flen=dlen/vlen
+               nx= crsrx+dx*flen
+               ny= crsry+dy*flen
+               cud=dashmask(jmask)
+               call vecn(nx,ny,cud)
+               jmask=mod(jmask,MASKNO)+1
+c Iterate if plen has not got ridiculously short.
+c               if(plen.lt.1.e-4)plen=0.
+               goto 1
+c We must be careful we don't get into an infinite loop of segments
+c when both ends of the vector are outside the box (on the same side)
+            else
 c Vector ends before segment. Draw to end of vector and quit.
-	       dashdist=plen+dashdist
-	       nx=cx
-	       ny=cy
-	       cud=dashmask(jmask)
-c	       call optvecn(nx,ny,cud)
-	       call vecn(nx,ny,cud)
-	    endif
-	 endif
+               dashdist=plen+dashdist
+               nx=cx
+               ny=cy
+               cud=dashmask(jmask)
+               call vecn(nx,ny,cud)
+! Because vecn does not always draw all the way we must do explicitly:
+               crsrx=wx2nx(x(i))
+               crsry=wy2ny(y(i))               
+            endif
+         endif
     3 continue
+      enddo
       end
 C********************************************************************
       subroutine dashset(i)
@@ -79,68 +98,98 @@ c Set some line styles. 0 solid (dashing off).
       common/dashline/ldash,dashlen,dashdist,dashmask,jmask
       save
       if(i.eq.0)then
-	 ldash=.false.
-	 return
+         ldash=.false.
+         return
       elseif(i.eq.1)then
 c Long dashes.
-	 dashlen(1)=.03
-	 dashlen(2)=.03
-	 dashlen(3)=.03
-	 dashlen(4)=.03
+         dashlen(1)=.03
+         dashlen(2)=.03
+         dashlen(3)=.03
+         dashlen(4)=.03
       elseif(i.eq.2)then
 c Short dashes.
-	 dashlen(1)=.01
-	 dashlen(2)=.01
-	 dashlen(3)=.01
-	 dashlen(4)=.01
+         dashlen(1)=.01
+         dashlen(2)=.01
+         dashlen(3)=.01
+         dashlen(4)=.01
       elseif(i.eq.3)then
 c Long/Short.
-	 dashlen(1)=.03
-	 dashlen(2)=.01
-	 dashlen(3)=.01
-	 dashlen(4)=.01
+         dashlen(1)=.03
+         dashlen(2)=.01
+         dashlen(3)=.01
+         dashlen(4)=.01
       elseif(i.eq.4)then
 c 'Dots'.
-	 dashlen(1)=.002
-	 dashlen(2)=.01
-	 dashlen(3)=.002
-	 dashlen(4)=.01
+         dashlen(1)=.002
+         dashlen(2)=.01
+         dashlen(3)=.002
+         dashlen(4)=.01
       elseif(i.eq.5)then
 c 'Medium/dot'.
-	 dashlen(1)=.02
-	 dashlen(2)=.01
-	 dashlen(3)=.002
-	 dashlen(4)=.01
+         dashlen(1)=.02
+         dashlen(2)=.01
+         dashlen(3)=.002
+         dashlen(4)=.01
       elseif(i.eq.6)then
 c 'Long Dashes short breaks'.
-	 dashlen(1)=.03
-	 dashlen(2)=.01
-	 dashlen(3)=.03
-	 dashlen(4)=.01
+         dashlen(1)=.03
+         dashlen(2)=.01
+         dashlen(3)=.03
+         dashlen(4)=.01
       elseif(i.eq.7)then
 c 'Medium Dashes short breaks'.
-	 dashlen(1)=.02
-	 dashlen(2)=.005
-	 dashlen(3)=.02
-	 dashlen(4)=.005
+         dashlen(1)=.02
+         dashlen(2)=.005
+         dashlen(3)=.02
+         dashlen(4)=.005
       elseif(i.eq.8)then
 c 'Short Dashes shorter breaks'.
-	 dashlen(1)=.01
-	 dashlen(2)=.005
-	 dashlen(3)=.01
-	 dashlen(4)=.005
+         dashlen(1)=.01
+         dashlen(2)=.005
+         dashlen(3)=.01
+         dashlen(4)=.005
       elseif(i.eq.9)then
 c 'Dot short'.
-	 dashlen(1)=.002
-	 dashlen(2)=.005
-	 dashlen(3)=.01
-	 dashlen(4)=.01
+         dashlen(1)=.002
+         dashlen(2)=.005
+         dashlen(3)=.01
+         dashlen(4)=.01
       elseif(i.eq.10)then
 c 'Long/Short breaks'.
-	 dashlen(1)=.02
-	 dashlen(2)=.005
-	 dashlen(3)=.02
-	 dashlen(4)=.02
+         dashlen(1)=.02
+         dashlen(2)=.005
+         dashlen(3)=.02
+         dashlen(4)=.02
+      elseif(i.eq.11)then
+c 'Long/Medium long breaks'.
+         dashlen(1)=.03
+         dashlen(2)=.02
+         dashlen(3)=.015
+         dashlen(4)=.02
+      elseif(i.eq.12)then
+c 'Long with tiny breaks'.
+         dashlen(1)=.03
+         dashlen(2)=.005
+         dashlen(3)=.03
+         dashlen(4)=.005
+      elseif(i.eq.13)then
+c 'Dots with long/short breaks'.
+         dashlen(1)=.003
+         dashlen(2)=.005
+         dashlen(3)=.003
+         dashlen(4)=.01
+      elseif(i.eq.14)then
+c 'Short, dot '.
+         dashlen(1)=.01
+         dashlen(2)=.01
+         dashlen(3)=.003
+         dashlen(4)=.01
+      elseif(i.eq.15)then
+c 'Short short break'.
+         dashlen(1)=.01
+         dashlen(2)=.006
+         dashlen(3)=.01
+         dashlen(4)=.02
       endif
       dashdist=1.e-6
       jmask=1
@@ -159,27 +208,27 @@ c         mark='!A3'//char(0)
 c  That does not quite align well. Better not to mix thinkgs up.
       if(nmark.lt.10)then
          pfPS=0
-	 mark=char(nmark+176)//char(0)
+         mark=char(nmark+176)//char(0)
       elseif(nmark.eq.10)then
-	 mark='+'//char(0)
+         mark='+'//char(0)
       elseif(nmark.eq.11)then
-	 mark='!AX'//char(0)
+         mark='!AX'//char(0)
       elseif(nmark.eq.12)then
-	 mark='!A*'//char(0)
+         mark='!A*'//char(0)
       elseif(nmark.eq.13)then
-	 mark='!A-'//char(0)
+         mark='!A-'//char(0)
       elseif(nmark.eq.15)then
-	 mark='!A'//char(48)//char(0)
+         mark='!A'//char(48)//char(0)
       else
-	 mark=char(nmark)//char(0)
+         mark=char(nmark)//char(0)
       endif
       do 1 i=1,nx
-	 xp=wx2nx(x(i))
-	 yp=wy2ny(y(i))
+         xp=wx2nx(x(i))
+         yp=wy2ny(y(i))
       if(nmark.eq.14)then
          call actrid(xp,yp)
       else
-	 call jdrwstr(xp,yp,mark,0.)
+         call jdrwstr(xp,yp,mark,0.)
       endif
     1 continue
       pfPS=ipf
@@ -188,10 +237,30 @@ C********************************************************************
 c Plot error bars from y to y+err.
       subroutine polyerr(x,y,err,nx)
       integer nx,i
-      real x(*),y(*),err(1)
+      real x(*),y(*),err(*)
       do 1 i=1,nx
-	 call vecw(x(i),y(i),0)
-	 call vecw(x(i),y(i)+err(i),1)
+         call vecw(x(i),y(i),0)
+         call vecw(x(i),y(i)+err(i),1)
+    1 continue
+      end
+C********************************************************************
+c Plot error bars from y-ym*err to y+yp*err.
+      subroutine polyerrs(x,y,err,nx,yp,ym)
+      integer nx,i
+      real x(*),y(*),err(*)
+      real yp,ym
+      include 'plotcom.h'
+      real xn,yn
+      do 1 i=1,nx
+         xn=wx2nx(x(i))
+         yn=wy2ny(y(i)-ym*err(i))
+         call vecn(xn-.2*chrswdth,yn,0)
+         call vecn(xn+.2*chrswdth,yn,1)
+         yn=wy2ny(y(i)+yp*err(i))
+         call vecn(xn-.2*chrswdth,yn,0)
+         call vecn(xn+.2*chrswdth,yn,1)
+         call vecw(x(i),y(i)-ym*err(i),0)
+         call vecw(x(i),y(i)+yp*err(i),1)
     1 continue
       end
 c******************************************************************
@@ -237,8 +306,8 @@ C********************************************************************
       real x(*),y(*),xp,yp,wx2nx,wy2ny
       external drawfn
       do 1 i=1,nx
-	 xp=wx2nx(x(i))
-	 yp=wy2ny(y(i))
+         xp=wx2nx(x(i))
+         yp=wy2ny(y(i))
          call drawfn(xp,yp)
     1 continue
       end
@@ -356,15 +425,14 @@ c acgen data:
 C********************************************************************
       subroutine poly3line(x,y,z,npts)
 c Dashed line version.
-      real x(npts),y(npts),z(npts)
       integer npts
+      real x(npts),y(npts),z(npts)
       integer i
       include 'plotcom.h'
       include 'world3.h'
 c Dashed line code
       real nx,ny,nz
-      real vlen,dx,dy,dz,cx,cy,cz,plen,flen,dlen
-      real wx2nx, wy2ny
+      real vlen,dx,dy,cx,cy,plen,flen,dlen
       integer cud
 
 c dashlen is the arc length in normalized units of the the ith line
@@ -380,48 +448,48 @@ c Segments alternate pen down, pen up.
       if(npts.le.0) return
       call vec3w(x(1),y(1),z(1),0)
       do 3 i=2,npts
-	 if(.not.ldash) then
-	    call vec3w(x(i),y(i),z(i),1)
+         if(.not.ldash) then
+            call vec3w(x(i),y(i),z(i),1)
 c            call wxyz2nxyz(x(i),y(i),z(i),nx,ny,nz)
 c            call trn32(nx,ny,nz,x2,y2,z2,0)
 c            call optvecn(x2+xcbc2,y2+ycbc2,1)
-	 else
+         else
 c We shall bypass vecw and go straight to normal.
             call wxyz2nxyz(x(i),y(i),z(i),nx,ny,nz)
             call trn32(nx,ny,nz,x2,y2,z2,0)
 c Lengths of total vector:
-	    cx=x2+xcbc2
-	    cy=y2+ycbc2
-	    dx=cx- crsrx
-	    dy=cy- crsry
-	    vlen=sqrt(dx*dx+dy*dy)
+            cx=x2+xcbc2
+            cy=y2+ycbc2
+            dx=cx- crsrx
+            dy=cy- crsry
+            vlen=sqrt(dx*dx+dy*dy)
 c Partial length remaining:
-	    plen=vlen
-	    if(vlen.eq.0)return
+            plen=vlen
+            if(vlen.eq.0)return
 c Distance to end of segment
     1       dlen=(dashlen(jmask)-dashdist)
-	    if(plen.gt.dlen)then
+            if(plen.gt.dlen)then
 c Vector longer than this segment. Draw segment and iterate.
-	       dashdist=0
-	       plen=plen-dlen
-	       flen=dlen/vlen
-	       nx= crsrx+dx*flen
-	       ny= crsry+dy*flen
-	       cud=dashmask(jmask)
-	       call optvecn(nx,ny,cud)
-c	       call vecn(nx,ny,cud)
-	       jmask=mod(jmask,MASKNO)+1
-	       goto 1
-	    else
+               dashdist=0
+               plen=plen-dlen
+               flen=dlen/vlen
+               nx= crsrx+dx*flen
+               ny= crsry+dy*flen
+               cud=dashmask(jmask)
+               call optvecn(nx,ny,cud)
+c              call vecn(nx,ny,cud)
+               jmask=mod(jmask,MASKNO)+1
+               goto 1
+            else
 c Vector ends before segment. Draw to end of vector and quit.
-	       dashdist=plen+dashdist
-	       nx=cx
-	       ny=cy
-	       cud=dashmask(jmask)
-	       call optvecn(nx,ny,cud)
-c	       call vecn(nx,ny,cud)
-	    endif
-	 endif
+               dashdist=plen+dashdist
+               nx=cx
+               ny=cy
+               cud=dashmask(jmask)
+               call optvecn(nx,ny,cud)
+c              call vecn(nx,ny,cud)
+            endif
+         endif
     3 continue
       end
 C********************************************************************
@@ -437,19 +505,19 @@ c         mark='!A3'//char(0)
 c  That does not quite align well. Better not to mix thinkgs up.
       if(nmark.lt.10)then
          pfPS=0
-	 mark=char(nmark+176)//char(0)
+         mark=char(nmark+176)//char(0)
       elseif(nmark.eq.10)then
-	 mark='+'//char(0)
+         mark='+'//char(0)
       elseif(nmark.eq.11)then
-	 mark='!AX'//char(0)
+         mark='!AX'//char(0)
       elseif(nmark.eq.12)then
-	 mark='!A*'//char(0)
+         mark='!A*'//char(0)
       elseif(nmark.eq.13)then
-	 mark='!A-'//char(0)
+         mark='!A-'//char(0)
       elseif(nmark.eq.15)then
-	 mark='!A'//char(48)//char(0)
+         mark='!A'//char(48)//char(0)
       else
-	 mark=char(nmark)//char(0)
+         mark=char(nmark)//char(0)
       endif
       do 1 i=1,nx
          call wxyz2nxyz(x(i),y(i),z(i),xp,yp,zp)
@@ -459,7 +527,7 @@ c  That does not quite align well. Better not to mix thinkgs up.
       if(nmark.eq.14)then
          call actrid(cx,cy)
       else
-	 call jdrwstr(cx,cy,mark,0.)
+         call jdrwstr(cx,cy,mark,0.)
       endif
     1 continue
       pfPS=ipf
@@ -497,8 +565,8 @@ C********************************************************************
       subroutine stpolyline(x,y,npts,nstx,nsty)
 c Strided polyline. nstx/y are the increments of the x and y data.
 c Dashed line version.
-      real x(npts),y(npts)
       integer npts
+      real x(npts),y(npts)
       integer i
       include 'plotcom.h'
 c Dashed line code
@@ -520,45 +588,45 @@ c Segments alternate pen down, pen up.
       if(npts.le.0) return
       call vecw(x(1),y(1),0)
       do 3 i=2,npts
-	 if(.not.ldash) then
-	    call vecw(x(1+nstx*(i-1)),y(1+nsty*(i-1)),1)
-	 else
+         if(.not.ldash) then
+            call vecw(x(1+nstx*(i-1)),y(1+nsty*(i-1)),1)
+         else
 c We shall bypass vecw and go straight to normal.
-	    nx=wx2nx(x(1+nstx*(i-1)))
-	    ny=wy2ny(y(1+nsty*(i-1)))
+            nx=wx2nx(x(1+nstx*(i-1)))
+            ny=wy2ny(y(1+nsty*(i-1)))
 c Lengths of total vector:
-	    cx=nx
-	    cy=ny
-	    dx=nx- crsrx
-	    dy=ny- crsry
-	    vlen=sqrt(DX*DX+DY*DY)
+            cx=nx
+            cy=ny
+            dx=nx- crsrx
+            dy=ny- crsry
+            vlen=sqrt(DX*DX+DY*DY)
 c Partial length remaining:
-	    plen=vlen
-	    if(vlen.eq.0)return
+            plen=vlen
+            if(vlen.eq.0)return
 c Distance to end of segment
     1       dlen=(dashlen(jmask)-dashdist)
-	    if(plen.gt.dlen)then
+            if(plen.gt.dlen)then
 c Vector longer than this segment. Draw segment and iterate.
-	       dashdist=0
-	       plen=plen-dlen
-	       flen=dlen/vlen
-	       nx= crsrx+dx*flen
-	       ny= crsry+dy*flen
-	       cud=dashmask(jmask)
-c	       call optvecn(nx,ny,cud)
-	       call vecn(nx,ny,cud)
-	       jmask=mod(jmask,MASKNO)+1
-	       goto 1
-	    else
+               dashdist=0
+               plen=plen-dlen
+               flen=dlen/vlen
+               nx= crsrx+dx*flen
+               ny= crsry+dy*flen
+               cud=dashmask(jmask)
+c              call optvecn(nx,ny,cud)
+               call vecn(nx,ny,cud)
+               jmask=mod(jmask,MASKNO)+1
+               goto 1
+            else
 c Vector ends before segment. Draw to end of vector and quit.
-	       dashdist=plen+dashdist
-	       nx=cx
-	       ny=cy
-	       cud=dashmask(jmask)
-c	       call optvecn(nx,ny,cud)
-	       call vecn(nx,ny,cud)
-	    endif
-	 endif
+               dashdist=plen+dashdist
+               nx=cx
+               ny=cy
+               cud=dashmask(jmask)
+c              call optvecn(nx,ny,cud)
+               call vecn(nx,ny,cud)
+            endif
+         endif
     3 continue
       end
 C********************************************************************
@@ -575,27 +643,27 @@ c         mark='!A3'//char(0)
 c  That does not quite align well. Better not to mix thinkgs up.
       if(nmark.lt.10)then
          pfPS=0
-	 mark=char(nmark+176)//char(0)
+         mark=char(nmark+176)//char(0)
       elseif(nmark.eq.10)then
-	 mark='+'//char(0)
+         mark='+'//char(0)
       elseif(nmark.eq.11)then
-	 mark='!AX'//char(0)
+         mark='!AX'//char(0)
       elseif(nmark.eq.12)then
-	 mark='!A*'//char(0)
+         mark='!A*'//char(0)
       elseif(nmark.eq.13)then
-	 mark='!A-'//char(0)
+         mark='!A-'//char(0)
       elseif(nmark.eq.15)then
-	 mark='!A'//char(48)//char(0)
+         mark='!A'//char(48)//char(0)
       else
-	 mark=char(nmark)//char(0)
+         mark=char(nmark)//char(0)
       endif
       do 1 i=1,nx
-	 xp=wx2nx(x(1+nstx*(i-1)))
-	 yp=wy2ny(y(1+nsty*(i-1)))
+         xp=wx2nx(x(1+nstx*(i-1)))
+         yp=wy2ny(y(1+nsty*(i-1)))
       if(nmark.eq.14)then
          call actrid(xp,yp)
       else
-	 call jdrwstr(xp,yp,mark,0.)
+         call jdrwstr(xp,yp,mark,0.)
       endif
     1 continue
       pfPS=ipf
@@ -633,4 +701,123 @@ c boundaries.
          call polyline(x,yave,np)
       endif
 
+      end
+C********************************************************************
+      subroutine polygapline(x,y,n,logic)
+! plot a polyline in multiple sections only where logic is true
+      integer n
+      real x(n),y(n)
+      logical logic(n)
+      logical drawing
+      drawing=.true.
+      id=1
+      do i=1,n
+      if(drawing)then
+         if(.not.logic(i))then
+            drawing=.false.
+            call polyline(x(id),y(id),i-id)
+         endif
+      else
+         if(logic(i))then
+            drawing=.true.
+            id=i
+         endif
+      endif
+      enddo
+      if(drawing)call polyline(x(id),y(id),i-id)  
+      end
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      subroutine polycolorline(x,y,npts,ipcolor)
+c Version to color a polyline as you go to encode other information.
+c ipcolor must run from 1-240 for gradcolor.
+      integer npts
+      real x(npts),y(npts)
+      integer ipcolor(npts)
+      include 'plotcom.h'
+c Dashed line code
+      real nx,ny
+      real vlen,dx,dy,cx,cy,plen,flen,dlen
+      real wx2nx, wy2ny
+      integer cud
+
+c dashlen is the arc length in normalized units of the the ith line
+c segment. dashdist is the starting fractional part of the ith arc.
+c Segments alternate pen down, pen up.
+      logical ldash
+      real dashlen,dashdist
+      integer MASKNO,dashmask,jmask
+      parameter (MASKNO=4)
+      dimension dashmask(MASKNO),dashlen(MASKNO)
+      common/dashline/ldash,dashlen,dashdist,dashmask,jmask
+
+      if(npts.le.0) return
+      call vecw(x(1),y(1),0)
+      do 3 i=2,npts
+         call gradcolor(ipcolor(i-1))
+         if(.not.ldash) then
+            call vecw(x(i),y(i),1)
+         else
+c We shall bypass vecw and go straight to normal.
+            nx=wx2nx(x(i))
+            ny=wy2ny(y(i))
+c Lengths of total vector:
+            cx=nx
+            cy=ny
+            dx=nx- crsrx
+            dy=ny- crsry
+            vlen=sqrt(DX*DX+DY*DY)
+c Partial length remaining:
+            plen=vlen
+            if(vlen.eq.0)return
+c Distance to end of segment
+    1       dlen=(dashlen(jmask)-dashdist)
+            if(plen.gt.dlen)then
+c Vector longer than this segment. Draw segment and iterate.
+               dashdist=0
+               plen=plen-dlen
+               flen=dlen/vlen
+               nx= crsrx+dx*flen
+               ny= crsry+dy*flen
+               cud=dashmask(jmask)
+c              call optvecn(nx,ny,cud)
+               call vecn(nx,ny,cud)
+               jmask=mod(jmask,MASKNO)+1
+               goto 1
+            else
+c Vector ends before segment. Draw to end of vector and quit.
+               dashdist=plen+dashdist
+               nx=cx
+               ny=cy
+               cud=dashmask(jmask)
+c              call optvecn(nx,ny,cud)
+               call vecn(nx,ny,cud)
+            endif
+         endif
+    3 continue
+
+      end
+C********************************************************************
+      subroutine polycolorgapline(x,y,n,ipcolor,logic)
+! plot a polycolorline in multiple sections only where logic is true
+      integer n
+      real x(n),y(n)
+      integer ipcolor(n)
+      logical logic(n)
+      logical drawing
+      drawing=.true.
+      id=1
+      do i=1,n
+      if(drawing)then
+         if(.not.logic(i))then
+            drawing=.false.
+            call polycolorline(x(id),y(id),i-id,ipcolor(id))
+         endif
+      else
+         if(logic(i))then
+            drawing=.true.
+            id=i
+         endif
+      endif
+      enddo
+      if(drawing)call polycolorline(x(id),y(id),i-id,ipcolor(id))  
       end

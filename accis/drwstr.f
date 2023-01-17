@@ -1,3 +1,8 @@
+c Mingw does not correctly link this with only the external statement below
+c It is apparently something to do with linker incompatibilities present in
+c cygwin gfortran and ld or ar. (And Mingw evidently). 
+      include 'fontdata.f'
+
 c*******************************************************************
       subroutine drwstrdo( px, py, str1,drw,width)
 c  Draw string code. drw.ne.0 means actually draw, else just return length.
@@ -7,14 +12,14 @@ c  Sep 92 revision to allow use of only printable characters (VAX set)
 c  Also removal of the ^A and ^B fonts switches. All controls are now
 c  via special switch: ! with subsequent character used for
 c  control as follows:
-c	@	to normal font 1.
-c	A	to font 1 (math)
-c	B	to font 2 (italic)
+c       @       to normal font 1.
+c       A       to font 1 (math)
+c       B       to font 2 (italic)
 c       R       to font 3 (roman)
 c       E       to font 4 (English gothic)
 c       G       to font 5 (German gothic)
-c	d/D     Toggle subscript mode
-c	u	Toggle superscript mode
+c       d/D     Toggle subscript mode
+c       u       Toggle superscript mode
 c       p       Save this position
 c       q       Return to saved position (and save current position)
 c       o       Toggle Overbar mode.
@@ -40,7 +45,7 @@ c Reset to standard font at start of each string.
       if(drw.ne.0) call vecn(px,py,0)
       j=1
     1 continue
-	if(j.gt.lenstr)goto 2
+        if(j.gt.lenstr)goto 2
 c Now making everything a switch not momentary.
       n1=ichar(str1(j:j))
 c Fix for f2c characters over 128.
@@ -51,25 +56,25 @@ c Special switch: ctrl-\, or \. Get the next and handle it.
          if(n1.eq.1.or.n1.eq.2)then
 c Grandfathering of old style. ctrl-A, ctrl-B
             n1=n1+96
-	 else	
-	    j=j+1
+         else   
+            j=j+1
             n1=ichar(str1(j:j))
 c If we ended jump out Aug 98.
             if(n1.eq.0) goto 2
-	 endif
+         endif
          call spstr(n1,offset,isw)
          j=j+isw
          if(isw.eq.1) then
 c Switch operated; adjust position and start on next character.
             px=crsrx
-	    py=crsry
+            py=crsry
             if(pfPS.eq.1 .and. pfsw.ge.2)call PSsetfont(offset/128)
-	    goto 1
+            goto 1
          endif
 c No valid switch character found after \. Interpret as plain.
          n1=ichar(str1(j:j))
 c Fixed for f2c/gcc upper characters.
-	 if(n1 .lt. 0) n1=n1+256
+         if(n1 .lt. 0) n1=n1+256
       endif
       if(n1.eq.0) goto 2
       if(pfPS.eq.1 .and. pfsw.ge.2 .and. drw.ne.0)then
@@ -81,7 +86,14 @@ c Fixed for f2c/gcc upper characters.
          if(n2.eq.40.or.n2.eq.41.or.n2.eq.92)then
             call PSchardrw(char(92)//char(n2))
          else
-            call PSchardrw(char(n2))
+            if(char(n2).eq.'-')then
+c Make the PS minus sign the version from symbol font. It's longer.
+               call PSsetfont(1)
+               call PSchardrw(char(n2))
+               call PSsetfont(offset/128)
+            else
+               call PSchardrw(char(n2))
+            endif
          endif
       endif
       n1=n1+offset
@@ -94,10 +106,16 @@ c Fixed for f2c/gcc upper characters.
          if(pfPS.eq.0) then
             call vecn(px,py,0)
          else
+c Use spaces to accommodate width variation between sysfont and Hershey
+c Also if we are approaching a special character, force a space to ensure
+c that the subscript or superscript etc is well aligned wrt its parent.
+            if(n1.eq.ichar(' ').or.str1(j+2:j+2).eq.'!')then
 c This call repositions after each PS character using Hershey width.
-c            call vecn(px,py,0)
+               call vecn(px,py,0)
+            else
 c This call does not. It uses the internal PS width.
-            call vecnnops(px,py,0)
+               call vecnnops(px,py,0)
+            endif
          endif
       endif
 c  Terminate after end of string. 
@@ -141,43 +159,52 @@ c Font shift: \G
          offset=640
       elseif(sw.eq.92.or.sw.eq.33)then
 c Not a switch literal: \\, or \!, or !!.
-	 isw=0
-      elseif(sw.eq.100.or.sw.eq.117.or.sw.eq.111.or.sw.eq.110)then
+         isw=0
+      elseif(sw.eq.100.or.sw.eq.117.or.sw.eq.111.or.sw.eq.110
+     $        .or.sw.eq.108.or.sw.eq.115)then
 c /* Toggle sUper/sub-script mode or Overbar/uNderbar mode */
-	 if(su.eq.0)then
-	    if(sw.eq.ichar('u').or.sw.eq.ichar('o'))then
-	       sgn=1.
-	    elseif(sw.eq.ichar('d').or.sw.eq.ichar('n'))then
-	       sgn=-1.
-	    endif
+         if(su.eq.0)then
+            if(sw.eq.ichar('u').or.sw.eq.ichar('o'))then
+               sgn=1.
+            elseif(sw.eq.ichar('d').or.sw.eq.ichar('n'))then
+               sgn=-1.
+            endif
             if(sw.eq.100.or.sw.eq.117)then
                dxc=0.6
                hs=0.7
             elseif(sw.eq.111.or.sw.eq.110)then
                dxc=1.
                hs=1.
+            elseif(sw.eq.115)then
+               sgn=1.
+               dxc=-0.12
+               hs=0.68
+            elseif(sw.eq.108)then
+               sgn=1.
+               dxc=0.15
+               hs=1.42
             endif
-	    dx=-chrshght*dxc*chrssin*sgn
-	    dy= chrshght*dxc*chrscos*sgn
-	    crsrx=crsrx+dx
-	    crsry=crsry+dy
+            dx=-chrshght*dxc*chrssin*sgn
+            dy= chrshght*dxc*chrscos*sgn
+            crsrx=crsrx+dx
+            crsry=crsry+dy
 c Needed to ensure that the ps fonts move down.
             call vecn(crsrx,crsry,0)
-	    height=chrshght
-	    width=chrswdth
-	    chrshght=hs*height
-	    chrswdth=hs*width
+            height=chrshght
+            width=chrswdth
+            chrshght=hs*height
+            chrswdth=hs*width
             if(pfPS.eq.1 .and. pfsw.ge.2) call PSsetfont(offset/128)
-	    su=1
-	 else
-	    crsrx=crsrx-dx
-	    crsry=crsry-dy
+            su=1
+         else
+            crsrx=crsrx-dx
+            crsry=crsry-dy
             call vecn(crsrx,crsry,0)
-	    chrshght=height
-	    chrswdth=width
+            chrshght=height
+            chrswdth=width
             if(pfPS.eq.1 .and. pfsw.ge.2)call PSsetfont(offset/128)
-	    su=0
-	 endif
+            su=0
+         endif
       elseif(sw.eq.112)then
 c save position
          scrsx=crsrx
@@ -191,7 +218,7 @@ c return to saved position
          scrsy=sy
       else
 c Not a valid switch
-	 isw=-1
+         isw=-1
       endif
       return
       end
@@ -216,31 +243,31 @@ c Primitive: draw (if drw.ne.0) character at px,py.  Return width.
       ch=chrshght/STDWDTH
       cw=chrswdth/STDWDTH
       if(drw.ne.0)then
-	 ud=0
-	 do 3 n2=1,300
-	    i=i+1
-	    xc=ichar(chrsfont(base+i))-97
-	    i=i+1
-	    yc=ichar(chrsfont(base+i))-97
+         ud=0
+         do 3 n2=1,300
+            i=i+1
+            xc=ichar(chrsfont(base+i))-97
+            i=i+1
+            yc=ichar(chrsfont(base+i))-97
 c F2C fix. 25 May 96.
-	    if(yc .lt. -97) yc=yc+256
-	    if(xc.ne.-64)then
-	       ycn=-yc*ch
-	       xcn=(xc-xci)*cw +chrsslnt*ycn
-	       xn=xcn*chrscos - ycn*chrssin
-	       yn=xcn*chrssin + ycn*chrscos
+            if(yc .lt. -97) yc=yc+256
+            if(xc.ne.-64)then
+               ycn=-yc*ch
+               xcn=(xc-xci)*cw +chrsslnt*ycn
+               xn=xcn*chrscos - ycn*chrssin
+               yn=xcn*chrssin + ycn*chrscos
                if(pfPS.eq.0) then
                   call vecn((px+xn),(py+yn),ud)
                else
                   call vecnnops((px+xn),(py+yn),ud)
                endif
-	       ud=1
-	    else
-	       ud=0
-	    endif
-	    if((xc.eq.-64).and.(yc.eq.-64)) goto 4
-    3	 continue
-    4	 continue
+               ud=1
+            else
+               ud=0
+            endif
+            if((xc.eq.-64).and.(yc.eq.-64)) goto 4
+    3    continue
+    4    continue
       endif
       end
 c*********************************************************************

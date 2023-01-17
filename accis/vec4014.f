@@ -1,23 +1,32 @@
 c Tektronix 4014 driver.
 c Expanded to supply dummy routines for filling and rotating etc 2008.
-c And for usleep, noeye3d. Routines like slicing won't actually work
-c with the 4014 driver, but at least the code will run without the
-c X libraries.
+c And for usleep, noeye3d. Interactive Routines don't interact
+c with the 4014 driver, but the code will run without the
+c X libraries, and ps files can be generated.
+c i14no=1 prevents any 4014 code being emitted.
 c********************************************************************
       integer function accis_driver()
       accis_driver=2
       end
 C********************************************************************
-      blockdata scrndat
-      include 'plotcom.h'
+c This removed because of clash with initiald block data.
+c      blockdata scrndat
+c      include 'plotcom.h'
 c      data scrxpix,scrypix,ncolor,vmode/1024,779,15,4010/
-      data scrxpix,scrypix,ncolor,vmode/4096,3120,15,4014/      
-      end
+c      data scrxpix,scrypix,ncolor,vmode/4096,3120,15,4014/      
+c      end
 C********************************************************************
 c Switch to graphics mode Tek 4010/14.
       subroutine svga(scrxpix,scrypix,vmode,ncolor)
       integer scrxpix,scrypix,vmode,ncolor
+      common /com4014/i14no
+c Silence warnings
+      scrxpix=4096
+      scrypix=3120
+      vmode=4014
+      ncolor=15
       accis_nodisplay=1;
+      if(i14no.eq.1)return
 c Enter Tek mode. Modified for Xterm.
       write(*,'(1x,a)')char(27)//'[?38h'
       write(*,*)'                                 '
@@ -28,11 +37,12 @@ c Clear screen twice seems to do the trick for Kermit.
       write(*,*)'                                 '
 c Extra clear screen for non Kermit.
       write(*,'(1x,a)')char(12)
-      return
       end
 C********************************************************************
       subroutine txtmode
       character resp
+      common /com4014/i14no
+      if(i14no.eq.1)return
 c Write padding, so we don't lose characters on switch back.
       read(*,'(a1)')resp
       write(*,*)char(24),'                                         '
@@ -44,6 +54,7 @@ c*********************************************************************
 c 4014 vector driver.
       subroutine vec(x,y,iud)
       integer x,y,iud
+      common /com4014/i14no
       include 'plotcom.h'
       integer oylst,oyhi,oxlow,oxhi
       integer ylow,yhi,xlow,xhi,i,xlst,ylst
@@ -79,22 +90,22 @@ c Separate the coordinate 'nibbles'.
       ylst=ylab+4*ylst+xlst
       if(iud.gt.0)then
 c Continuing vector. Send only the necessary parts.
-	 if(yhi.ne.oyhi)then
-	    i=i+1
-	    outchr(i:i)=char(yhi)
-	 endif
-	 if(ylst.ne.oylst)then
-	    i=i+1
-	    outchr(i:i)=char(ylst)
-	 endif
-	 i=i+1
-	 outchr(i:i)=char(ylow)
-	 if(xhi.ne.oxhi)then
-	    i=i+1
-	    outchr(i:i)=char(xhi)
-	 endif
-	 i=i+1
-	 outchr(i:i)=char(xlow)
+         if(yhi.ne.oyhi)then
+            i=i+1
+            outchr(i:i)=char(yhi)
+         endif
+         if(ylst.ne.oylst)then
+            i=i+1
+            outchr(i:i)=char(ylst)
+         endif
+         i=i+1
+         outchr(i:i)=char(ylow)
+         if(xhi.ne.oxhi)then
+            i=i+1
+            outchr(i:i)=char(xhi)
+         endif
+         i=i+1
+         outchr(i:i)=char(xlow)
          istart=0
       else
 c Start vector.
@@ -102,11 +113,11 @@ c Start vector.
       endif
       if(i.ge.74.or.istart.eq.1)then
 c Finish draw and start again, if we are longer than a line or starting.
-         write(*,999)outchr(1:i)
-  999	 format(1x,a)
-	 outchr(1:6)=char(29)//char(yhi)//char(ylst)
-     $	      //char(ylow)//char(xhi)//char(xlow)
-	 i=6
+         if(i14no.eq.0)  write(*,999)outchr(1:i)
+  999    format(1x,a)
+         outchr(1:6)=char(29)//char(yhi)//char(ylst)
+     $        //char(ylow)//char(xhi)//char(xlow)
+         i=6
       endif
 c Update the vector.
       oxhi=xhi
@@ -124,7 +135,7 @@ c But a nonzero color always makes some mark because mask>0. check this!
       if(li.eq.0)then
          mask=0
       elseif(li.eq.8)then
-	 mask=7
+         mask=7
       else
          mask=mod(li,8)
       endif
@@ -141,6 +152,8 @@ c*********************************************************************
 C********************************************************************
       subroutine svganodisplay(scrxpix,scrypix,vmode,ncolor)
       integer scrxpix,scrypix,vmode,ncolor
+      common /com4014/i14no
+      i14no=1
       call svga(scrxpix,scrypix,vmode,ncolor)
       end
 c********************************************************************
@@ -164,7 +177,7 @@ c********** Use a gradient color out of 240 *************************
       common /a_grad/a_gradPix,a_gradred,a_gradgreen,a_gradblue
      $     ,a_grad_inited
       external a_grad_data
-
+      j=li
       if(a_grad_inited.eq.0) call accisgraddef()
       end
 c***********************************************************************
@@ -178,6 +191,9 @@ c***********************************************************************
       integer a_gradblue(a_gradPixno)
       common /a_grad/a_gradPix,a_gradred,a_gradgreen,a_gradblue
      $     ,a_grad_inited
+      common /com4014/i14no
+c This value determines if 4014 is emitted. 0 yes, 1 no:
+      data i14no/0/
       data a_grad_inited/0/
       end
 c********** Tell the current rgb color ********************************
@@ -207,8 +223,8 @@ c*************************************************************************
 c*************************************************************************
       subroutine accisgradinit(r1,g1,b1,r2,g2,b2)
       integer r1,g1,b1,r2,g2,b2
-      integer i,j,status
-      integer ipixel,red,green,blue;
+      integer i,j
+c      integer ipixel,red,green,blue;
       integer a_gradPixno
       parameter (a_gradPixno=240)
       integer a_gradPix(a_gradPixno)
@@ -218,22 +234,22 @@ c*************************************************************************
       integer a_gradblue(a_gradPixno)
       common /a_grad/a_gradPix,a_gradred,a_gradgreen,a_gradblue
      $     ,a_grad_inited
-      do i=0,a_gradPixno-1,1
-         j=(i*r2+(a_gradPixno-1-i)*r1)/(a_gradPixno-1.)
+      do i=1,a_gradPixno,1
+         j=(i*r2+(a_gradPixno-1-i)*r1)/(a_gradPixno-1)
          if(j.lt.0)then
             j=0 
          elseif(j.gt.65535) then
             j=65535
          endif
          a_gradred(i)=j
-         j=(i*g2+(a_gradPixno-1-i)*g1)/(a_gradPixno-1.)
+         j=(i*g2+(a_gradPixno-1-i)*g1)/(a_gradPixno-1)
          if(j.lt.0)then
             j=0 
          elseif(j.gt.65535) then
             j=65535
          endif
          a_gradgreen(i)=j
-         j=(i*b2+(a_gradPixno-1-i)*b1)/(a_gradPixno-1.)
+         j=(i*b2+(a_gradPixno-1-i)*b1)/(a_gradPixno-1)
          if(j.lt.0)then
             j=0 
          elseif(j.gt.65535) then
@@ -272,15 +288,13 @@ c Limiting the range to 0-65535, warning if the pixel number is not right.
       enddo
       end
 c***********************************************************************
-c Dummy
-      integer function igradtri(x,y,z,h,i3d)
+c Dummy Functions without proper parameters
+      integer function igradtri()
       igradtri=0
       end
-c**********************************************************************
-c Dummy
-      subroutine usleep(usecs)
+      subroutine usleep()
       end
-c**********************************************************************
-c Dummy
-      subroutine noeye3d(value)
+      subroutine noeye3d()
+      end
+      subroutine accisflush()
       end

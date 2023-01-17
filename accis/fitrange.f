@@ -6,12 +6,12 @@ c Obsolete version.
 c
 c  To fit a suitable axis range for reasonable scales.
 c  Inputs:
-c	xmin, xmax: range to be fitted.
-c	ntics: (maximum) number of divisions (tics) to fit to it.
+c       xmin, xmax: range to be fitted.
+c       ntics: (maximum) number of divisions (tics) to fit to it.
 c  Outputs:
-c	nxfac: power of ten by which the range is scaled.
-c	xfac: 10**nxfac. World-value=xfac*axis-label.
-c	xtic: Tic-spacing in world units.
+c       nxfac: power of ten by which the range is scaled.
+c       xfac: 10**nxfac. World-value=xfac*axis-label.
+c       xtic: Tic-spacing in world units.
 c       xt1st: The integer multiple of xtic closest to xmin 
 c             lying outside the range (xmin,xmax).
 c       xtlast: The integer multiple of xtic closest to xmax
@@ -20,7 +20,7 @@ c             lying outside the range (xmin,xmax).
 
       span=(xmax-xmin)
       if(xmax.eq.0. .and. xmin.eq.0)then
-         write(*,*)'Fitrange error. xmin=xmax=0'
+         write(*,*)'Fitrange warning. xmin=xmax=0'
          nxfac=0
          span=1.
       else
@@ -28,31 +28,31 @@ c             lying outside the range (xmin,xmax).
       endif
       xfac=10.**nxfac
       if(ntics.le.0)then
-	 write(*,'('' ntics<=0'')')
-	 return
+         write(*,'('' ntics<=0'')')
+         return
       endif
       xtic=span/ntics
       nsfac=nint(log10(0.099999*abs(xtic))+0.500001)
       sfac=10.**nsfac
       xtic=abs(xtic)/sfac
       if(xtic.lt.1.)then
-	 write(*,'('' Fitrange error 1. xtic='',f16.7)')xtic
+         write(*,'('' Fitrange error 1. xtic='',f16.7)')xtic
       elseif(xtic.le.2.)then
-	 xtic=2.
+         xtic=2.
 c A prior version used just .le.3. here which favors xtic=5, but leads
 c to a ratcheting up with successive calls, which is unsatisfactory.
 c Therefore suppose that if we are exactly 4 it is because we did an
 c earlier fitrange.
       elseif(xtic.le.3 .or. (xtic-4.).lt.0.0001)then
-	 xtic=4.
+         xtic=4.
       elseif(xtic.le.5.)then
-	 xtic=5.
+         xtic=5.
       elseif(xtic.le.10.0001)then
-	 xtic=10.
+         xtic=10.
       else
-	 write(*,'('' Fitrange error NAN. Range:'',2g10.4)'),xmin,xmax
+         write(*,'('' Fitrange error NAN. Range:'',2g11.4)')xmin,xmax
          xtic=1.
-         nxfac=0.
+         nxfac=0
          sfac=1.
          xfac=1.
       endif
@@ -74,12 +74,12 @@ c
 c
 c  To fit a suitable axis range for reasonable scales.
 c  Inputs:
-c	xmin, xmax: range to be fitted.
-c	ntics: (maximum) number of divisions (tics) to fit to it.
+c       xmin, xmax: range to be fitted.
+c       ntics: (maximum) number of divisions (tics) to fit to it.
 c  Outputs:
-c	nxfac: power of ten by which the range is scaled.
-c	xfac: 10**nxfac. World-value=xfac*axis-label.
-c	xtic: Tic-spacing in world units.
+c       nxfac: power of ten by which the range is scaled.
+c       xfac: 10**nxfac. World-value=xfac*axis-label.
+c       xtic: Tic-spacing in world units.
 c       xt1st: The integer multiple of xtic closest to xmin 
 c             lying outside the range (xmin,xmax).
 c       xtlast: The integer multiple of xtic closest to xmax
@@ -99,31 +99,35 @@ c             lying outside the range (xmin,xmax).
       endif
       xfac=10.**nxfac
       if(ntics.le.0)then
-	 write(*,'('' ntics<=0'')')
-	 return
+         write(*,'('' ntics<=0'',i8)')ntics
+         return
+      endif
+      if(span.eq.0)then
+         write(*,'('' Fitrange error span. Range:'',2g11.4)')xmin,xmax
+         span=max(1.e-6,max(abs(xmin),abs(xmax)))
       endif
       xtic=span/ntics
       nsfac=nint(log10(0.099999*abs(xtic))+0.500001)
       sfac=10.**nsfac
       xtic=abs(xtic)/sfac
       if(xtic.lt.1.)then
-	 write(*,'('' Fitrange error 1. xtic='',f16.7)')xtic
+         write(*,'('' Fitrange error 1. xtic='',f16.7)')xtic
       elseif(.not.xtic.lt.10.0001)then
-	 write(*,'('' Fitrange error NAN. Range:'',2g10.4)'),xmin,xmax
+         write(*,'('' Fitrange error NAN. Range:'',2g11.4)')xmin,xmax
          xtic=1.
-         nxfac=0.
+         nxfac=0
          sfac=1.
          xfac=1.
       else
 c Choose the increment
          iret=0
- 201     fspan=1.e30
+ 201     fspan=1.e31
          ichoice=0
          do i=1,npos
             xt=incpos(i)*sfac
             xt=sign(xt,span)
-            n2=anint((xmin+span)/xt-0.49999)
-            n1=anint(xmin/xt+0.49999)
+            n2=nint((xmin+span)/xt-0.49999)
+            n1=nint(xmin/xt+0.49999)
             atr=abs((n2-n1)*xt)
             if(iret.eq.1)write(*,'(2i3,4f7.3,3i4)')i,incpos(i),atr,xt
      $           ,sfac,fspan,n1,n2,ntics
@@ -152,3 +156,45 @@ c Change xt1st the last thing, since it might be xmin, itself.
 c      write(*,*)'xtic,sfac,xt1st,xtlast',xtic,sfac,xt1st,xtlast,ntics
       return
       end
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      real function steplog(i,pmax,n,nsteps,step)
+! Return the ith of n steps of p up to a ceiling of pmax 
+! in logarithmic spacing of nsteps specified in step 
+! e.g. 3, (1,2,5) or 4, (1,2,4,6)
+      integer i,n,nsteps
+! Work zero based for convenience
+      real pmax,step(0:nsteps-1)
+      real pmset,nset
+      data pmset/0./nset/0/nstepset/0/
+      save
+
+! A version that saves setup might be a bad idea
+!      if(pmax.ne.pmset.or.n.ne.nset.or.nsteps.ne.nstepset)then
+! Initialize
+         pmset=pmax
+         nset=n
+         nstepset=nstepset
+         pmaxln=alog10(pmax)
+         nfmax=nint(pmaxln-0.499999)         ! Power of 10
+         pmaxsc=pmax/10.**nfmax              ! pmax scaled to 1-9.9999
+         do k=nsteps-1,0,-1
+            if(pmaxsc.ge.step(k))goto 1
+         enddo
+         write(*,*)'stepln ERROR',pmax,pmaxsc,i
+ 1       kpmax=k
+! Now kpmax is the first step index below pmax zero-based
+! Find the lowest kvalue kmin and its power of ten:
+         nbuf=20*nsteps
+         kpmin=mod(nbuf+kpmax-(n-1),nsteps)
+!        How many times do we go through zero going from 1 to n
+         nfmin=nfmax-(kpmin+(n-1))/nsteps
+!        write(*,*)pmax,nfmax,kpmax,nfmin,kpmin
+!      endif
+
+! The actual calculation.
+      nf=nfmin+(kpmin+(i-1))/nsteps
+      kp=mod(i-1+kpmin,nsteps)      
+!      write(*,'(2i3,$)')nf,kp
+      steplog=step(kp)*10.**nf
+      end 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1

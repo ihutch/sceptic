@@ -23,32 +23,37 @@ typedef int FORT_INT;
 static Display *accis_display=NULL;
 static Window accis_root;
 static Window accis_window;
-static Pixmap accis_pixmap;
+/*static Pixmap accis_pixmap;*/
 /* Attributes to require of the visual chosen:*/
 /* It proves advantageous to _avoid_ doublebuffering for incremental
-   drawing using accisrefresh. Speed seems best this way too. */
-static GLint  accis_att[] = { GLX_RGBA, /* Truecolor and Directcolor */
-			      /*GLX_ACCUM_RED_SIZE,8, /* Require accum */
+   drawing. Speed seems best this way too. Yet there was a problem with
+   single buffering from loki with glXSwapBuffers.*/
+static GLint  accis_double[] = { GLX_RGBA, /* Truecolor and Directcolor */
 			      GLX_DEPTH_SIZE, 24, /* Depth 24 */
 			      GLX_DOUBLEBUFFER, /* */
+			      None };
+static GLint  accis_single[] = { GLX_RGBA, /* Truecolor and Directcolor */
+			      GLX_DEPTH_SIZE, 24, /* Depth 24 */
+				 /* GLX_DOUBLEBUFFER,*/
 			      None };
 static XVisualInfo             *accis_vi;
 static Colormap                accis_cmap;
 static XSetWindowAttributes    accis_swa;
 static GLXContext              accis_glc;
 static XWindowAttributes       accis_gwa;
-static XEvent                  accis_xev;
+/*static XEvent                  accis_xev;*/
 static Colormap accis_colormap;
 static int accis_depth;
 static int accis_listing=0;
 static int accis_eye3d=9999;
+static int accis_glback=1;
 
 /* Static maximum number of points in path */
-#define accis_path_max 4000
+#define accis_path_max 300
 static XPoint accis_path[accis_path_max];
 static int accis_pathlen=0;
 /* Until svga is called, the default is that there is no display */
-static int accis_nodisplay=1;
+static int accis_nodisplay=99;
 
 /* 256 color gradient globals */
 /* Use only 240 colors so that 16 are left for the 16 colors and you can
@@ -61,7 +66,7 @@ static int a_grad_inited=0;
 static int a_gradred[a_gradPixno];
 static int a_gradgreen[a_gradPixno];
 static int a_gradblue[a_gradPixno];
-static int a_gradno=a_gradPixno;/* Publically available Pixno */
+/*static int a_gradno=a_gradPixno;*/ /* Publically available Pixno */
 
 /* 16-color model globals. Pixels for truecolor display. */
 #define a_maxPixels 16
@@ -110,6 +115,10 @@ static char *accis_colornames[a_maxPixels]=
 static char *accis_argv[ACCIS_NARGVS];
 static int accis_argc=0; 
 static char *accis_geometry=NULL;
+#define ACCIS_SWAP {/*fprintf(stdout,"Swapping\n");*/glXSwapBuffers(accis_display,accis_window);}
+
+
+
 /* Get the command line arguments from fortran main using getargs etc. */
 void getcmdargs_()
 {
@@ -170,19 +179,9 @@ int accis_errorhandler(Display *display, XErrorEvent *theEvent) {
 void accis_set_focus(){
   if(accis_old_handler==0)
     accis_old_handler=XSetErrorHandler(accis_errorhandler) ;
-  /*if(XGetWindowAttributes(accis_display, accis_window,&accis_attributes) \
-    == Success && accis_attributes.map_state == IsViewable)/*DeliberateErrors*/
     XSetInputFocus(accis_display, accis_window, RevertToParent,CurrentTime);
-    /* Immediately restoring the old one did not work. */	
-    /*XSync(accis_display,True);XSetErrorHandler(accis_old_handler);*/
 }
-
-int accisinit()
-{
-  FORT_INT xp, yp, vm, nc;
-  svga_(&xp,&yp,&vm,&nc);
-}
-/* Subroutine */ 
+/* Main setup subroutine */ 
 int svga_(scrxpix, scrypix, vmode, ncolor)
 FORT_INT *scrxpix, *scrypix, *vmode, *ncolor;
 {  
@@ -192,19 +191,23 @@ FORT_INT *scrxpix, *scrypix, *vmode, *ncolor;
   int x_size,y_size,x_off,y_off,gravity;
   accis_nodisplay=0;
   *ncolor=15;
+  *vmode=88;
   if(second == 0) {
   /* Call fortran routine to get arguments into accis_ globals*/
     getcmdargs_();
-    /* Obsolete compatibility settings */
-    *vmode=88;
-
     if( (accis_display = XOpenDisplay(NULL)) == NULL) {
         printf("\n\tcannot connect to X server\n\n");
         exit(0); 
     }
-    if((accis_vi=glXChooseVisual(accis_display, 0, accis_att)) == NULL) {
-      printf("\n\tno appropriate visual found\n\n");
+    if((accis_vi=glXChooseVisual(accis_display, 0, accis_double)) == NULL) {
+      printf("\n\tno appropriate visual found\n");
+      if((accis_vi=glXChooseVisual(accis_display, 0, accis_single)) == NULL) {
         exit(0); 
+      }else{
+	printf("\tfell-back to single-buffering\n");
+	printf("\tGLX visual %#x selected\n", (int)accis_vi->visualid);
+	accis_glback=0;
+      }
     }else{
       printf("\tGLX visual %#x selected\n", (int)accis_vi->visualid); 
     }/* %p hexadecimal*/
@@ -232,22 +235,19 @@ FORT_INT *scrxpix, *scrypix, *vmode, *ncolor;
 			       accis_vi->depth, 
 			       InputOutput, accis_vi->visual, 
 		CWBackPixel | CWColormap | CWEventMask, &accis_swa);
-
-    /* Set the hints to respect the position and size I specify
-    XSetWMNormalHints(accis_display,accis_window,&hints); */
     XMapWindow(accis_display, accis_window);
-    /* XClearWindow(accis_display,accis_window); */
     XStoreName(accis_display, accis_window, "Accis");
 
 /*Start of OpenGL calls ******************/
     accis_glc = glXCreateContext(accis_display, accis_vi, NULL, GL_TRUE);
     glXMakeCurrent(accis_display, accis_window, accis_glc);
-/*    printf("Finished glXCreateContext\n");  */
-    /* All writes into both buffers at once  */
-    glDrawBuffer(GL_FRONT_AND_BACK); 
-    /* reads from the back buffer */
-    glReadBuffer(GL_BACK);
 
+    if(accis_glback){
+      glDrawBuffer(GL_BACK);
+    }else{
+      glDrawBuffer(GL_FRONT_AND_BACK);
+    }
+    
     accis_depth=accis_vi->depth;
     accis_colormap=accis_cmap;
     initDefaultColors();
@@ -280,17 +280,20 @@ FORT_INT *scrxpix, *scrypix, *vmode, *ncolor;
      if(accis_listing==0)*/
   {
     accis_listing=1;
-    /* XSync(accis_display,True);  This discards expose events when mapped */
-    /* on compiz this seems to break things */
     glNewList(1,GL_COMPILE_AND_EXECUTE);
     glClearColor(1.0, 1.0, 1.0, 1.0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   }
 
- glColor3f(0.,0.,0.);
-
-/*   printf("Finished svga\n"); */
+  glColor3f(0.,0.,0.);
   return 0;
+}
+
+/************************************************************************/
+void accisinit()
+{
+  FORT_INT xp, yp, vm, nc;
+  svga_(&xp,&yp,&vm,&nc);
 }
 
 /************************************************************************/
@@ -320,16 +323,13 @@ void initDefaultColors()
 {
   XColor theRGBColor;
   XColor theHardColor;
-  int status,truecolor;
+  int status;
   int i,j,pix;
   if(accis_nodisplay){
-    truecolor=1;
   }else{
     if(is_truecolor()){	
-      truecolor=1;
 /*      fprintf(stderr,"True color shortcut Default colors.\n"); */
     }else{
-      truecolor=0;
       fprintf(stderr,"Looking up default colors the hard way.\n");
       for(i=0;i<a_maxPixels;i++){
 	status=XLookupColor(accis_display,accis_colormap,accis_colornames[i],
@@ -344,10 +344,6 @@ void initDefaultColors()
 	}else{
 	  accis_pixels[i]=BlackPixel(accis_display,0);
 	}
-/*        fprintf(stderr,"%10u,   %.3f %.3f %.3f\n",accis_pixels[i], */
-/*  	      theHardColor.red/(256.*256.), */
-/*  	      theHardColor.green/(256.*256.), */
-/*  	      theHardColor.blue/(256.*256.));  */
       }
     }
   }
@@ -360,70 +356,58 @@ void initDefaultColors()
     accis_rgb[j+1]=(pix-(pix/256)*256);
     pix=pix/256;
     accis_rgb[j]=(pix-(pix/256)*256);
-    /*    printf("accis_rgb[%d]=%d %d %d\n",
-	  i,accis_rgb[j],accis_rgb[j+1],accis_rgb[j+2]);*/
   }
-
 }
 
 /* ******************************************************************** */
 #define EXPOSE_ACTION      \
-  /* Get all the queued contiguous expose events, before redrawing */ \
-  if(XPending(accis_display)) XPeekEvent(accis_display,&event);	      \
-      while(XPending(accis_display) && event.type==Expose){	      \
-	XNextEvent(accis_display,&event);			      \
-	if(XPending(accis_display)) XPeekEvent(accis_display,&event); \
+  /* Drop all the queued contiguous expose events, before redrawing */\
+  while(XPending(accis_display)&&XPeekEvent(accis_display,&event)&&   \
+	event.type==Expose){XNextEvent(accis_display,&event);	      \
       } /* Redraw everything.*/					      \
       glCallList(1);						      \
-      glXSwapBuffers(accis_display,accis_window);		\
-      glFlush(); /* Proves to be necessary for remote servers. */	\
-      /*      printf("Expose action\n");				\*/
-      /* The following did not work well. Stuff got written misaligned. */
-/*       glDrawBuffer(GL_BACK);\ */
-/*       glCallList(1);\ */
-/*       glFlush(); /\* Proves to be necessary for remote servers. *\/\ */
-/*       glXSwapBuffers(accis_display,accis_window);	\*/
-/*       glDrawBuffer(GL_FRONT_AND_BACK); */
+      if(accis_glback)ACCIS_SWAP;                                     \
+      glFlush(); /* Proves to be necessary for remote servers. */     \
 
 /* ******************************************************************** */
-/* End plotting */
-/* Subroutine */ 
-/* #include <curses.h>*/
+/* End plotting Subroutine */ 
 void txtmode_()
 {
   XEvent event;
   glEndList(); /* Close the drawing list started in svga.*/
   accis_listing=0;
   ACCIS_SET_FOCUS;
+  /* printf("txtmode Executing Expose_Action\n");*/
+  /* The double expose action ensured the first plot was shown. Otherwise
+     not reliably, but for reasons that I do not understand.*/
+  if(accis_glback)EXPOSE_ACTION;
   EXPOSE_ACTION;
-  glFlush();
   do{
-    /*    printf("Executing XtNextEvent"); */
+    /*    printf("Executing XtNextEvent ");*/
     XNextEvent(accis_display,&event);
-/*     printf("Event: type=%d\n",event.type); */
+    /*    printf("Event: type=%d\n",event.type);*/
     if(event.type == Expose){EXPOSE_ACTION;}
   }while(event.type != ButtonPress && event.type != KeyPress );
-  /*seems a duplicate  accis_listing=0; */
-/*     printf("Escaping Event: type=%d\n",event.type); */
     /* We don't do this; but here's how to terminate cleanly.
     glXMakeCurrent(accis_display, None, NULL);
     glXDestroyContext(accis_display, accis_glc);
     XDestroyWindow(accis_display, accis_window);
     XCloseDisplay(accis_display);  */
 }
+/* ******************************************************************** */
+void accisclear_()  /* Simply clear to background fortran callable*/ 
+{    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); }
 
 /* ******************************************************************** */
-/* Flush the plot buffer */
-/* Subroutine */ 
+/* Flush the plot buffer Subroutine */ 
 void accisflush_()
 {
-  extern void accisrefresh_();
-  XFlush(accis_display);  
-  accisrefresh_();
+  glFlush();
+  XFlush(accis_display);
+  if(accis_glback)ACCIS_SWAP
 }
-
 /* ********************************************************************* */
-/* Subroutine */ int scolor_(li)
+/* Set the Color Subroutine */ int scolor_(li)
 FORT_INT *li;
 {
   /* *ncolor=*li; */
@@ -437,11 +421,10 @@ FORT_INT *li;
 } /* scolor_ */
 
 /* ******************************************************************** */
-/* Subroutine */ int vec_(px, py, ud)
+/* Draw a vector Subroutine */ int vec_(px, py, ud)
 FORT_INT *px, *py, *ud;
 { /*  Draw vector on screen, with pen up or down. */
-/*     static int px1=0,py1=0,px2=0,py2=0; */
-  static float px1=0.,py1=0.,px2=0.,py2=0.;
+    static float px1=0.,py1=0.,px2=0.,py2=0.;
     extern XPoint accis_path[];
     extern int accis_pathlen;
 
@@ -449,13 +432,14 @@ FORT_INT *px, *py, *ud;
     py1=py2;
     px2 = *px;
     py2 = *py;
-/*     printf("px %.0f, py %.0f\n",px2,py2); */
-    if( *ud > 0) {
+/*     printf("px %.0f, py %.0f\n",px2,py2);
+    if( *ud > 0) { */
+    if( *ud == 1) { 
       glBegin(GL_LINES);
       glVertex2f(px1,py1);
       glVertex2f(px2,py2);
       glEnd();
-      if(accis_pathlen<accis_path_max){      /* Add point to path */
+      if(accis_pathlen<accis_path_max-1){      /* Add point to path */
 	accis_pathlen++;
       }
     }else{ 
@@ -472,12 +456,14 @@ FORT_INT *px, *py, *ud;
     return 0;
 } /* vec_ */
 /* ******************************************************************** */
-void vecfill_()
+/* Fill the current path. Incorrect because OpenGL requires tessellation*/
+void vecfillold_()
 {
   int i;
   extern XPoint accis_path[];
     extern int accis_pathlen;
     if(accis_pathlen>1){ /* If path is more than 2 points, fill. */
+      /* This works only for convex path */
       glBegin(GL_POLYGON);
       for(i=0;i<=accis_pathlen;i++){
 	glVertex2i(accis_path[i].x,accis_path[i].y);
@@ -486,24 +472,60 @@ void vecfill_()
     }
 }
 /* ******************************************************************** */
-void accisrefresh_()
+void combineCallback(GLdouble coords[3], GLdouble *vertex_data[4],
+                     GLfloat weight[4], GLdouble **dataOut )
+{ /* Simplest combine callback just returns the coords. */ 
+   GLdouble *vertex;
+   vertex = (GLdouble *) malloc(3 * sizeof(GLdouble));
+   vertex[0] = coords[0];
+   vertex[1] = coords[1];
+   vertex[2] = coords[2];
+   *dataOut = vertex;
+}
+/*----------------------------------------------------------------------*/
+/* Draw a filled polygon (compatibility function for XFillPolygon()	*/
+/* Originally based on, but with serious corrections to, the code in    */
+/* opengl.c  by Tim Edwards.                   Ian Hutchinson 2015      */
+/*----------------------------------------------------------------------*/
+void
+FillPolygon(Display *dpy, Window win, GC nullptr, XPoint *points,
+	int npoints, int shape, int mode)
 {
-  XEvent event;
-  /*This is an attempt to store the current buffer in the Accum buffer
-    before swapping buffers, then restore it afterwards. Unfortunately
-    it is extremely slow for a visual that has both double buffering
-    and Accum. However, if the visual does not have double buffering,
-    or if writing is set to FRONT_AND_BACK then for mysterious reasons
-    it works with just two calls. In other words one does not have to
-    GL_LOAD first. Also glFlush works as good as glXSwapBuffers*/
-  /*glAccum(GL_LOAD,1.);*/
-  /* glXSwapBuffers(accis_display, accis_window); */
-  glFlush();
-  /* this alternative attempt does not work: 
-     glXWaitGL();XSync(accis_display,False);glXWaitX();*/
-  glAccum(GL_RETURN,1.);
+   int i, j;
+   static GLUtesselator *tess = NULL;
+   static GLdouble *v=NULL;
+
+   if (tess == NULL) {
+      tess = gluNewTess();
+      gluTessCallback(tess, GLU_TESS_BEGIN, (_GLUfuncptr)glBegin);
+      gluTessCallback(tess, GLU_TESS_VERTEX, (_GLUfuncptr)glVertex2dv);
+      gluTessCallback(tess, GLU_TESS_END, (_GLUfuncptr)glEnd);
+      gluTessCallback(tess, GLU_TESS_COMBINE, (_GLUfuncptr)combineCallback);
+   }
+   v = (GLdouble *)realloc(v, 3 * npoints * sizeof(GLdouble));
+
+   gluTessBeginPolygon(tess, NULL);
+   gluTessBeginContour(tess);
+   j = 0;
+   /* There have to be 3 coordinates with z=0 passed to gluTessVertex*/
+   for (i = 0; i < npoints; i++, j += 3) {
+      v[j] = (GLdouble)points[i].x;
+      v[j + 1] = (GLdouble)points[i].y;
+      v[j+2]=0;
+      /* printf("%d %f %f\n",i,v[j],v[j+1]); */
+      gluTessVertex(tess, &v[j], &v[j]);
+   }
+   gluTessEndContour(tess);
+   gluTessEndPolygon(tess);
 }
 /* ******************************************************************** */
+/* Fill the current path, Using GLX tessalation code.*/
+void vecfill_()
+{
+  Window win=0; GC nullptr=0;
+      FillPolygon(accis_display,win,nullptr,
+		   accis_path,accis_pathlen+1,Nonconvex,CoordModeOrigin);
+}
 /* ******************************************************************** */
 float xeye,yeye,zeye;
 float xeye0,yeye0,zeye0;
@@ -546,15 +568,15 @@ XEvent *event;
   cubeupd_(&xeye,&yeye,&zeye);
   /* This flush is necessary to see the black cube. */
   glFlush();
-  /* This is for the background case working around GL bugs.
-  glXSwapBuffers(accis_display, accis_window);*/
+  /* This is for the background case working around GL bugs. */
+  if(accis_glback)ACCIS_SWAP;
 }
 /* ********************************* */
 void accis_keypress(event)
 XEvent *event;
 {
   /* Testing only 
-  printf("Key event keycode: %u keysym:%x",event->xkey.keycode,
+     printf("Key event keycode: %u keysym:%x",event->xkey.keycode,
 	 (int)XLookupKeysym(&(event->xkey),0)); */
   ACCIS_SET_FOCUS;
 }
@@ -562,7 +584,7 @@ XEvent *event;
 /* ******************************************************************** */
 /* Externally callable routine to set noeye3d return value.
    Set to 9999 to disable. */ 
-int noeye3d_(value)
+void noeye3d_(value)
      int *value;
 {
   if(*value>1000)accis_eye3d=9999;
@@ -577,29 +599,35 @@ int eye3d_(value)
   extern void accis_moved();
   XEvent event;
 
+  /* fprintf(stdout,"In eye3d: %d,%d\n",accis_nodisplay,accis_eye3d); */
   if(accis_nodisplay){ *value=0; return 0; }
   glEndList(); /* Close the drawing list started in svga.*/
   accis_listing=0;
   if(accis_eye3d == 1){ *value=0; return 0; }
 
+  glFlush();
+  /* This swap buffers does not work correctly when drawing to front.*/
+  if(accis_glback)ACCIS_SWAP
   XFlush(accis_display);
-  glXSwapBuffers(accis_display, accis_window);
   /* Wait for a key press */
   if(accis_eye3d != 9999){
     if(XPending(accis_display)){
       XPeekEvent(accis_display,&event);
-      if(event.type==KeyPress){
+      if(event.type==KeyPress){ /* Halt continuous running on keypress */
 	*value=(int)XLookupKeysym(&(event.xkey),0);
 	accis_eye3d=9999;
+      }else{ /* Discard other events */
+	XNextEvent(accis_display,&event);
       }
-    }else{
-      *value=accis_eye3d; return 0; 
     }
+    if(accis_eye3d!=9999) {*value=accis_eye3d;return 0;}
   }
+  /* fprintf(stdout,"Second accis_eye3 in eye3d= %d\n",accis_eye3d); */
   ACCIS_SET_FOCUS;
+  /* Deal with next events until a button or keypress is detected. */
   do{
     XNextEvent(accis_display,&event);
-/*     printf("First loop:The event type: %d, %d\n",event.type,ButtonPress); */
+    /* printf("First loop:The event type: %d, %d\n",event.type,ButtonPress); */
     switch(event.type) {
     case Expose: EXPOSE_ACTION; break;
     case ButtonPress: accis_butdown(&event); break;
@@ -611,23 +639,21 @@ int eye3d_(value)
   }while(event.type != ButtonPress && event.type != KeyPress);
   /* Recognize KeyPress as sign to exit.*/
   if(event.type == KeyPress) {
-    if(XPending(accis_display)) XPeekEvent(accis_display,&event);
     *value=(int)XLookupKeysym(&(event.xkey),0);
-  /* Get all the queued contiguous KeyPress events so we don't over-
-     run the rotation when the key is lifted. */
     if(XPending(accis_display)) XPeekEvent(accis_display,&event);
+    /* Get all the queued contiguous KeyPress events so we don't over-
+       run the rotation when the key is lifted. */
     while(XPending(accis_display) &&
-	  (event.type==KeyPress || event.type==KeyRelease) ){
-      XNextEvent(accis_display,&event);
-      if(XPending(accis_display)) XPeekEvent(accis_display,&event);	\
-    }
- 
-/*     printf("Key value=%d\n",*value); */
+	  (event.type==KeyPress || event.type==KeyRelease) )
+      {
+	XNextEvent(accis_display,&event);
+	if(XPending(accis_display)) XPeekEvent(accis_display,&event);
+      } 
     return *value;
   }
   do{
     XNextEvent(accis_display,&event);
-/*        printf("The event type: %d\n",event); */
+    /*printf("The event type: %d\n",event.type); */
     switch(event.type) {
     case Expose: EXPOSE_ACTION; break;
     case ButtonPress: accis_butdown(&event); break;
@@ -692,7 +718,6 @@ void accisgraddef_()
   FORT_INT bot=0;
   accisgradinit_(&bot,&bot,&bot,&top,&top,&top);
 }
-
 /********** Use a gradient color out of 240 *********************************/
 /* Subroutine */ int acgradcolor_(li)
 FORT_INT *li;
@@ -767,17 +792,18 @@ void accisgradset_(red,green,blue,npixel)
     a_gradgreen[i]=theRGBcolor.green=ilimit(0,*(green+i),65535);
     a_gradblue[i]=theRGBcolor.blue=ilimit(0,*(blue+i),65535);
     /*printf("theRGBcolor %d,%d,%d\n",theRGBcolor.red,theRGBcolor.green,theRGBcolor.blue);*/
-    if(is_truecolor()){
-      /*fprintf(stderr,"Setting a_gradPix, %d",i);*/
-      a_gradPix[i]=
-	((theRGBcolor.red/256)*256+(theRGBcolor.green/256))*256
-	+(theRGBcolor.blue/256);
-      /*fprintf(stderr,"Allocated Color %d =%d\n",i,a_gradPix[i]);*/
-    }else if(XAllocColor(accis_display,accis_colormap,&theRGBcolor)){
-      fprintf(stderr,"Allocated Color %d=%ld\n",i,theRGBcolor.pixel);
-      a_gradPix[i]=theRGBcolor.pixel;
-    }else{
-      a_gradPix[i]=BlackPixel(accis_display,0);
+    if(accis_nodisplay!=1){/*Unless screen display is off, initialize gradPix.*/
+      if(is_truecolor()){
+	a_gradPix[i]=
+	  ((theRGBcolor.red/256)*256+(theRGBcolor.green/256))*256
+	  +(theRGBcolor.blue/256);
+	/*fprintf(stderr,"Allocated Color %d =%d\n",i,a_gradPix[i]);*/
+      }else if(XAllocColor(accis_display,accis_colormap,&theRGBcolor)){
+	fprintf(stderr,"Allocated Color %d=%ld\n",i,theRGBcolor.pixel);
+	a_gradPix[i]=theRGBcolor.pixel;
+      }else{
+	a_gradPix[i]=BlackPixel(accis_display,0);
+      }
     }
   }
   a_grad_inited=2;
@@ -787,19 +813,23 @@ void accisgradset_(red,green,blue,npixel)
 int igradtri_() { return 0;} */
 /*************************************************************************/
 /* Fortran callable GL triangle drawing. Return 1 for success. 
-i3d indicates 3d x,y,z if 1, 2d x,y if 0. color in h. */
+i3d indicates 3d x,y,z if 1, 2d x,y if 0. color in h. 
+This routine does not (yet) leave the normalized coordinates at the 
+position of the last vertex. This is incompatible with the final postion
+of the vecx driver that does not use igradtri.
+*/
 int igradtri_(x,y,z,h,i3d)
 float *x,*y,*z,*h;
 FORT_INT *i3d;
 {
   int i,li;
   float xn,yn,zn,xw,yw,xs,ys;
-  FORT_INT ixs,iys,three=3;
+  FORT_INT ixs,iys;
   float cbx,cby,cbz,xcbc,ycbc;
   float zs, zero=0.;
   /* Fortran functions called: */
-  float extern wx2nx_(),wy2ny_();
-  void extern tn2s_(),wxyz2nxyz_();
+  float extern wx2nx_(),wy2ny_(),getwx2nx_(),getwy2ny_();
+  void extern tn2s_(),wxyz2nxyz_(),getcube_(),trn32_();
 
 /*   if(h[1]>=a_gradPixno || h[3]>=a_gradPixno || h[3]>=a_gradPixno){ */
 /*     return 1; */
@@ -809,50 +839,23 @@ FORT_INT *i3d;
     glBegin(GL_TRIANGLES);
     for (i=0;i<3;i++){
       xw=x[i]; yw=y[i];
-      /* Real fortran function calls don't work with g77 unless one
-      uses the extra flag -fno-f2c . Apparently this is a problem only
-      on AMD64 systems and is to do with the assumed length of returned
-      floating points: double vs float.  From gfortran info: 
-      "The calling conventions used by `g77' (originally implemented in
-      `f2c') require functions that return type default `REAL' to
-      actually return the C type `double'."
-       -fno-f2c defeats this expectation. gfortran uses no-f2c as default.
-       g77 says:
-           However, because the "libg2c" library uses f2c calling conventions,
-           g77 rejects attempts to pass intrinsics implemented by routines in
-           this library as actual arguments when -fno-f2c is used, to avoid
-           bugs when they are actually called by code expecting the GNU call‐
-           ing conventions to work.
-
-           For example, INTRINSIC ABS;CALL FOO(ABS) is rejected when -fno-f2c
-           is in force.  (Future versions of the g77 run-time library might
-           offer routines that provide GNU-callable versions of the routines
-           that implement the f2c intrinsics that may be passed as actual
-           arguments, so that valid programs need not be rejected when
-           -fno-f2c is used.)
-
-           Caution: If -fno-f2c is used when compiling any source file used in
-           a program, it must be used when compiling all Fortran source files
-           used in that program. 
-      Obviously that's potentially a serious danger. Probably better just
-      to circumvent the whole thing by using fortran subroutines only. 
-      */
-      /*      xn=wx2nx_(&xw);
-	      yn=wy2ny_(&yw); */ /*The following subroutines replace and work.*/
+      /* Real fortran _function_ calls don't work with g77 on AMD64
+      unless one uses the extra flag -fno-f2. This is fraught with
+      danger.  Probably better just to circumvent the whole thing by
+      using fortran subroutines only. So instead of
+      xn=wx2nx_(&xw);
+      yn=wy2ny_(&yw); */ /*The following subroutines replace and work.*/
       getwx2nx_(&xw,&xn);
       getwy2ny_(&yw,&yn);
       tn2s_(&xn,&yn,&ixs,&iys);
       xs=ixs; ys=iys;
       li=(int) h[i] +1; /* +1 compensates for adj in gradtri */
-      /* printf("xw %f, yw %f, xn %f, yn %f, xs %.0f, ys %.0f, li %d\n", 
-	 xw,yw,xn,yn,xs,ys,li); */
       acgradcolor_(&li);
       glVertex2f(xs,ys);
     }
     glEnd();
     return 1;
-
-  }else{/* 3-D case not yet debugged */
+  }else{
 /*     printf(" 3D case\n"); */
     getcube_(&cbx,&cby,&cbz,&xcbc,&ycbc);
     glBegin(GL_TRIANGLES);
@@ -864,8 +867,6 @@ FORT_INT *i3d;
       tn2s_(&xn,&yn,&ixs,&iys);
       xs=ixs; ys=iys;
       li=(int) h[i];
-/*       printf("x %f, y %f, z %f, xn %f, yn %f, xs %.0f, ys %.0f, li %d\n", */
-/* 	     x[i],y[i],z[i],xn,yn,xs,ys,li); */
       acgradcolor_(&li);
       glVertex2f(xs,ys);	
     }
@@ -885,12 +886,6 @@ void usleep_(usecs)
 void glback_()
 {glDrawBuffer(GL_BACK);
 }
-/* The following did not work well. Stuff got written misaligned. */
-/*       glDrawBuffer(GL_BACK);\ */
-/*       glCallList(1);\ */
-/*       glFlush(); /\* Proves to be necessary for remote servers. *\/\ */
-/*       glXSwapBuffers(accis_display,accis_window);\ */
-/*       glDrawBuffer(GL_FRONT_AND_BACK); */
 /************************************************************************/
 /* Bring back buffer to front and return to writing there.*/
 void glfront_()
@@ -899,5 +894,7 @@ void glfront_()
   /* The order of the next two statements is key to getting all drawing */
   /* but to avoid the X bugs we don't for now do this:
      glDrawBuffer(GL_FRONT_AND_BACK); */
-  glXSwapBuffers(accis_display,accis_window);
+  if(accis_glback)ACCIS_SWAP /* Should never be called*/
 }
+
+

@@ -63,13 +63,13 @@ ifeq ("$(G77)","")
 # Default compiler. Ought to be used if a strange make target is used 
 # on the very first call.
 # After that, compiler ought to be set on disk and used.
-		override G77=mpif77 -f77=g77
+		override G77=mpif77
 	endif
 endif
 # In g77 -Wno-globals silences spurious type messages on reduce.f
 # This is unrecognized by gfortan. For which no-unused is better.
 NGW=-Wno-unused
-ifeq ("$(G77)","mpif77 -f77=g77")	
+ifeq ("$(G77)","mpif77")	
   NGW=-Wno-globals
 endif
 # export this so it is inherited by sub-makes.
@@ -113,7 +113,7 @@ COMPILE-SWITCHES =-Wall $(NOWARN) -O2  -I.
 
 REINJECT=fvinject.o orbitinject.o extint.o maxreinject.o ogeninject.o reindiag.o
 
-MPICOMPILE-SWITCHES = -DMPI $(COMPILE-SWITCHES)
+MPICOMPILE-SWITCHES = -DMPI $(COMPILE-SWITCHES) -fallow-argument-mismatch
 
 OBJECTS = initiate.o advancing.o randc.o randf.o diags.o outputs.o	\
 outputlive.o chargefield.o $(REINJECT) damp.o stringsnames.o		\
@@ -233,8 +233,8 @@ ifeq ("$(G90)","")
 	G90=mpif90
 endif
 
-outputhdf.o : outputhdf.f piccom.f colncom.f
-	$(G90) -c -Wall -O2 -I. $(HDFINCLUDE) outputhdf.f
+outputhdf.o : makefile outputhdf.f piccom.f colncom.f
+	$(G90) -c -O2 -Wall -I. $(HDFINCLUDE) outputhdf.f
 
 sceptichdf : sceptic.F  $(COMMONS) $(ACCISLIB) $(OBJECTS) outputhdf.o makefile
 	$(G77) $(COMPILE-SWITCHES) -DHDF outputhdf.o $(HDFINCLUDE) $(HDFLIBRARIES) ${NGW} -o sceptichdf sceptic.F $(LIBRARIES)

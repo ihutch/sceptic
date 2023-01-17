@@ -6,16 +6,18 @@ c Generic parts of initializations.
       data naxmin,naxmax,naymin,naymax,naxpt,naypt
      $  / 0.31,0.91,0.1,0.7,0.31,0.1/
       data xticlen,yticlen,xticoff,yticoff,nxlabw,nxlabp,nylabw,nylabp
-     $	/ 0.015,0.015,-0.03,-0.02,4,1,4,1 /
+     $  / 0.015,0.015,-0.03,-0.02,4,1,4,1 /
       data ticnum/6/
       data lxlog/.false./lylog/.false./lclog/.false./
       data lminor/.true./
 c Now this is initialized by truncf call in pltinit.
 c      data  trcxmi,trcxma,trcymi,trcyma,ltlog
-c     $	 / 0.,0.,1.,1.,.false. /
+c     $  / 0.,0.,1.,1.,.false. /
       data updown/99/
       data pfsw,pfilno/0,0/
       data pfPS/0/
+      data vmode/111/
+      data iwarn/1/
       end
 
 C********************************************************************
@@ -48,6 +50,8 @@ C********************************************************************
      $     /-1.,1.,-1.,1.,-1.,1./
       data w3nx/0.25/w3ny/0.25/w3nz/0.2/
       data ihiding/0/i3trunc/0/
+      data z3sign/1./z3signch/1./
+      data ax3chars/'axis-1','axis-2','axis-3'/
       end
 
 c***************************************************************************

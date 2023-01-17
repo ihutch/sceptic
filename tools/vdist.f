@@ -1,3 +1,7 @@
+c Read back and plot various data on the velocity distribution from 
+c the files *.dst. These are written by sceptic only if called with the
+c switch -ef, e.g. -ef100 averages the last 100 steps of distributions
+c and densities and writes them out. 
       include 'piccom.f'
       include 'distcom.f'
       character*(100) filename,string
@@ -6,8 +10,11 @@
       logical laspect
       real xplot1(2*nthsize),yplot1(2*nthsize)
 c      real xplot2(0:nthsize),yplot2(0:nthsize)
+      real rhoave(nrsize),rhocos(nrsize)
+      integer nrend
 
       data lgraph,lphip,ldens,ltempc,lconline,larrows/6*.false./
+      data nrend/0/
 
       filename=' '
       isw=0
@@ -31,6 +38,7 @@ C         write(*,*)'Argument:',string(1:40)
             if(string(1:2) .eq. '-t') ltempc=.true.
             if(string(1:2) .eq. '-l') lconline=.true.
             if(string(1:2) .eq. '-a') larrows=.true.
+            if(string(1:2) .eq. '-k') read(string(3:),*)nrend
             if(string(1:2) .eq. '-i') read(string(3:),*)isw
             if(string(1:2) .eq. '-p')then
                read(string(3:),*,err=201,end=201)ir1,ir2,it1,it2
@@ -52,10 +60,33 @@ c      write(*,*)'isw=',isw
          write(*,*)'No filename.'
          goto 11
       endif
+      if(nrend.eq.0)nrend=nrused
 
       call minmax2(rhodist(1,1),nrdist+1,nrused-1,nthused-1,rhomin
      $     ,rhomax)
-      write(*,*)'rhomax,rhomin',rhomax,rhomin
+      write(*,*)'rhomax,rhomin',rhomax,rhomin,nrused,nthused
+
+      if(lphip)then
+      write(*,*)nrused,3
+      do i=1,nrused
+         rhoave(i)=0.
+         rhocos(i)=0.
+         do j=1,nthused
+c         write(*,*)i,j,rcc(i),tcc(j),rhodist(i,j)
+            dth=2./(nthused-1.)
+            if(j.eq.1.or.j.eq.nthused)dth=0.5*dth
+            rhoave(i)=rhoave(i)+0.5*dth*rhodist(i,j)
+            rhocos(i)=rhocos(i)+dth*tcc(j)*rhodist(i,j)
+         enddo
+         write(*,*)rcc(i),rhoave(i),rhocos(i),rhocos(i)/rhoave(i)
+      enddo
+      call autoplot(rcc(1),rhoave(1),nrused)
+      call dashset(1)
+      call polyline(rcc(1),rhocos(1),nrused)
+      call dashset(0)
+      call pltend()
+      endif
+
 c Now process. Draw a contour plot of rhodist, and indicate where we are.
       if(nthused.le.10.and.nrused.le.10)then
          write(*,*)'rcc,tcc,th:'
@@ -125,11 +156,23 @@ c         write(*,*)ir1,it1,rhodist(ir1,it1),rhomin,rhomax
      $     ,ir1,it1,ir2,it2,nrused+1,nthused+1,icontour,iweb)
       if(iquit.eq.0)goto 10
 
+      if(ldens)then
+         call pfset(3)
+         call multiframe(0,0,0)
+         call conrho(ir,jstepth,rhomax,rhomin,nrend,nthused,v1,larrows
+     $        ,lconline,rhodist)
+         call pltend()
+      endif
+
       call exit(0)
  11   continue
       write(*,*)'Usage ...'
       write(*,*)'-p<ir1,ir2,it1,it2> specify initial cell.'
       write(*,*)'-i1 give read-back commentary.'
+      write(*,*)'-n  plot rho-contours separately'
+      write(*,*)'-k<ir> plot only out to cell ir'
+      write(*,*)'-l  add contour lines'
+      write(*,*)'-f  plot symmetric and cosine density components.'
       end
 c***************************************************************************
 c Contouring of the charge density, rho, on distorted mesh.
@@ -196,6 +239,7 @@ c      call multiframe(2,2,3)
       call pltinaspect(-rpmax,rpmax,0.,rpmax)
       call accisgradinit(-25000,00000,25000,130000,65000,130000)
       ntype=2+16+32
+      if(lconline)ntype=ntype+64
       call contourl(rholocal(1,0),cworka,nrsize+1,nrhere,nthhere+2,
      $        zclv,icl,zrho,xrho,ntype)
       call color(15)

@@ -39,18 +39,35 @@ C********************************************************************
       real wx2nx,wx
       include 'plotcom.h'
       real xd
+      integer errcount
+      data errcount/0/
       if(lxlog)then
-         if(wx.lt.0.001*wxmin .or. wx.gt.1000.*wxmax) then
-            write(*,*)'ACCIS WARNING world log x value outside range:'
-     $           ,wx,' plotting outside box.'
-            xd=.01/w2nx
-         else
+         if(wx.gt.1000.*wxmax) then
+            if(errcount.lt.3.and.iwarn.eq.1)then
+               write(*,*)'ACCIS WARNING world log x value',wy
+     $           ,' far to right of box.'
+            elseif(errcount.eq.3.and.iwarn.eq.1)then
+               write(*,*)'Further log value warnings suppressed'
+            endif
+            errcount=errcount+1
+            wx2nx=naxmax+.1 
+         elseif(wx.lt.0.001*wxmin)then
+            if(errcount.lt.3.and.iwarn.eq.1)then
+               write(*,*)'ACCIS WARNING world log x value',wy
+     $              ,' far to left of box.'
+            elseif(errcount.eq.3.and.iwarn.eq.1)then
+               write(*,*)'Further log value warnings suppressed'
+            endif
+            errcount=errcount+1
+            wx2nx=naxmin-.1
+         else 
             xd=log10(wx)-log10(wxmin)
+            wx2nx=naxmin+xd*w2nx
          endif
       else
-	 xd=wx-wxmin
+         xd=wx-wxmin
+         wx2nx=naxmin+xd*w2nx
       endif
-      wx2nx=naxmin+xd*w2nx
       return
       end
 C********************************************************************
@@ -62,32 +79,33 @@ C********************************************************************
       data errcount/0/
       if(lylog)then
          if(wy.lt.0.01*wymin)then
-            if(errcount.lt.5)then
+            if(errcount.lt.3.and.iwarn.eq.1)then
                write(*,*)'ACCIS WARNING world log y value',wy
      $           ,' far below box.'
-            elseif(errcount.eq.5)then
+            elseif(errcount.eq.3.and.iwarn.eq.1)then
                write(*,*)'Further log value warnings suppressed'
             endif
             errcount=errcount+1
-            yd=-.01/w2ny
-c            write(*,*)naymin,w2ny,naymin+yd*w2ny
+            wy2ny=naymin-.1 
+!            write(*,*)wy,naymin,w2ny
          elseif(wy.gt.1000.*wymax) then
-            if(errcount.lt.5)then
-            write(*,*)'ACCIS WARNING world log y value',wy
-     $           ,' far outside box.'
-            elseif(errcount.eq.5)then
+            if(errcount.lt.3.and.iwarn.eq.1)then
+               write(*,*)'ACCIS WARNING world log y value',wy
+     $           ,' far above box.'
+            elseif(errcount.eq.3.and.iwarn.eq.1)then
                write(*,*)'Further log value warnings suppressed'
             endif
             errcount=errcount+1
-c            yd=.01/w2ny
-            yd=log10(1000.*wymax)
+            wy2ny=naymax+.1
+!            write(*,*)wy,naymax,w2ny
          else
             yd=log10(wy)-log10(wymin)
+            wy2ny=naymin+yd*w2ny
          endif
       else
-	 yd=wy-wymin
+         yd=wy-wymin
+         wy2ny=naymin+yd*w2ny
       endif
-      wy2ny=naymin+yd*w2ny
       return
       end
 C********************************************************************
@@ -131,8 +149,9 @@ c If ifl.eq.-1 return the eye position dx,dy,dz in xt,yt,zt.
       real dx,dy,dz,rz,d,t11,t12,t13,t21,t22,t23,t31,t32,t33,dmz
       real x0,y0,z0
       save
+      include 'world3.h'
       data t11,t12,t13,t21,t22,t23,t31,t32,t33
-     $	 / .894427, .447214,.000000,-.182574, .365148, .912871
+     $   / .894427, .447214,.000000,-.182574, .365148, .912871
      $  , -.408248, .816497,-.408248/
 c the next data may not be consistent with the matrix.
       data d,dx,dy,dz/10.,4.,-10.,2./
@@ -141,55 +160,55 @@ c the next data may not be consistent with the matrix.
 c Perspective, in coordinates where z-axis is the center to eye vector, is
 c xt=x/(d+z) yt=y/(d+z), with d=|center-eye|. Hence we need to
 c transform to these coordinates and then do this perspective scaling.
-	 zt=t31*(x-x0)+t32*(y-y0)+t33*(z-z0)
-	 dmz=1.+zt/d
+         zt=t31*(x-x0)+t32*(y-y0)+t33*(z-z0)
+         dmz=1.+zt/d
 c Prevent the perspective from amplifying too much or becoming negative.
-	 if(dmz.le.0.0001)then
-c	    write(*,*)' TRN32 error: point at eye'
-	    return
-	 endif
-	 xt=(t11*(x-x0)+t12*(y-y0)+t13*(z-z0))/dmz
-	 yt=(t21*(x-x0)+t22*(y-y0)+t23*(z-z0))/dmz
+         if(dmz.le.0.0001)then
+c           write(*,*)' TRN32 error: point at eye'
+            return
+         endif
+         xt=(t11*(x-x0)+t12*(y-y0)+t13*(z-z0))/dmz
+         yt=(t21*(x-x0)+t22*(y-y0)+t23*(z-z0))/dmz
       elseif(ifl.eq.1)then
 c Set up perspective transform.
-	 dx=xt-x
-	 dy=yt-y
-	 dz=zt-z
+         dx=xt-x
+         dy=yt-y
+         dz=zt-z
          x0=x
          y0=y
          z0=z
-	 d=dx*dx+dy*dy
-	 rz=sqrt(d)
-	 d=sqrt(d+dz*dz)
+         d=dx*dx+dy*dy
+         rz=sqrt(d)
+         d=sqrt(d+dz*dz)
 c Transformation matrix: | -c1       s1        0 |   cos,sin etc:
 c Rotz  till x' perp d # | +s1c2     c1c2      s2|  c1=dy/rz s1=dx/rz
 c Rotx' till z''para  d  | -s1s2    -c1s2      c2|  c2=-dz/d s2=rz/d
-	 t11=-dy/rz
-	 t12=dx/rz
-	 t13=0.
-	 t33=-dz/d
-	 t21=t12*t33
-	 t22=-t11*t33
-	 t23=rz/d
-	 t31=-dx/d
-	 t32=-dy/d
-c	 write(*,'(3f14.6)')t11,t12,t13,t21,t22,t23,t31,t32,t33
+         t11=-dy/rz*z3sign
+         t12=dx/rz*z3sign
+         t13=0.
+         t33=-dz/d
+         t21=t12*t33
+         t22=-t11*t33
+         t23=rz/d*z3sign
+         t31=-dx/d
+         t32=-dy/d
+c        write(*,'(3f14.6)')t11,t12,t13,t21,t22,t23,t31,t32,t33
       elseif(ifl.eq.2)then
 c Axonometric setup. x=x+dxdy*y, y=z+dzdy*y, z=y, d=infinity.
-	 t11=1.
-	 t12=xt
-	 t13=0.
-	 t21=0.
-	 t22=zt
-	 t23=1.
-	 t31=0.
-	 t32=1.
-	 t33=0.
-	 d=1.e30
+         t11=1.
+         t12=xt
+         t13=0.
+         t21=0.
+         t22=zt
+         t23=1.
+         t31=0.
+         t32=1.
+         t33=0.
+         d=1.e30
       elseif(ifl.eq.3)then
-	 xt=(t11*(x-x0)+t12*(y-y0)+t13*(z-z0))
-	 yt=(t21*(x-x0)+t22*(y-y0)+t23*(z-z0))
-	 zt=t31*(x-x0)+t32*(y-y0)+t33*(z-z0)
+         xt=(t11*(x-x0)+t12*(y-y0)+t13*(z-z0))
+         yt=(t21*(x-x0)+t22*(y-y0)+t23*(z-z0))
+         zt=t31*(x-x0)+t32*(y-y0)+t33*(z-z0)
       elseif(ifl.eq.-1)then
 c Return current.
          xt=dx+x0
@@ -213,31 +232,31 @@ c transformed vector coordinates gave drwstr errors.
 
       if(ihiding.lt.0)then
 c calls within 1,2, or 3-planes, at position fixedn.
-	 if(ihiding.eq.-1)then
-	    call trn32(fixedn,px,py,x2,y2,z2,0)
-	 elseif(ihiding.eq.-2)then
-	    call trn32(py,fixedn,px,x2,y2,z2,0)
-	 elseif(ihiding.eq.-3)then
-	    call trn32(px,py,fixedn,x2,y2,z2,0)
-	 elseif(ihiding.eq.-4)then
-	    call trn32(fixedn,py,px,x2,y2,z2,0)
-	 elseif(ihiding.eq.-5)then
-	    call trn32(px,fixedn,py,x2,y2,z2,0)
-	 elseif(ihiding.eq.-6)then
-	    call trn32(py,px,fixedn,x2,y2,z2,0)
-	 else
-	    stop 'Unknown ihiding switch value'
-	 endif
-	 px=x2+xcbc2
-	 py=y2+ycbc2
-c	 x2=x2+xcbc2
-c	 y2=y2+ycbc2
-c	 sx=x2*scrxpix
-c	 sy=scrypix-y2*n2sy
+         if(ihiding.eq.-1)then
+            call trn32(fixedn,px,py,x2,y2,z2,0)
+         elseif(ihiding.eq.-2)then
+            call trn32(py,fixedn,px,x2,y2,z2,0)
+         elseif(ihiding.eq.-3)then
+            call trn32(px,py,fixedn,x2,y2,z2,0)
+         elseif(ihiding.eq.-4)then
+            call trn32(fixedn,py,px,x2,y2,z2,0)
+         elseif(ihiding.eq.-5)then
+            call trn32(px,fixedn,py,x2,y2,z2,0)
+         elseif(ihiding.eq.-6)then
+            call trn32(py,px,fixedn,x2,y2,z2,0)
+         else
+            stop 'Unknown ihiding switch value'
+         endif
+         px=x2+xcbc2
+         py=y2+ycbc2
+c        x2=x2+xcbc2
+c        y2=y2+ycbc2
+c        sx=x2*scrxpix
+c        sy=scrypix-y2*n2sy
       endif
 c standard call.
-      sx=(px*scrxpix)
-      sy=(scrypix-py*n2sy)
+      sx=int(px*scrxpix)
+      sy=int(scrypix-py*n2sy)
 c         write(*,*)'scrxpix,scrypix',scrxpix,scrypix
 c         write(*,*)'sx,sy,n2sy,px,py',sx,sy,n2sy,px,py
       end
@@ -248,33 +267,34 @@ c  Draw a vector in normalized coordinates.
       integer ud
       include 'plotcom.h'
       real*4 prx,pry,crx,cry
-      integer ret,sx,sy,ptrunc
+      integer ret,ret1,ret2,sx,sy,ptrunc
       crx=nx
       cry=ny
       if(ltlog)then
-	 prx=crsrx
-	 pry=crsry
-	 ret=ptrunc(prx,pry,crx,cry)
+         prx=crsrx
+         pry=crsry
+         ret=ptrunc(prx,pry,crx,cry)
          ret2=ret/16
          ret1=ret-16*ret2
-	 if(ret.ne.99)then
-	    if(ret1.gt.0)then
-	       call tn2s(prx,pry,sx,sy)
-	       if(pfsw.ge.0)call vec(sx,sy,0)
-	       if(pfsw.ne.0)call vecnp(prx,pry,0)
-	    endif 
+!         if(ret.ne.0)write(*,'(3i3,6f8.4)')ret,ret1,ret2,prx,pry,crx,cry
+         if(ret.ne.99)then
+            if(ret1.gt.0)then
+               call tn2s(prx,pry,sx,sy)
+               if(pfsw.ge.0) call vec(sx,sy,0)
+               if(pfsw.ne.0) call vecnp(prx,pry,0)
+            endif 
             call tn2s(crx,cry,sx,sy)
-	    if(pfsw.ge.0) call vec(sx,sy,ud)
-	    if(pfsw.ne.0) call vecnp(crx,cry,ud)
-	    if(ret2.gt.0)then
+            if(pfsw.ge.0) call vec(sx,sy,ud)
+            if(pfsw.ne.0) call vecnp(crx,cry,ud)
+            if(ret2.gt.0)then
 c End point moved. Break the line here.
-	       if(pfsw.ne.0)call vecnp(crx,cry,0)
-	    endif
-	 endif
+               if(pfsw.ne.0)call vecnp(crx,cry,0)
+            endif
+         endif
       else
-	 call tn2s(crx,cry,sx,sy)
-	 if(pfsw.ge.0) call vec(sx,sy,ud)
-	 if(pfsw.ne.0) call vecnp(crx,cry,ud)
+         call tn2s(crx,cry,sx,sy)
+         if(pfsw.ge.0) call vec(sx,sy,ud)
+         if(pfsw.ne.0) call vecnp(crx,cry,ud)
       endif
       crsrx=nx
       crsry=ny
@@ -287,20 +307,20 @@ C********************************************************************
 c   Turn on or off (if all args zero) truncation (windowing).
       trcxma=0.
       if(x1.eq.0.)then
-	 if(x2.eq.0.)then
-	    if(y1.eq.0.)then
-	       if(y2.eq.0.)then
-c Old action:	  ltlog=.false.
+         if(x2.eq.0.)then
+            if(y1.eq.0.)then
+               if(y2.eq.0.)then
+c Old action:     ltlog=.false.
 c New approach set truncation at the screen boundary plus20%, Not infinity.
                   ltlog=.true.
                   trcxmi=-.2
                   trcxma=1.2
                   trcymi=-.2
                   trcyma=yoverx*1.2
-		  return
-	       endif
-	    endif
-	 endif
+                  return
+               endif
+            endif
+         endif
       endif
       if(trcxma.eq.0.)then
          ltlog=.true.
@@ -313,7 +333,8 @@ c New approach set truncation at the screen boundary plus20%, Not infinity.
       end
 
 c**********************************************************************
-c*   Truncate within the rectangle given by xma,yma,xmi,ymi in trunc.
+c* Truncate within the rectangle given by trcxma,yma,xmi,ymi in trunc
+c* the vector xy1-xy2, returning them as the truncated ends.
 c* Return 99 if whole vector outside, 
 c* ptrunc bits 0-4 set if x1,y1 is moved; bits 5-7 set if x2,y2 moved
       function ptrunc(x1,y1,x2,y2)
@@ -327,64 +348,64 @@ c* ptrunc bits 0-4 set if x1,y1 is moved; bits 5-7 set if x2,y2 moved
       d1=trcxmi-x1
       d2=trcxmi-x2
       if(d1.gt.0)then
-	 if(d2.gt.0)then
-	    ptrunc=99
-	    return
-	 endif
-	 x1=trcxmi
-	 y1=(-d2* y1+d1* y2)/(d1-d2)
-	 ic=ic+1
+         if(d2.gt.0)then
+            ptrunc=99
+            return
+         endif
+         x1=trcxmi
+         y1=(-d2* y1+d1* y2)/(d1-d2)
+         ic=ic+1
       else if(d2.gt.0)then
-	 x2=trcxmi
-	 y2=(d2*y1-d1*y2)/(d2-d1)
+         x2=trcxmi
+         y2=(d2*y1-d1*y2)/(d2-d1)
          ic=ic+16
       endif
 
       d1=trcymi-y1
       d2=trcymi-y2
       if(d1.gt.0)then
-	 if(d2.gt.0)then
-	    ptrunc=99
-	    return
-	 endif
-	 y1=trcymi
-	 x1=(-d2*x1+d1*x2)/(d1-d2)
-	 ic=ic+1
+         if(d2.gt.0)then
+            ptrunc=99
+            return
+         endif
+         y1=trcymi
+         x1=(-d2*x1+d1*x2)/(d1-d2)
+         ic=ic+1
       else if(d2.gt.0)then
-	 y2=trcymi
-	 x2=(d2*x1-d1*x2)/(d2-d1)
+         y2=trcymi
+         x2=(d2*x1-d1*x2)/(d2-d1)
          ic=ic+16
       endif
 
       d1=x1-trcxma
       d2=x2-trcxma
       if(d1.gt.0)then
-	 if(d2.gt.0)then
-	    ptrunc=99
-	    return
-	 endif
-	 x1=trcxma
-	 y1=(-d2*y1+d1*y2)/(d1-d2)
-	 ic=ic+1
+         if(d2.gt.0)then
+            ptrunc=99
+            return
+         endif
+         x1=trcxma
+         y1=(-d2*y1+d1*y2)/(d1-d2)
+         ic=ic+1
       else if(d2.gt.0)then
-	 x2=trcxma
-	 y2=(d2*y1-d1*y2)/(d2-d1)
+         x2=trcxma
+         y2=(d2*y1-d1*y2)/(d2-d1)
          ic=ic+16
       endif
 
       d1=y1-trcyma
       d2=y2-trcyma
       if(d1.gt.0)then
-	 if(d2.gt.0)then
-	    ptrunc=99
-	    return
-	 endif
-	 y1=trcyma
-	 x1=(-d2*x1+d1*x2)/(d1-d2)
-	 ic=ic+1
+         if(d2.gt.0)then
+            ptrunc=99
+            return
+         endif
+         y1=trcyma
+         x1=(-d2*x1+d1*x2)/(d1-d2)
+         ic=ic+1
       else if(d2.gt.0)then
-	 y2=trcyma
-	 x2=(d2*x1-d1*x2)/(d2-d1)
+         y2=trcyma
+         x2=(d2*x1-d1*x2)/(d2-d1)
          ic=ic+16
       endif
       ptrunc=ic
@@ -392,4 +413,36 @@ c* ptrunc bits 0-4 set if x1,y1 is moved; bits 5-7 set if x2,y2 moved
       end
 
 
-
+c***************************************************************************
+        subroutine winset(wsw)
+        logical wsw
+      include 'plotcom.h'
+      if(wsw)then
+      call truncf(naxmin,naxmax,naymin,naymax)
+      else
+      call truncf(0.,0.,0.,0.)
+      endif
+      return
+      end
+c***************************************************************************
+      subroutine winsetmargin(wsw,themargin)
+      logical wsw
+      real themargin
+      include 'plotcom.h'
+      if(wsw)then
+         call truncf(naxmin+themargin,naxmax-themargin,naymin+themargin
+     $        ,naymax-themargin)
+      else
+      call truncf(0.,0.,0.,0.)
+      endif
+      return
+      end
+c**************************************************************************
+      subroutine scatterxy(x,y,n,istrd)
+c Do a scatter plot of points x,y vectors with stride istrd.
+      integer n,istrd
+      real x(n),y(n)
+      do i=0,n-1
+         call vecw(x(1+i*istrd),y(1+i*istrd),-1)
+      enddo
+      end

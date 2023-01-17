@@ -48,6 +48,7 @@ c Plot 3.
 c Use the built in response facility by calling with negative switch.
 c This will prompt for plotting to file.
 c      call pfset(-3)
+      call pfset(3)
 c Set to dashed line plotting, only polylines are dashed:
       call dashset(2)
 c Do a log autoplot of the arrays. x logarithmic, y linear.
@@ -90,7 +91,7 @@ c Plot 5 Simplest automatic scatter plot
 c Illustrating the use of a general character as the marker.
 	call automark(x,y,length,ichar('m'))
 c Overplot some error bars.
-	call polyerr(x,ym,err,length)
+	call polyerrs(x,y,err,length,.5,1.)
 	call pltend
 c
 c Plot 6 Multiple Frame Plot

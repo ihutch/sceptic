@@ -229,8 +229,11 @@ c         write(*,*)(rhotrap(k),k=1,nrhere)
      $        '   fave, debyelen,    Vp [icoln,colnwt]'
          write(15,'(2f8.5,f8.4,f8.3,f8.3,f12.5,f10.5,i4,e13.4)')
      $     dt,vd,Ti,rmax,fave,debyelen,vprobe,icolntype,colnwt
-         write(15,*)nrhere
-         write(15,'(2f12.5)')(rpic(jj),rhopic(jj),jj=1,nrhere)
+         write(15,*)nrhere,4
+         do jj=1,nrhere
+            write(15,*)rpic(jj),rhopic(jj),phipicsqrt(jj),phipicexp(jj)
+     $           ,rhotrap(jj)
+         enddo
          close(15)
       endif
 

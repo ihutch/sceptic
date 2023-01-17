@@ -7,7 +7,7 @@ c      real xcbc2,ycbc2,scbx3,scby3,scbx3,fixedn
 c      integer ihiding
 c      common/world3/xcbc2,ycbc2,scbx3,scby3,scbz3,
 c     $ wx3min,wx3max,w3nx,wy3min,wy3max,w3ny,wz3min,wz3max,w3nz,
-c     $	   fixedn,ihiding
+c     $    fixedn,ihiding
       real x,y,z
       integer iud
       real x2,y2,z2
@@ -60,19 +60,24 @@ c***********************************************************************
       subroutine w2scl3
       include 'plotcom.h'
       include 'world3.h'
+      integer nerr,nemax
+      data nerr/0/nemax/5/
       if(wx3max.eq.wx3min)then
-	 wx3max=wx3min+1.
-	 write(*,*)'W2SCL3: wxmin=wxmax error.',wx3max
+         wx3max=wx3min+1.
+         if(nerr.le.nemax)write(*,*)'W2SCL3: wxmin=wxmax error.',wx3max
+         nerr=nerr+1
       endif
       w3nx=scbx3*2./(wx3max-wx3min)
       if(wy3max.eq.wy3min)then
-	 wy3max=wy3min+1.
-	 write(*,*)'W2SCL3: wymin=wymax error.',wy3max
+         wy3max=wy3min+1.
+         if(nerr.le.nemax)write(*,*)'W2SCL3: wymin=wymax error.',wy3max
+         nerr=nerr+1
       endif
       w3ny=scby3*2./(wy3max-wy3min)
       if(wz3max.eq.wz3min)then
-	 wz3max=wz3min+1.
-	 write(*,*)'W2SCL3: wzmin=wzmax error.',wx3max
+         wz3max=wz3min+1.
+         if(nerr.le.nemax)write(*,*)'W2SCL3: wzmin=wzmax error.',wx3max
+         nerr=nerr+1
       endif
       w3nz=scbz3*2./(wz3max-wz3min)
       end
@@ -124,7 +129,7 @@ c      write(*,*)'xn,yn,zn',xn,yn,zn
       end
 c***********************************************************************
       subroutine nxyz2wxyz(xn,yn,zn,x,y,z)
-c Transform from world3 to normal3
+c Transform from normal3 to world3
       real x,y,z
       real xn,yn,zn
       include 'world3.h'
@@ -160,6 +165,8 @@ C********************************************************************
          scbn=scby3
       elseif(j.eq.3)then 
          scbn=scbz3
+      else
+         scbn=0.
       endif
       end
 C********************************************************************
@@ -217,65 +224,53 @@ c icorner=0 => omit none.
       include 'plotcom.h'
       include 'world3.h'
       integer ic,i,j,kx,ky,iu
-c      write(*,*)icorner
+c      write(*,*)'cubed call pfsw=',pfsw
 
 c Chop the top bits off icorner
       icorner=icin-(icin/8)*8
       ic=-sign((mod(abs(icorner)+1,4)+1),icorner)
 c      write(*,*)ic
       do 2 i=-1,1,2
-	 call hdprset(-3,i*scbz3)
-	 call vecn(-scbx3,-scby3,0)
-	 do 3 j=1,4
-	    kx=-1+mod((j+1)/2,2)*2
-	    ky=-1+mod((j/2),2)*2
-	    iu=1
+         call hdprset(-3,i*scbz3)
+         call vecn(-scbx3,-scby3,0)
+         do 3 j=1,4
+            kx=-1+mod((j+1)/2,2)*2
+            ky=-1+mod((j/2),2)*2
+            iu=1
             if(icorner.ne.0)then
-	    if(i*ic.gt.0)then
-	       if(j.eq.abs(ic).or.j.eq.(mod((abs(ic)+2),4)+1))then
-		  iu=0
-	       endif
-	    endif
+            if(i*ic.gt.0)then
+               if(j.eq.abs(ic).or.j.eq.(mod((abs(ic)+2),4)+1))then
+                  iu=0
+               endif
             endif
-	    call vecn(kx*scbx3,ky*scby3,iu)
-    3	 continue
+            endif
+            call vecn(kx*scbx3,ky*scby3,iu)
+    3    continue
     2 continue
       ic=abs(icorner)
       do 1 i=-1,1,2
-	 call hdprset(-1,i*scbx3)
-	 call vecn(scby3,-scbz3,0)
-	 if((ic.eq.1.and.i.eq.1).or.(ic.eq.2.and.i.eq.-1))then
-c	 call hidvecn(scby3,scbz3,1)
-	 else
-	    call vecn(scby3,scbz3,1)
-	 endif
-	 call vecn(-scby3,scbz3,0)
-	 if((ic.eq.3.and.i.eq.-1).or.(ic.eq.4.and.i.eq.1))then
-c	 call hidvecn(-scby3,-scbz3,1)
-	 else
-	    call vecn(-scby3,-scbz3,1)
-	 endif
+         call hdprset(-1,i*scbx3)
+         call vecn(scby3,-scbz3,0)
+         if((ic.eq.1.and.i.eq.1).or.(ic.eq.2.and.i.eq.-1))then
+c        call hidvecn(scby3,scbz3,1)
+         else
+            call vecn(scby3,scbz3,1)
+         endif
+         call vecn(-scby3,scbz3,0)
+         if((ic.eq.3.and.i.eq.-1).or.(ic.eq.4.and.i.eq.1))then
+c        call hidvecn(-scby3,-scbz3,1)
+         else
+            call vecn(-scby3,-scbz3,1)
+         endif
     1 continue
       call hdprset(0,0.)
+c      write(*,*)'cubed ending pfsw=',pfsw
       end
 c***********************************************************************
 c Version that finds the right corner to hide lines from.
-      subroutine cubeproj()
-      call geteye(x2,y2,z2)
-      if(y2.le.0.)then 
-         if(x2.le.0.)then
-            icorner=1
-         else
-            icorner=2
-         endif
-      else
-         if(x2.le.0.)then
-            icorner=4
-         else
-            icorner=3
-         endif
-      endif
-      if(z2.lt.0.)icorner=-icorner
+c And returns it to caller.
+      subroutine cubeproj(icorner)
+      icorner=igetcubecorner()
       call cubed(icorner)
       end
 c***********************************************************************
@@ -298,11 +293,11 @@ c Draw projected axes using the current projection according to ic.
       real fixd
       integer ica,i1,i2
       integer ixc(0:5),iyc(0:5)
+      parameter (rozmin=.2)
       logical flip,xhoriz,yhoriz,ltem
       data ixc/-1,-1,1,1,-1,-1/iyc/1,-1,-1,1,1,-1/
 c
       
-      call ticnumget(inticnum)
       yhoriz=(ic/64 - (ic/128)*2) .eq.0
       xhoriz=(ic/32 - (ic/64)*2) .eq.0
       flip=(ic/16 - (ic/32)*2) .ne.0
@@ -313,67 +308,76 @@ c Draw y-axis - to + if corner 1 unflipped, or 2, or 3 flipped.
 c Else + to -. Parallel labels if 1fl,2un,3fl,4un. 
 c Ticrev if perp and 2 or 4
 c At -scbx3 if 1 or 4, else +
-	 call hdprset(-3,-scbz3)
-	 ltem=(flip.eqv.(mod(ica,2).eq.1))
-	 if(.not.ltem.and.(ica.eq.4.or.ica.eq.2))call ticrev()
-	 if(ica.eq.2 .or.(ica.eq.1.and..not.flip)
-     $		 .or.(ica.eq.3.and.flip))then
-	    call gaxis(wy3min,wy3max,ngpow,0.,0.,
-     $	 ixc(ica)*scbx3,ixc(ica)*scbx3,-scby3, scby3,
+         call hdprset(-3,-scbz3)
+         ltem=(flip.eqv.(mod(ica,2).eq.1))
+         if(.not.ltem.and.(ica.eq.4.or.ica.eq.2))call ticrev()
+         if(ica.eq.2 .or.(ica.eq.1.and..not.flip)
+     $           .or.(ica.eq.3.and.flip))then
+            call gaxis(wy3min,wy3max,ngpow,0.,0.,
+     $   ixc(ica)*scbx3,ixc(ica)*scbx3,-scby3, scby3,
      $   ltem,.false.)
-	 else
-	    call gaxis(wy3max,wy3min,ngpow,0.,0.,
-     $	 ixc(ica)*scbx3,ixc(ica)*scbx3, scby3,-scby3,
+         else
+            call gaxis(wy3max,wy3min,ngpow,0.,0.,
+     $   ixc(ica)*scbx3,ixc(ica)*scbx3, scby3,-scby3,
      $   ltem,.false.)
-	 endif
-	 if(.not.ltem.and.(ica.eq.4.or.ica.eq.2))call ticrev()
+         endif
+         if(.not.ltem.and.(ica.eq.4.or.ica.eq.2))call ticrev()
       else
-	 if(ixc(ica).eq.1)then
+         if(ixc(ica).eq.1)then
 c corner 2 or 3 
 c Vertical. Draw y axis from - to + , as an x-axis
-	    call hdprset(-1,scbx3)
-	    call gaxis(wy3min,wy3max,ngpow,0.,0.,
-     $	   -scby3,scby3,-scbz3,-scbz3,.true.,.false.)
-	 else
+            call hdprset(-1,scbx3)
+            call gaxis(wy3min,wy3max,ngpow,0.,0.,
+     $     -scby3,scby3,-scbz3,-scbz3,.true.,.false.)
+         else
 c corner 1 or 4 Draw y axis from + to - , as a y-axis
-	 call hdprset(-4,-scbx3)
-	 call gaxis(wy3max,wy3min,ngpow,0.,0.,
-     $	   -scbz3,-scbz3,scby3,-scby3,.true.,.false.)
-	 endif
+         call hdprset(-4,-scbx3)
+         call gaxis(wy3max,wy3min,ngpow,0.,0.,
+     $     -scbz3,-scbz3,scby3,-scby3,.true.,.false.)
+         endif
       endif
       if(xhoriz)then
 c Draw x-axis - to + if corner 1, or 2fl, or 4 un.
 c Else + to -. Parallel labels if 1un,2fl,3un,4fl. 
 c Ticrev if perp and 1 or 3
 c At -scby3 if 1 or 2, else +
-	 call hdprset(-3,-scbz3)
-	 ltem=(flip.neqv.(mod(ica,2).eq.1))
-	 if(.not.ltem.and.(ica.eq.3.or.ica.eq.1))call ticrev()
-	 if(ica.eq.1 .or.(ica.eq.4.and..not.flip)
-     $		 .or.(ica.eq.2.and.flip))then
-	    call gaxis(wx3min,wx3max,ngpow,0.,0.,
-     $	 -scbx3, scbx3,iyc(ica)*scby3,iyc(ica)*scby3,
+         call hdprset(-3,-scbz3)
+         ltem=(flip.neqv.(mod(ica,2).eq.1))
+         if(.not.ltem.and.(ica.eq.3.or.ica.eq.1))call ticrev()
+         if(ica.eq.1 .or.(ica.eq.4.and..not.flip)
+     $           .or.(ica.eq.2.and.flip))then
+            call gaxis(wx3min,wx3max,ngpow,0.,0.,
+     $   -scbx3, scbx3,iyc(ica)*scby3,iyc(ica)*scby3,
      $   ltem,.false.)
-	 else
-	    call gaxis(wx3max,wx3min,ngpow,0.,0.,
-     $	  scbx3,-scbx3,iyc(ica)*scby3,iyc(ica)*scby3,
+         else
+            call gaxis(wx3max,wx3min,ngpow,0.,0.,
+     $    scbx3,-scbx3,iyc(ica)*scby3,iyc(ica)*scby3,
      $   ltem,.false.)
-	 endif
-	 if(.not.ltem.and.(ica.eq.3.or.ica.eq.1))call ticrev()
+         endif
+         if(.not.ltem.and.(ica.eq.3.or.ica.eq.1))call ticrev()
       else
-	 if(ica.le.2)then
+         if(ica.le.2)then
 c corner 1 or 2 draw x-axis - to + as an x-axis
-	 call hdprset(-5,-scby3)
-	 call gaxis(wx3min,wx3max,ngpow,0.,0.,
-     $	   -scbx3,scbx3,-scbz3,-scbz3,.true.,.false.)
-	 else
+         call hdprset(-5,-scby3)
+         call gaxis(wx3min,wx3max,ngpow,0.,0.,
+     $     -scbx3,scbx3,-scbz3,-scbz3,.true.,.false.)
+         else
 c corner 3 or 4 draw x-axis + to - as a y-axis
-	 call hdprset(-2,scby3)
-	 call gaxis(wx3max,wx3min,ngpow,0.,0.,
-     $	   -scbz3,-scbz3,scbx3,-scbx3,.true.,.false.)
-	 endif
+         call hdprset(-2,scby3)
+         call gaxis(wx3max,wx3min,ngpow,0.,0.,
+     $     -scbz3,-scbz3,scbx3,-scbx3,.true.,.false.)
+         endif
       endif
 c z- axis.
+c Get eye position for deciding if we plot z-axis
+      call trn32(xdum,ydum,zdum,x2,y2,z2,-1)
+      r2=sqrt(x2**2+y2**2)
+      if(z2.ne.0)then
+         roz=r2/z2
+      else
+         roz=1000.
+      endif
+      if(abs(roz).gt.rozmin)then
       i2=1
       if(ica.le.2)i2=-i2
       if(ica.eq.3.and..not.flip)i2=-i2
@@ -381,29 +385,30 @@ c z- axis.
       i1=ica
       if(flip)i1=i1-1
       if(i1.ne.1.and.i1.ne.3)then
-	 fixd=i2*scbx3
-	 if(i1.eq.2)then
-	    call hdprset(-1,fixd)
-	    call gaxis(wz3min,wz3max,ngpow,0.,0.
-     $	   ,-scby3,-scby3,-scbz3,scbz3,.false.,.false.)
-	 else
-c	 i1=0 or 4.
-	    call hdprset(-4,fixd)
-	    call gaxis(wz3min,wz3max,ngpow,0.,0.
-     $	   ,-scbz3,scbz3,scby3,scby3,.false.,.false.)
-	 endif
+         fixd=i2*scbx3
+         if(i1.eq.2)then
+            call hdprset(-1,fixd)
+            call gaxis(wz3min,wz3max,ngpow,0.,0.
+     $     ,-scby3,-scby3,-scbz3,scbz3,.false.,.false.)
+         else
+c        i1=0 or 4.
+            call hdprset(-4,fixd)
+            call gaxis(wz3min,wz3max,ngpow,0.,0.
+     $     ,-scbz3,scbz3,scby3,scby3,.false.,.false.)
+         endif
       else
-	 fixd=i2*scby3
-	 if(i1.eq.1)then
-	    call hdprset(-5,fixd)
-	    call gaxis(wz3min,wz3max,ngpow,0.,0.
-     $	   ,-scbx3,-scbx3,-scbz3,scbz3,.false.,.false.)
-	 else
-c	 i1=3
-	    call hdprset(-2,fixd)
-	    call gaxis(wz3min,wz3max,ngpow,0.,0.
-     $	   ,-scbz3,scbz3,scbx3,scbx3,.false.,.false.)
-	 endif
+         fixd=i2*scby3
+         if(i1.eq.1)then
+            call hdprset(-5,fixd)
+            call gaxis(wz3min,wz3max,ngpow,0.,0.
+     $     ,-scbx3,-scbx3,-scbz3,scbz3,.false.,.false.)
+         else
+c        i1=3
+            call hdprset(-2,fixd)
+            call gaxis(wz3min,wz3max,ngpow,0.,0.
+     $     ,-scbz3,scbz3,scbx3,scbx3,.false.,.false.)
+         endif
+      endif
       endif
       call hdprset(0,0.)
       end
@@ -431,5 +436,55 @@ c Write eye.
       write(2,*)x2,y2,z2
       close(2)
  99   continue
- 98   continue
+      end
+c********************************************************************
+c Return the nearest corner to eye in standard convention.
+      function igetcorner()
+c This was wrong. geteye reads the eyefile.
+c      call geteye(x2,y2,z2)
+      call trn32(xdum,ydum,zdum,x2,y2,z2,-1)
+      if(y2.le.0.)then 
+         if(x2.le.0.)then
+            icorner=1
+         else
+            icorner=2
+         endif
+      else
+         if(x2.le.0.)then
+            icorner=4
+         else
+            icorner=3
+         endif
+      endif
+c      write(*,*)'x2,y2,z2',x2,y2,z2,mod(icorner,2)
+c If appropriate tell axproj to flip labels.
+      if(abs(x2).gt.abs(y2).eqv.(mod(icorner,2).ne.0))
+     $     icorner=icorner+16
+c If appropriate use vertical labels
+c        if(z2*z2.lt.x2*x2) icorner=icorner+32
+c Trying for better results.
+      xy2i=min(x2**2,y2**2)
+      if(z2*z2.lt.xy2i+.2*y2**2) icorner=icorner+32
+      if(z2*z2.lt.xy2i+.2*x2**2) icorner=icorner+64
+      igetcorner=icorner
+      end
+c********************************************************************
+c Return the nearest corner to eye for use with cubed
+      function igetcubecorner()
+      call trn32(xdum,ydum,zdum,x2,y2,z2,-1)
+      if(y2.le.0.)then 
+         if(x2.le.0.)then
+            icorner=1
+         else
+            icorner=2
+         endif
+      else
+         if(x2.le.0.)then
+            icorner=4
+         else
+            icorner=3
+         endif
+      endif
+      if(z2.lt.0)icorner=-icorner
+      igetcubecorner=icorner
       end

@@ -644,7 +644,8 @@ c     Plot radial average velocity and temperatures.
                call vdiagsout(.false.)
                call vdiagsin(.false.)
             endif
-            call accisrefresh()
+c            call accisrefresh()
+            call accisflush()
          endif
 
 c     Main particle advance, including collisions.
